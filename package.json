@@ -1,0 +1,15 @@
+{
+  "name": "plane-asr",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "debug": "dbus-run-session gnome-shell --devkit --wayland"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
