@@ -1,4 +1,4 @@
-/* extension.js
+/* extension.ts
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,40 +17,49 @@
  */
 
 import GObject from 'gi://GObject';
+import Gio from 'gi://Gio';
 import St from 'gi://St';
 
-import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const Indicator = GObject.registerClass(
-class Indicator extends PanelMenu.Button {
+  class Indicator extends PanelMenu.Button {
     _init() {
-        super._init(0.0, _('My Shiny Indicator'));
+      super._init(0.0, _('My Shiny Indicator'));
 
-        this.add_child(new St.Icon({
-            icon_name: 'face-smile-symbolic',
-            style_class: 'system-status-icon',
-        }));
+      this.add_child(
+        new St.Icon({
+          icon_name: 'face-smile-symbolic',
+          style_class: 'system-status-icon',
+        }),
+      );
 
-        const item = new PopupMenu.PopupMenuItem(_('Show Notification'));
-        item.connect('activate', () => {
-            Main.notify(_('Whatʼs up, folks?'));
-        });
-        this.menu.addMenuItem(item);
+      const item = new PopupMenu.PopupMenuItem(_('Show Notification'));
+      item.connect('activate', () => {
+        Main.notify(_('Whatʼs up, folks?'));
+      });
+      (this.menu as PopupMenu.PopupMenu).addMenuItem(item);
     }
-});
+  },
+);
 
-export default class IndicatorExampleExtension extends Extension {
-    enable() {
-        this._indicator = new Indicator();
-        Main.panel.addToStatusArea(this.uuid, this._indicator);
-    }
+export default class PlaneAsrExtension extends Extension {
+  _indicator?: InstanceType<typeof Indicator>;
+  _settings?: Gio.Settings;
 
-    disable() {
-        this._indicator.destroy();
-        this._indicator = null;
-    }
+  enable() {
+    this._settings = this.getSettings();
+
+    this._indicator = new Indicator();
+    Main.panel.addToStatusArea(this.uuid, this._indicator);
+  }
+
+  disable() {
+    this._indicator?.destroy();
+    this._indicator = undefined;
+    this._settings = undefined;
+  }
 }

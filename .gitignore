@@ -1,10 +1,14 @@
-# dependencies (bun install)
+# dependencies
 node_modules
 
 # output
 out
 dist
 *.tgz
+*.zip
+
+# compiled schemas
+schemas/gschemas.compiled
 
 # code coverage
 coverage

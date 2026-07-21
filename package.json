@@ -1,15 +1,32 @@
 {
   "name": "plane-asr",
-  "module": "index.ts",
+  "version": "0.0.0",
+  "description": "A TypeScript GNOME Shell extension",
   "type": "module",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wfpaisa/plane-asr.git"
+  },
+  "author": "Felipe Uribe",
+  "license": "GPL-2.0-or-later",
+  "bugs": {
+    "url": "https://github.com/wfpaisa/plane-asr/issues"
+  },
+  "homepage": "https://github.com/wfpaisa/plane-asr#readme",
+  "sideEffects": false,
   "scripts": {
+    "build": "tsc",
+    "pack": "make pack",
+    "install": "make install",
+    "setup": "make all && make pack && make install",
     "debug": "dbus-run-session gnome-shell --devkit --wayland"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "typescript": "^5.9.3"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "dependencies": {
+    "@girs/gjs": "^4.1.0",
+    "@girs/gnome-shell": "^50.0.4"
   }
 }
