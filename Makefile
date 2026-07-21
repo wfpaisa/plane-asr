@@ -11,7 +11,9 @@ all: dist/extension.js
 node_modules/.modules.yaml: package.json
 	pnpm install
 
-dist/extension.js dist/prefs.js: node_modules/.modules.yaml *.ts
+TS_SOURCES := extension.ts prefs.ts $(wildcard src/**/*.ts)
+
+dist/extension.js dist/prefs.js: node_modules/.modules.yaml $(TS_SOURCES)
 	pnpm run build
 
 schemas/gschemas.compiled: schemas/org.gnome.shell.extensions.$(NAME).gschema.xml

@@ -1,8 +1,8 @@
 {
-  "name": "plane-asr",
-  "description": "asr local",
-  "uuid": "planeasr@wfelipe.com",
-  "url": "https://github.com/wfpaisa/plane-asr",
-  "settings-schema": "org.gnome.shell.extensions.planeasr",
-  "shell-version": ["50"]
+    "name": "plane-asr",
+    "description": "asr local",
+    "uuid": "planeasr@wfelipe.com",
+    "url": "https://github.com/wfpaisa/plane-asr",
+    "settings-schema": "org.gnome.shell.extensions.planeasr",
+    "shell-version": ["50"]
 }
