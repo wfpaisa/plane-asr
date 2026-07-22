@@ -10,13 +10,13 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {SETTINGS_KEYS} from '../config/settings.js';
-import {Recorder} from './recorder.js';
-import {Transcriber} from './transcriber.js';
-import {copyToClipboard, pasteAtCursor} from '../util/paste.js';
+import { SETTINGS_KEYS } from '../config/settings.js';
+import { Recorder } from './recorder.js';
+import { Transcriber } from './transcriber.js';
+import { copyToClipboard, pasteAtCursor } from '../util/paste.js';
 
 /** Coarse lifecycle states surfaced to the UI. */
 export enum AsrState {
@@ -88,6 +88,7 @@ export class AsrService {
         } else if (this._state === AsrState.Transcribing) {
             this._transcriber.forceExit();
         }
+        this._currentAudioPath = null;
         this._setState(AsrState.Idle);
     }
 
@@ -109,23 +110,23 @@ export class AsrService {
 
         const audioPath = this._newAudioPath();
         this._currentAudioPath = audioPath;
-        this._settings.set_string(SETTINGS_KEYS.LAST_AUDIO_PATH, audioPath);
 
         try {
             this._recorder.start(audioPath);
             this._setState(AsrState.Recording);
         } catch (e) {
             this._currentAudioPath = null;
-            this._setState(AsrState.Idle, {error: this._errMsg(e)});
+            this._setState(AsrState.Idle, { error: this._errMsg(e) });
         }
     }
 
     private async _stopAndTranscribe(): Promise<void> {
         const audioPath = this._currentAudioPath;
+        this._currentAudioPath = null;
         try {
             await this._recorder.stop();
         } catch (e) {
-            this._setState(AsrState.Idle, {error: this._errMsg(e)});
+            this._setState(AsrState.Idle, { error: this._errMsg(e) });
             return;
         }
 
@@ -133,6 +134,9 @@ export class AsrService {
             this._setState(AsrState.Idle);
             return;
         }
+
+        // The WAV is finalized now, so record it as the openable "last audio".
+        this._settings.set_string(SETTINGS_KEYS.LAST_AUDIO_PATH, audioPath);
 
         this._setState(AsrState.Transcribing);
         try {
@@ -142,23 +146,28 @@ export class AsrService {
                 return;
             }
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, result.text);
-            this._dispatch(result.text);
-            Main.notify(_('Plane ASR: transcription copied'));
-            this._setState(AsrState.Idle, {text: result.text});
+            const pasted = this._dispatch(result.text);
+            Main.notify(
+                pasted
+                    ? _('Plane ASR: transcription pasted')
+                    : _('Plane ASR: transcription copied')
+            );
+            this._setState(AsrState.Idle, { text: result.text });
         } catch (e) {
-            this._setState(AsrState.Idle, {error: this._errMsg(e)});
+            this._setState(AsrState.Idle, { error: this._errMsg(e) });
         }
     }
 
     // -- helpers -----------------------------------------------------------
 
-    private _dispatch(text: string): void {
+    private _dispatch(text: string): boolean {
         const mode = this._settings.get_string('output-mode');
         if (mode === 'paste') {
             pasteAtCursor(text);
-        } else {
-            copyToClipboard(text);
+            return true;
         }
+        copyToClipboard(text);
+        return false;
     }
 
     private _setState(state: AsrState, ctx?: AsrChangeContext): void {

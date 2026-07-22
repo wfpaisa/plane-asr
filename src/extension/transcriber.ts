@@ -9,7 +9,8 @@
 
 import Gio from 'gi://Gio';
 
-import {getBackend, type BuildArgvOptions} from './asr-backends.js';
+import { SETTINGS_KEYS } from '../config/settings.js';
+import { getBackend, type BuildArgvOptions } from './asr-backends.js';
 
 /** Resolved by `Transcriber.transcribe` when the process exits. */
 export interface TranscribeResult {
@@ -17,6 +18,24 @@ export interface TranscribeResult {
     text: string;
     /** The exit was the result of an external `force_exit()` call. */
     cancelled: boolean;
+}
+
+/**
+ * Extract the transcription from a CLI run.
+ *
+ * Some backends (e.g. transcribe-cli) print a human-readable report where the
+ * transcription sits on a `text: <...>` line surrounded by diagnostics such as
+ * `audio:`, `samples:`, `detected-language:`. When that marker is present it is
+ * authoritative; otherwise the raw stdout is returned verbatim, which matches
+ * CLIs that emit only the transcription.
+ */
+function extractTranscription(stdout: string, stderr: string): string {
+    const marker = /^text:[ \t]*(.*)$/m;
+    for (const stream of [stdout, stderr]) {
+        const m = stream.match(marker);
+        if (m) return m[1].trim();
+    }
+    return stdout.trim();
 }
 
 /**
@@ -82,22 +101,27 @@ export class Transcriber {
                 this._proc = null;
                 if (this._wasForced) {
                     // `force_exit()` was requested before the callback fired.
-                    resolve({text: '', cancelled: true});
+                    resolve({ text: '', cancelled: true });
                     return;
                 }
                 try {
                     const [, stdout, stderr] = proc.communicate_utf8_finish(res);
                     const ok = proc.get_successful();
-                    // Diagnostic: log argv, exit status and captured streams so
-                    // failures can be traced in `journalctl --user -b
-                    // /usr/bin/gnome-shell`. Remove once stable.
-                    console.warn(
-                        `[planeasr] argv=${JSON.stringify(argv)} ` +
+                    // Optional diagnostic dump: argv, exit status and both
+                    // captured streams. Gated behind the "Debug logging"
+                    // preference; read it with:
+                    //   journalctl --user -b /usr/bin/gnome-shell | grep planeasr
+                    if (
+                        this._settings.get_boolean(SETTINGS_KEYS.DEBUG_LOGGING)
+                    ) {
+                        console.warn(
+                            `[planeasr] argv=${JSON.stringify(argv)} ` +
                             `success=${ok} ` +
                             `exit=${proc.get_exit_status()} ` +
                             `stdout=${JSON.stringify(stdout ?? '')} ` +
                             `stderr=${JSON.stringify(stderr ?? '')}`
-                    );
+                        );
+                    }
                     if (!ok) {
                         // Exit code != 0 (or signal). The CLIs write their
                         // diagnostics to stderr, so include it verbatim — this
@@ -105,10 +129,13 @@ export class Transcriber {
                         const detail = (stderr ?? '').trim();
                         throw new Error(
                             detail ||
-                                `Child process exited with code ${proc.get_exit_status()}`
+                            `Child process exited with code ${proc.get_exit_status()}`
                         );
                     }
-                    resolve({text: (stdout ?? '').trim(), cancelled: false});
+                    resolve({
+                        text: extractTranscription(stdout ?? '', stderr ?? ''),
+                        cancelled: false,
+                    });
                 } catch (e) {
                     reject(e);
                 }

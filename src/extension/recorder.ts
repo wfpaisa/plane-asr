@@ -65,14 +65,19 @@ export class Recorder {
             // If signaling fails we still want to await termination.
         }
 
-        return new Promise((resolve, reject) => {
-            proc.wait_check_async(null, (_self, res) => {
+        return new Promise(resolve => {
+            proc.wait_async(null, (_self, res) => {
                 try {
-                    proc.wait_check_finish(res);
-                    resolve();
+                    // We deliberately SIGINT the recorder to finalize the WAV,
+                    // so a non-zero exit (or death by our own signal) is the
+                    // expected outcome — `wait_finish` only reaps the process
+                    // without validating its status, unlike `wait_check_*`.
+                    proc.wait_finish(res);
                 } catch (e) {
-                    reject(e);
+                    // Only genuine wait failures (e.g. cancellation) land here.
+                    logError(e as object);
                 }
+                resolve();
             });
         });
     }

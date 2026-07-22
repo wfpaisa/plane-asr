@@ -9,11 +9,6 @@
 
 /** Keys defined in schemas/org.gnome.shell.extensions.planeasr.gschema.xml. */
 export const SETTINGS_KEYS = {
-    /** Whether the extension's animated feedback is enabled (boolean). */
-    ANIMATE: 'animate',
-    /** Inner spacing, in pixels, used by the panel indicator UI (int). */
-    PADDING_INNER: 'padding-inner',
-
     /** Id of the active ASR backend preset (string). */
     ASR_BACKEND: 'asr-backend',
     /** Absolute path to the transcription CLI binary (string). */
@@ -35,6 +30,9 @@ export const SETTINGS_KEYS = {
 
     /** Global keybinding that toggles recording (string array). */
     TOGGLE_RECORD_SHORTCUT: 'toggle-record-shortcut',
+
+    /** Whether to log ASR diagnostics to the system journal (boolean). */
+    DEBUG_LOGGING: 'debug-logging',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];
