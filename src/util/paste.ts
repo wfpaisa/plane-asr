@@ -18,46 +18,57 @@ const RESTORE_DELAY_MS = 300;
  * Paste `text` at the current cursor position by temporarily hijacking the
  * clipboard and synthesizing a Ctrl+V keypress with a virtual keyboard.
  *
- * No-op when `text` is empty.
+ * Resolves only after the previous clipboard contents have been restored, so a
+ * caller pasting several chunks in sequence can `await` each one without the
+ * Ctrl+V injections or clipboard writes overlapping. No-op (resolves
+ * immediately) when `text` is empty.
  */
-export function pasteAtCursor(text: string): void {
-    if (!text) return;
+export function pasteAtCursor(text: string): Promise<void> {
+    if (!text) return Promise.resolve();
 
-    const clipboard = St.Clipboard.get_default();
-    clipboard.get_text(St.ClipboardType.CLIPBOARD, (cb, previousText) => {
-        cb.set_text(St.ClipboardType.CLIPBOARD, text);
+    return new Promise<void>(resolve => {
+        const clipboard = St.Clipboard.get_default();
+        clipboard.get_text(St.ClipboardType.CLIPBOARD, (cb, previousText) => {
+            cb.set_text(St.ClipboardType.CLIPBOARD, text);
 
-        const seat = Clutter.get_default_backend().get_default_seat();
-        const keyboard = seat.create_virtual_device(
-            Clutter.InputDeviceType.KEYBOARD_DEVICE
-        );
+            const seat = Clutter.get_default_backend().get_default_seat();
+            const keyboard = seat.create_virtual_device(
+                Clutter.InputDeviceType.KEYBOARD_DEVICE
+            );
 
-        // notify_keyval expects microseconds; get_current_event_time() is ms.
-        const timeUs = Clutter.get_current_event_time() * 1000;
+            // notify_keyval expects microseconds; get_current_event_time() is ms.
+            const timeUs = Clutter.get_current_event_time() * 1000;
 
-        keyboard.notify_keyval(
-            timeUs,
-            Clutter.KEY_Control_L,
-            Clutter.KeyState.PRESSED
-        );
-        keyboard.notify_keyval(timeUs, Clutter.KEY_v, Clutter.KeyState.PRESSED);
-        keyboard.notify_keyval(
-            timeUs,
-            Clutter.KEY_v,
-            Clutter.KeyState.RELEASED
-        );
-        keyboard.notify_keyval(
-            timeUs,
-            Clutter.KEY_Control_L,
-            Clutter.KeyState.RELEASED
-        );
+            keyboard.notify_keyval(
+                timeUs,
+                Clutter.KEY_Control_L,
+                Clutter.KeyState.PRESSED
+            );
+            keyboard.notify_keyval(
+                timeUs,
+                Clutter.KEY_v,
+                Clutter.KeyState.PRESSED
+            );
+            keyboard.notify_keyval(
+                timeUs,
+                Clutter.KEY_v,
+                Clutter.KeyState.RELEASED
+            );
+            keyboard.notify_keyval(
+                timeUs,
+                Clutter.KEY_Control_L,
+                Clutter.KeyState.RELEASED
+            );
 
-        // Restore whatever the user had copied before we overwrote it.
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, RESTORE_DELAY_MS, () => {
-            if (previousText) {
-                cb.set_text(St.ClipboardType.CLIPBOARD, previousText);
-            }
-            return GLib.SOURCE_REMOVE;
+            // Restore whatever the user had copied before we overwrote it, then
+            // resolve so sequential pastes don't race each other.
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, RESTORE_DELAY_MS, () => {
+                if (previousText) {
+                    cb.set_text(St.ClipboardType.CLIPBOARD, previousText);
+                }
+                resolve();
+                return GLib.SOURCE_REMOVE;
+            });
         });
     });
 }

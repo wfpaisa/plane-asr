@@ -220,7 +220,9 @@ export const Indicator = GObject.registerClass(
                     break;
                 case AsrState.Transcribing:
                     this._icon.icon_name = 'content-loading-symbolic';
-                    this._recordItem.label.text = _('Cancel transcription');
+                    this._recordItem.label.text = ctx?.progress
+                        ? _('Transcribing %s').format(ctx.progress)
+                        : _('Cancel transcription');
                     break;
             }
 

@@ -20,6 +20,11 @@ export const SETTINGS_KEYS = {
     /** Argument template used when backend === 'custom' (string). */
     CUSTOM_ARG_TEMPLATE: 'custom-arg-template',
 
+    /** Whether to split long recordings into chunks before transcription (boolean). */
+    CHUNK_ENABLED: 'chunk-enabled',
+    /** Chunk length in seconds when `chunk-enabled` is true (int). */
+    CHUNK_SECONDS: 'chunk-seconds',
+
     /** Where to send transcribed text: 'clipboard' or 'paste' (string). */
     OUTPUT_MODE: 'output-mode',
 

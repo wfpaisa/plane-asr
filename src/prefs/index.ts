@@ -317,6 +317,38 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             shortcutRow(settings, SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT, window)
         );
 
+        // -- Long recordings ----------------------------------------------
+        const chunkGroup = new Adw.PreferencesGroup({
+            title: _('Long recordings'),
+            description: _(
+                'Transcribe live in N-second chunks while you keep ' +
+                'speaking, so the first words are pasted right away and ' +
+                'backends with a per-call generation cap ' +
+                '(e.g. Qwen3-ASR at 256 tokens) do not truncate the output.'
+            ),
+        });
+        page.add(chunkGroup);
+
+        const chunkEnabledRow = new Adw.SwitchRow({
+            title: _('Live chunked transcription'),
+            subtitle: _('Process each N-second chunk as you speak'),
+        });
+        chunkGroup.add(chunkEnabledRow);
+
+        const chunkSecondsRow = new Adw.SpinRow({
+            title: _('Seconds per chunk'),
+            subtitle: _('Lower values are safer for models that cap output tokens'),
+            adjustment: new Gtk.Adjustment({
+                lower: 5,
+                upper: 60,
+                step_increment: 1,
+                page_increment: 5,
+                value: 10,
+            }),
+            digits: 0,
+        });
+        chunkGroup.add(chunkSecondsRow);
+
         // -- Debug ---------------------------------------------------------
         const debugGroup = new Adw.PreferencesGroup({
             title: _('Debug'),
@@ -392,6 +424,31 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             customTemplateRow.entry,
             'text',
             Gio.SettingsBindFlags.DEFAULT
+        );
+
+        settings.bind(
+            SETTINGS_KEYS.CHUNK_ENABLED,
+            chunkEnabledRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        settings.bind(
+            SETTINGS_KEYS.CHUNK_SECONDS,
+            chunkSecondsRow,
+            'value',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        // Disable the seconds row when chunking is off; keep it in sync if the
+        // key changes from elsewhere (e.g. gsettings CLI).
+        const syncChunkSensitivity = () => {
+            chunkSecondsRow.sensitive = settings.get_boolean(
+                SETTINGS_KEYS.CHUNK_ENABLED
+            );
+        };
+        syncChunkSensitivity();
+        settings.connect(
+            `changed::${SETTINGS_KEYS.CHUNK_ENABLED}`,
+            syncChunkSensitivity
         );
 
         outputRow.selected = Math.max(
