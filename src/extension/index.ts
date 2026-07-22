@@ -19,25 +19,54 @@
  */
 
 import Gio from 'gi://Gio';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import {SETTINGS_KEYS} from '../config/settings.js';
+import {AsrService} from './asr-service.js';
 import {Indicator} from './indicator.js';
 
 export default class PlaneAsrExtension extends Extension {
     _indicator?: InstanceType<typeof Indicator>;
     _settings?: Gio.Settings;
+    _service?: AsrService;
 
     enable() {
         this._settings = this.getSettings();
 
         this._indicator = new Indicator();
         this._indicator.extension = this;
+
+        this._service = new AsrService(this._settings, (state, ctx) =>
+            this._indicator?.onStateChanged(state, ctx)
+        );
+        this._indicator.service = this._service;
+        this._indicator.bind(this._settings);
+
         Main.panel.addToStatusArea(this.uuid, this._indicator);
+
+        Main.wm.addKeybinding(
+            SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT,
+            this._settings,
+            Meta.KeyBindingFlags.NONE,
+            Shell.ActionMode.ALL,
+            () => {
+                this._service?.toggle();
+            }
+        );
     }
 
     disable() {
+        if (this._settings) {
+            Main.wm.removeKeybinding(SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT);
+        }
+
+        this._service?.destroy();
+        this._service = undefined;
+
         this._indicator?.destroy();
         this._indicator = undefined;
         this._settings = undefined;

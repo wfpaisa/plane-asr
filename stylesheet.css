@@ -1,1 +1,22 @@
-/* Add your custom extension styling here */
+/*
+ * Plane ASR extension styling.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+/* Recording state: orange background, white icons. Applied to the indicator
+ * button while a capture is running. */
+.planeasr-recording {
+    background-color: #ff7800;
+}
+
+.planeasr-recording .system-status-icon {
+    color: #ffffff;
+}
+
+/* Square "stop" badge shown next to the mic icon while recording. */
+.planeasr-stop-icon {
+    icon-size: 14px;
+    padding-left: 4px;
+    color: #ffffff;
+}

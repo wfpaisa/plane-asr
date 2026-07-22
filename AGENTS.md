@@ -36,12 +36,12 @@ and `pnpm run lint` as the correctness gates.
 - **Entry points**: GNOME Shell loads `extension.js` and `prefs.js` from the
   repo root. These are thin re-export shims — do not put logic in `extension.ts`
   / `prefs.ts`. Real code lives under `src/`.
-  - `src/extension/index.ts` — `PlaneAsrExtension` (`enable`/`disable` lifecycle,
-    owns the `Indicator` and `Gio.Settings`).
-  - `src/extension/indicator.ts` — panel indicator (`PanelMenu.Button` subclass).
-  - `src/prefs/index.ts` — `PlaneAsrPreferences` (Adwaita prefs window).
-  - `src/config/settings.ts` — **single source of truth for GSettings keys**.
-    Add a key here AND in the schema together (see below).
+    - `src/extension/index.ts` — `PlaneAsrExtension` (`enable`/`disable` lifecycle,
+      owns the `Indicator` and `Gio.Settings`).
+    - `src/extension/indicator.ts` — panel indicator (`PanelMenu.Button` subclass).
+    - `src/prefs/index.ts` — `PlaneAsrPreferences` (Adwaita prefs window).
+    - `src/config/settings.ts` — **single source of truth for GSettings keys**.
+      Add a key here AND in the schema together (see below).
 
 - When touching settings: edit both
   `schemas/org.gnome.shell.extensions.planeasr.gschema.xml` **and**
@@ -56,11 +56,11 @@ and `pnpm run lint` as the correctness gates.
 ## Coding conventions
 
 - **GNOME/GJS style** — follow the [GJS guide](https://gjs.guide).
-  - TypeScript strict mode is on (`tsconfig.json`).
-  - Module: `NodeNext`. **Imports of internal modules must use the `.js`
-    extension** (e.g. `import {Indicator} from './indicator.js';`) even though
-    the source is `.ts` — GJS/tsc resolves it at runtime.
-  - GNOME library imports use the `gi://` or `resource:///` schemes.
+    - TypeScript strict mode is on (`tsconfig.json`).
+    - Module: `NodeNext`. **Imports of internal modules must use the `.js`
+      extension** (e.g. `import {Indicator} from './indicator.js';`) even though
+      the source is `.ts` — GJS/tsc resolves it at runtime.
+    - GNOME library imports use the `gi://` or `resource:///` schemes.
 - **Formatting** (`.prettierrc.yml` / `.editorconfig`): 4-space indent, single
   quotes, semicolons, no bracket spacing, `arrowParens: avoid`, trailing comma
   `es5`, LF line endings. `Makefile` uses tabs.
@@ -81,5 +81,101 @@ and `pnpm run lint` as the correctness gates.
   declarations provide the global `global` object.
 - After installing an extension build, the user must **log out/in or restart the
   Shell** to pick up changes — there's no hot reload in normal use.
-- Debugging/iteration: `pnpm run debug` starts `gnome-shell --devkit --wayland`
-  via dbus-run-session.
+- **`tsconfig.json` keeps `useDefineForClassFields: false` on purpose.** With
+  the default (`true` under `target: ES2023`), TypeScript emits
+  `Object.defineProperty(this, '_field', {value: undefined})` for every class
+  field — including definite-assignment ones (`_icon!: St.Icon`). In GJS the
+  `GObject.registerClass` lifecycle means `super._init(...)` can fire callbacks
+  that touch those fields *before* your `_init` body runs, and the field
+  initializer then clobbers them back to `undefined`. Symptom: cryptic runtime
+  `TypeError: can't access property "x", this._y is undefined`. Do NOT remove
+  this flag and do NOT add class-field initializers with side effects; assign
+  fields inside `_init()` only.
+
+## Debugging
+
+A loaded extension is patched into the live `gnome-shell` process, so debugging
+uses non-standard methods. Source: the [GJS debugging guide](https://gjs.guide).
+
+### Running a nested Shell
+
+`pnpm run debug` runs `dbus-run-session gnome-shell --devkit --wayland`, opening
+a nested instance in a new D-Bus session. The terminal shows Mutter/GNOME debug
+logs. This is NOT fully isolated — don't run it against a session with real data.
+
+To get maximum verbosity, set both env vars before launching:
+
+```bash
+export G_MESSAGES_DEBUG=all      # GLib/mutter debug messages
+export SHELL_DEBUG=all           # backtrace-warnings + backtrace-segfaults
+pnpm run debug
+```
+
+`SHELL_DEBUG` accepts `backtrace-warnings`, `backtrace-segfaults`, or `all`. The
+former prints the JS stack on every `console.warn()` / `console.error()`.
+
+### Restarting the Shell after a rebuild
+
+`pnpm run setup` repacks and reinstalls, but the running Shell keeps the old
+code. On **Wayland** there is no in-place restart — log out and back in. On
+**X11** press `Alt+F2` → type `restart` → Enter; debug output goes to the
+terminal where the Shell was started.
+
+### Reading logs
+
+- `journalctl --user -b /usr/bin/gnome-shell` — system log (systemd users).
+- `~/.xsession-errors` — fallback on non-systemd systems.
+- `console.debug()` → `LEVEL_DEBUG`, `console.warn()` → `LEVEL_WARNING`,
+  `console.error()` → `LEVEL_CRITICAL`. Keep logging minimal; everything lands
+  in the system journal.
+
+### Looking Glass (built-in inspector)
+
+`Alt+F2` → `lg` opens an inspector/REPL running in the live Shell. `GLib`,
+`GObject`, `Gio`, `Clutter`, `Meta`, `St`, `Shell`, and `Main` are pre-imported.
+Notable pages: **Evaluator** (REPL), **Extensions** (shows per-extension errors
++ "view source" — the fastest way to see a runtime stack from this repo),
+**Actors** (widget tree). It is not a stepping debugger.
+
+### GDB (advanced, for native crashes)
+
+When the Shell segfaults or a warning must be traced to C/JS source:
+
+```bash
+dbus-run-session -- gdb --args gnome-shell --devkit --wayland
+(gdb) set env G_DEBUG=fatal-criticals      # trap on console.error()
+(gdb) run
+# at the SIGTRAP:
+(gdb) backtrace
+(gdb) call (void)gjs_dumpstack()           # print the JS stack on top of C
+```
+
+`System.breakpoint()` in JS halts at a chosen source line for stepping. Install
+debug symbols (including `mozjs`) for useful frames.
+
+### Iteration loop for this repo
+
+1. Edit `src/**/*.ts`.
+2. `pnpm run build && pnpm run lint` — must pass before testing in the Shell.
+3. `pnpm run setup` to repack+install.
+4. Log out/in (Wayland) or `Alt+F2 → restart` (X11).
+5. Reproduce; inspect via `lg → Extensions → planeasr` or `journalctl --user`.
+
+## Reference documentation
+
+Primary sources of truth when in doubt about GNOME Shell / GJS APIs or UI
+patterns:
+
+- **GJS guide** — <https://gjs.guide/extensions/>: official documentation for
+  writing extensions (creation, upkeeping, debugging, preferences, uploaded
+  extensions). Start here for concepts and lifecycle.
+- **gnome-shell UI sources** —
+  <https://gitlab.gnome.org/GNOME/gnome-shell/-/tree/main/js/ui?ref_type=heads>:
+  the actual JavaScript implementations of the UI classes this extension
+  subclasses and consumes (`panelMenu.js`, `popupMenu.js`, `main.js`,
+  `windowManager.js`, …). When type defs are ambiguous or a class behaves
+  unexpectedly, read the real source here — it is the authoritative behavior
+  reference for `PanelMenu.Button`, `PopupMenu.*`, `Main.wm`, etc. Match the
+  `main` branch only loosely; our target is `shell-version: ["50"]`, so cross
+  -check against the `@girs/gnome-shell@50` type defs installed in
+  `node_modules/@girs/gnome-shell/`.
