@@ -33,6 +33,7 @@ export default class PlaneAsrExtension extends Extension {
         this._settings = this.getSettings();
 
         this._indicator = new Indicator();
+        this._indicator.extension = this;
         Main.panel.addToStatusArea(this.uuid, this._indicator);
     }
 
