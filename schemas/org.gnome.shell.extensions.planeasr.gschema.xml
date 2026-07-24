@@ -37,6 +37,11 @@
       <summary>Seconds per chunk</summary>
       <description>Length in seconds of each chunk when 'chunk-enabled' is true. Lower values are safer for models that cap output tokens per call.</description>
     </key>
+    <key name="chunk-overlap-seconds" type="i">
+      <default>1</default>
+      <summary>Overlap between chunks</summary>
+      <description>Seconds of audio re-transcribed at the boundary between consecutive chunks so words split across the seam are not lost. The overlapping text is removed with fuzzy matching. 0 disables overlap.</description>
+    </key>
 
     <!-- Output -->
     <key name="output-mode" type="s">

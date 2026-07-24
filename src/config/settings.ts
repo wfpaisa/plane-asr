@@ -24,6 +24,8 @@ export const SETTINGS_KEYS = {
     CHUNK_ENABLED: 'chunk-enabled',
     /** Chunk length in seconds when `chunk-enabled` is true (int). */
     CHUNK_SECONDS: 'chunk-seconds',
+    /** Seconds of audio re-transcribed between consecutive chunks (int, 0 = off). */
+    CHUNK_OVERLAP_SECONDS: 'chunk-overlap-seconds',
 
     /** Where to send transcribed text: 'clipboard' or 'paste' (string). */
     OUTPUT_MODE: 'output-mode',

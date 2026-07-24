@@ -24,6 +24,7 @@ import {
     writeWavChunk,
 } from './audio-chunker.js';
 import { copyToClipboard, pasteAtCursor } from '../util/paste.js';
+import { dedupChunkJoin } from '../util/text-merge.js';
 
 /** Coarse lifecycle states surfaced to the UI. */
 export enum AsrState {
@@ -56,8 +57,6 @@ interface StreamSession {
     cancelled: boolean;
     /** Transcribed pieces in order, joined for the final total. */
     texts: string[];
-    /** Samples already carved off and transcribed. */
-    consumed: number;
     /** Byte offset of the PCM data in the WAV, once the header is readable. */
     dataOffset: number | null;
 }
@@ -161,7 +160,6 @@ export class AsrService {
                 ended: false,
                 cancelled: false,
                 texts: [],
-                consumed: 0,
                 dataOffset: null,
             };
             this._stream = session;
@@ -261,9 +259,14 @@ export class AsrService {
 
     /**
      * Live-transcription worker. Loops until the session is cancelled or the
-     * recording has ended and every sample has been consumed. Each iteration:
+     * recording has ended and every sample has been transcribed. Each iteration:
      * waits for a full N-second chunk (or, once ended, the shorter remainder),
      * writes it to a temp WAV, transcribes it and streams the text out.
+     *
+     * Consecutive windows overlap by `overlapSeconds` so a word straddling a seam
+     * is re-transcribed and the duplicate is removed with fuzzy text matching
+     * (the ASR gives no timestamps to do it deterministically). With overlap 0
+     * the windows are contiguous and dedup is skipped, matching the legacy path.
      *
      * Only this worker touches the transcriber while streaming, so runs never
      * overlap. Any transcription/IO error rejects the returned promise, which
@@ -282,12 +285,39 @@ export class AsrService {
                 this._settings.get_int(SETTINGS_KEYS.CHUNK_SECONDS) * SAMPLE_RATE
             )
         );
+        const overlapSeconds = Math.max(
+            0,
+            this._settings.get_int(SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS)
+        );
+        // Keep at least 1 s of fresh audio per chunk so the window keeps moving
+        // forward even for a large overlap on a short chunk.
+        const overlapSamples = Math.min(
+            overlapSeconds * SAMPLE_RATE,
+            chunkSamples - SAMPLE_RATE
+        );
+        const step = chunkSamples - Math.max(0, overlapSamples);
+        // How many words of head we are willing to drop at each seam. Scales
+        // with the overlap so longer re-transcription can match longer phrases;
+        // 0 disables dedup entirely (contiguous-window path).
+        const maxOverlapWords =
+            overlapSamples > 0
+                ? Math.max(3, Math.ceil((overlapSeconds * 5) + 2))
+                : 0;
+
         const cacheDir = GLib.build_filenamev([
             GLib.get_user_cache_dir(),
             CACHE_DIR_NAME,
         ]);
         const base = GLib.path_get_basename(audioPath).replace(/\.wav$/i, '');
         let part = 0;
+        // Start of the current window in samples; advances by `step` each pass.
+        let cursor = 0;
+        // Highest sample offset already fed to the transcriber. `cursor` can lag
+        // behind it (overlap), so termination is tracked on the covered span.
+        let covered = 0;
+        // Full (untrimmed) transcript of the previous chunk, used as the
+        // reference tail for the next seam's dedup.
+        let lastFull = '';
 
         while (!session.cancelled) {
             // The recorder writes the WAV header first; wait for it to appear.
@@ -304,14 +334,17 @@ export class AsrService {
                 audioPath,
                 session.dataOffset
             );
-            const ready = available - session.consumed;
 
             let take: number;
-            if (ready >= chunkSamples) {
-                take = chunkSamples; // a full N-second chunk is ready
+            const need = cursor + chunkSamples;
+            if (available >= need) {
+                take = chunkSamples; // a full N-second window is ready
             } else if (session.ended) {
-                if (ready <= 0) break; // fully drained
-                take = ready; // final, shorter remainder
+                // Recording stopped: transcribe whatever tail hasn't been
+                // covered yet (may be shorter than a full window, or empty).
+                const tail = available - covered;
+                if (tail <= 0) break; // fully drained
+                take = Math.min(chunkSamples, tail);
             } else {
                 await this._sleep(300); // keep waiting for more audio
                 continue;
@@ -326,7 +359,7 @@ export class AsrService {
                 writeWavChunk(
                     audioPath,
                     session.dataOffset,
-                    session.consumed,
+                    cursor,
                     take,
                     outPath
                 );
@@ -340,21 +373,38 @@ export class AsrService {
                 cleanupChunks([outPath]);
             }
 
-            session.consumed += take;
-            if (!piece) continue;
+            // Advance past what we just read. `covered` moves to the window's
+            // end; `cursor` advances by `step`, re-reading the overlap tail.
+            covered = cursor + take;
+            cursor += step;
+
+            if (!piece) {
+                lastFull = ''; // no text to anchor the next seam against
+                continue;
+            }
+
+            // Strip the overlap duplicate from this piece's head (skipped on the
+            // first chunk and whenever overlap is off). The full, untrimmed
+            // piece is what gets carried forward as the reference tail.
+            const emitted =
+                lastFull && maxOverlapWords > 0
+                    ? dedupChunkJoin(lastFull, piece, maxOverlapWords)
+                    : piece;
+            lastFull = piece;
+            if (!emitted) continue; // whole piece was overlap
 
             if (isPaste) {
                 // A leading space on every piece but the first keeps words from
                 // running together, mirroring the ' ' join used for the total.
                 await pasteAtCursor(
-                    session.texts.length === 0 ? piece : ` ${piece}`
+                    session.texts.length === 0 ? emitted : ` ${emitted}`
                 );
             } else {
                 // Progressive clipboard: the running total is always ready to
                 // paste even before the recording stops.
-                copyToClipboard([...session.texts, piece].join(' '));
+                copyToClipboard([...session.texts, emitted].join(' '));
             }
-            session.texts.push(piece);
+            session.texts.push(emitted);
         }
     }
 

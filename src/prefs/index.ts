@@ -349,6 +349,23 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         chunkGroup.add(chunkSecondsRow);
 
+        const chunkOverlapRow = new Adw.SpinRow({
+            title: _('Overlap seconds'),
+            subtitle: _(
+                'Re-transcribe this much at each chunk boundary so words ' +
+                'split across the seam are not lost (0 = off)'
+            ),
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 5,
+                step_increment: 1,
+                page_increment: 1,
+                value: 1,
+            }),
+            digits: 0,
+        });
+        chunkGroup.add(chunkOverlapRow);
+
         // -- Debug ---------------------------------------------------------
         const debugGroup = new Adw.PreferencesGroup({
             title: _('Debug'),
@@ -438,12 +455,18 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             'value',
             Gio.SettingsBindFlags.DEFAULT
         );
-        // Disable the seconds row when chunking is off; keep it in sync if the
-        // key changes from elsewhere (e.g. gsettings CLI).
+        settings.bind(
+            SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS,
+            chunkOverlapRow,
+            'value',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        // Disable the chunk-tuning rows when chunking is off; keep them in sync
+        // if the key changes from elsewhere (e.g. gsettings CLI).
         const syncChunkSensitivity = () => {
-            chunkSecondsRow.sensitive = settings.get_boolean(
-                SETTINGS_KEYS.CHUNK_ENABLED
-            );
+            const on = settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
+            chunkSecondsRow.sensitive = on;
+            chunkOverlapRow.sensitive = on;
         };
         syncChunkSensitivity();
         settings.connect(
