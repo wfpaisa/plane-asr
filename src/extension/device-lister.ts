@@ -106,7 +106,8 @@ async function runCapture(argv: string[]): Promise<string | null> {
         const proc = new Gio.Subprocess({
             argv,
             flags:
-                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
+                Gio.SubprocessFlags.STDOUT_PIPE |
+                Gio.SubprocessFlags.STDERR_PIPE,
         });
         proc.init(null);
         return await new Promise<string | null>(resolve => {

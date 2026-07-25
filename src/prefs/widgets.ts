@@ -11,6 +11,7 @@ import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
+import Pango from 'gi://Pango';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -45,6 +46,39 @@ export function entryRow(
     const row = new Adw.PreferencesRow({title, activatable: false});
     row.set_child(box);
     return {row, entry, label};
+}
+
+/**
+ * Make an `Adw.ComboRow` show its full (un-ellipsized) labels in both the
+ * collapsed button and the popup, so long option names (e.g.
+ * "GPU 5070 Ti · 16GB") are never cut off.
+ *
+ * libadwaita's default factories wrap the selected value in a label with
+ * `ellipsize: END`, which truncates long text. We replace both factories
+ * (`factory` for the closed row, `list_factory` for the popup, both available
+ * since libadwaita 1.4) with a `Gtk.SignalListItemFactory` that builds a
+ * non-ellipsizing label. With `ellipsize: NONE` the popup grows to fit the
+ * widest item, so no manual width is needed.
+ */
+export function widenComboRow(row: Adw.ComboRow): void {
+    const factory = new Gtk.SignalListItemFactory();
+    factory.connect('setup', (_f, obj) => {
+        const label = new Gtk.Label({
+            xalign: 0,
+            ellipsize: Pango.EllipsizeMode.NONE,
+            wrap: true,
+            wrapMode: Pango.WrapMode.WORD_CHAR,
+        });
+        (obj as Gtk.ListItem).set_child(label);
+    });
+    factory.connect('bind', (_f, obj) => {
+        const item = obj as Gtk.ListItem;
+        const strObj = item.item as Gtk.StringObject | null;
+        const label = item.child as Gtk.Label;
+        label.label = strObj?.get_string() ?? '';
+    });
+    row.factory = factory;
+    row.list_factory = factory;
 }
 
 /**

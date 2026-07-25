@@ -36,9 +36,7 @@ export default class PlaneAsrExtension extends Extension {
     _service?: AsrService;
     _gpuDetector?: GpuDetector;
 
-    constructor(
-        metadata: ConstructorParameters<typeof Extension>[0]
-    ) {
+    constructor(metadata: ConstructorParameters<typeof Extension>[0]) {
         super(metadata);
         // Bind the bundled translations under <extdir>/locale for the gettext
         // domain declared in metadata.json, so every _('...') call resolves

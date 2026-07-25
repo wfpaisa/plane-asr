@@ -36,8 +36,7 @@ const PROGRESS_THROTTLE_MS = 250;
 
 /** Outcome of a download attempt. */
 export type DownloadOutcome =
-    | {ok: true}
-    | {ok: false; cancelled: boolean; error: string};
+    {ok: true} | {ok: false; cancelled: boolean; error: string};
 
 // =============================================================================
 // Promise wrappers for GJS async methods (native callback signature).
@@ -180,18 +179,13 @@ function streamReadBytesAsync(
     cancellable: Gio.Cancellable | null
 ): Promise<GLib.Bytes> {
     return new Promise((resolve, reject) => {
-        stream.read_bytes_async(
-            count,
-            ioPriority,
-            cancellable,
-            (_src, res) => {
-                try {
-                    resolve(stream.read_bytes_finish(res));
-                } catch (e) {
-                    reject(e);
-                }
+        stream.read_bytes_async(count, ioPriority, cancellable, (_src, res) => {
+            try {
+                resolve(stream.read_bytes_finish(res));
+            } catch (e) {
+                reject(e);
             }
-        );
+        });
     });
 }
 
@@ -327,9 +321,7 @@ export class ModelDownloader {
 
     /** Cancel an in-flight download by model id (no-op if none active). */
     cancel(modelId: string): void {
-        getModelStore()
-            .getActiveDownload(modelId)
-            ?.cancellable.cancel();
+        getModelStore().getActiveDownload(modelId)?.cancellable.cancel();
     }
 
     /** Delete a downloaded model file (final path only; leaves no .part). */

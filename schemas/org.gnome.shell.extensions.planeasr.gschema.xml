@@ -119,17 +119,17 @@
       <summary>Output mode</summary>
       <description>Where to send the transcribed text: 'clipboard' or 'paste'.</description>
     </key>
+    <key name="keep-records" type="i">
+      <default>3</default>
+      <summary>Keep last recordings</summary>
+      <description>Number of most recent WAV recordings to keep under records/. Older files are pruned after each successful transcription. 0 keeps none (deletes a recording right after transcribing it); set a large value to keep everything.</description>
+    </key>
 
     <!-- Persisted results -->
     <key name="last-text" type="s">
       <default>''</default>
       <summary>Last transcription</summary>
       <description>The text produced by the last successful transcription.</description>
-    </key>
-    <key name="last-audio-path" type="s">
-      <default>''</default>
-      <summary>Last audio path</summary>
-      <description>Absolute path of the last recorded WAV file.</description>
     </key>
 
     <!-- Global keybinding -->

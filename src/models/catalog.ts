@@ -10,6 +10,8 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+import {defaultModelDir} from '../config/paths.js';
+
 /** One downloadable file (a single quantization) of a model. */
 export interface ModelFile {
     filename: string;
@@ -115,14 +117,9 @@ export function pickFile(
     return def ?? entry.files[0] ?? null;
 }
 
-/** Default models directory under the user cache, unless overridden by a setting. */
-export function defaultModelDir(): string {
-    return GLib.build_filenamev([
-        GLib.get_user_cache_dir(),
-        'planeasr',
-        'models',
-    ]);
-}
+// `defaultModelDir` is re-exported from ../config/paths.ts so every subsystem
+// agrees on the cache layout.
+export {defaultModelDir};
 
 /** Resolve the configured models directory, honoring an explicit override. */
 export function resolveModelDir(settingValue: string): string {

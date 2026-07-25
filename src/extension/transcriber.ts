@@ -265,7 +265,8 @@ export class Transcriber {
             return this._settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
         }
         const backendId =
-            this._settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ?? 'transcribe-cli';
+            this._settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
+            'transcribe-cli';
         const pathName = getBackend(backendId).defaultCliName;
         return resolveAutoCli(this._opts.extensionDir, pathName).path;
     }

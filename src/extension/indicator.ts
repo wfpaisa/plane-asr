@@ -31,6 +31,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {SETTINGS_KEYS} from '../config/settings.js';
+import {recordsDir} from '../config/paths.js';
 import {AsrState, type AsrChangeContext} from './asr-service.js';
 
 /** CSS class toggled on the button while recording. */
@@ -133,12 +134,10 @@ export const Indicator = GObject.registerClass(
             });
             menu.addMenuItem(this._copyItem);
 
-            this._openAudioItem = new PopupMenu.PopupMenuItem(
-                _('Open last audio')
-            );
+            this._openAudioItem = new PopupMenu.PopupMenuItem(_('Open audios'));
             this._openAudioItem.connect('activate', () => {
                 menu.close();
-                this._openLastAudio();
+                this._openAudios();
             });
             menu.addMenuItem(this._openAudioItem);
 
@@ -179,11 +178,7 @@ export const Indicator = GObject.registerClass(
                 `changed::${SETTINGS_KEYS.LAST_TEXT}`,
                 () => this._refreshMenuSensitivity()
             );
-            const h2 = this.settings.connect(
-                `changed::${SETTINGS_KEYS.LAST_AUDIO_PATH}`,
-                () => this._refreshMenuSensitivity()
-            );
-            this._settingsHandlers.push(h1, h2);
+            this._settingsHandlers.push(h1);
         }
 
         _onPrimaryClick() {
@@ -241,12 +236,10 @@ export const Indicator = GObject.registerClass(
         _refreshMenuSensitivity() {
             const lastText =
                 this.settings.get_string(SETTINGS_KEYS.LAST_TEXT) ?? '';
-            const lastAudio =
-                this.settings.get_string(SETTINGS_KEYS.LAST_AUDIO_PATH) ?? '';
             this._copyItem.sensitive = lastText.length > 0;
-            this._openAudioItem.sensitive =
-                lastAudio.length > 0 &&
-                Gio.File.new_for_path(lastAudio).query_exists(null);
+            // "Open audios" opens the records folder on demand (creating it if
+            // missing), so it is always available.
+            this._openAudioItem.sensitive = true;
         }
 
         _copyLastText() {
@@ -260,13 +253,44 @@ export const Indicator = GObject.registerClass(
             Main.notify(_('Plane ASR: copied transcription'));
         }
 
-        _openLastAudio() {
-            const path =
-                this.settings.get_string(SETTINGS_KEYS.LAST_AUDIO_PATH) ?? '';
-            if (!path) return;
-            const [uriOk, uri] = GLib.filename_to_uri(path, null);
-            if (!uriOk || !uri) return;
-            Gio.AppInfo.launch_default_for_uri_async(uri, null, null, null);
+        _openAudios() {
+            const dir = recordsDir();
+            // Ensure the folder exists so the file manager actually shows it.
+            GLib.mkdir_with_parents(dir, 0o755);
+            const [uriOk, uri] = GLib.filename_to_uri(dir, null);
+            if (!uriOk || !uri) {
+                console.warn(`[planeasr] could not build URI for ${dir}`);
+                return;
+            }
+            // Inside GNOME Shell, launch_default_for_uri_async with a null
+            // launch context can fail silently (no timestamp/focus handling),
+            // so try the synchronous variant first and fall back to spawning
+            // `xdg-open` if it throws. Any failure is logged to the journal.
+            try {
+                const launched = Gio.AppInfo.launch_default_for_uri(uri, null);
+                if (launched) return;
+            } catch (e) {
+                console.warn(
+                    `[planeasr] launch_default_for_uri failed: ${this._errMsg(e)}`
+                );
+            }
+            try {
+                // Fire-and-forget: init kicks the process off without waiting.
+                new Gio.Subprocess({
+                    argv: ['xdg-open', uri],
+                    flags: Gio.SubprocessFlags.NONE,
+                }).init(null);
+            } catch (e) {
+                console.warn(`[planeasr] xdg-open failed: ${this._errMsg(e)}`);
+                Main.notify(
+                    _('Plane ASR'),
+                    _('Could not open the audios folder')
+                );
+            }
+        }
+
+        _errMsg(e: unknown): string {
+            return e instanceof GLib.Error ? e.message : String(e);
         }
 
         destroy() {

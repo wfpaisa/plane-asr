@@ -26,13 +26,9 @@ import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
 import {parseArgs} from '../extension/asr-backends.js';
 import {resolveAutoCli} from '../extension/cli-resolver.js';
 import {listDevices} from '../extension/device-lister.js';
-import {
-    findModel,
-    pickFile,
-    resolveModelDir,
-} from '../models/catalog.js';
+import {findModel, pickFile, resolveModelDir} from '../models/catalog.js';
 import {buildModelsPage} from './models-page.js';
-import {entryRow, shortcutRow} from './widgets.js';
+import {entryRow, shortcutRow, widenComboRow} from './widgets.js';
 
 /** Ids backing the "Output" combo, in display order. */
 const OUTPUT_IDS = ['clipboard', 'paste'] as const;
@@ -74,7 +70,7 @@ const LANGUAGE_DEFAULT_NAMES: Record<string, string> = {
     en: 'English',
     es: 'Spanish',
     fr: 'French',
-    'de': 'German',
+    de: 'German',
     it: 'Italian',
     pt: 'Portuguese',
     nl: 'Dutch',
@@ -264,7 +260,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         // -- Transcription ---------------------------------------------------
         const asrGroup = new Adw.PreferencesGroup({
             title: _('Transcription'),
-            description: _('Configure the transcribe-cli binary (transcribe.cpp)'),
+            description: _(
+                'Configure the transcribe-cli binary (transcribe.cpp)'
+            ),
         });
         backendPage.add(asrGroup);
 
@@ -283,6 +281,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             model: cliModeModel,
         });
         asrGroup.add(cliModeRow);
+        widenComboRow(cliModeRow);
 
         // Explanatory note shown only in GPU mode
         const gpuNoteLabel = new Gtk.Label({
@@ -365,6 +364,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             model: accelModel,
         });
         perfGroup.add(accelRow);
+        widenComboRow(accelRow);
 
         const autoDetectRow = new Adw.SwitchRow({
             title: _('Auto-detect GPU'),
@@ -386,6 +386,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             model: gpuDeviceModel,
         });
         perfGroup.add(gpuDeviceRow);
+        widenComboRow(gpuDeviceRow);
 
         const threadsRow = new Adw.SpinRow({
             title: _('CPU threads'),
@@ -488,6 +489,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             model: langModel,
         });
         langGroup.add(langRow);
+        widenComboRow(langRow);
 
         const translateRow = new Adw.SwitchRow({
             title: _('Translate to English'),
@@ -529,9 +531,29 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             model: outputModel,
         });
         outputGroup.add(outputRow);
+        widenComboRow(outputRow);
         outputGroup.add(
             shortcutRow(settings, SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT, window)
         );
+
+        const keepRecordsRow = new Adw.SpinRow({
+            title: _('Keep last recordings'),
+            subtitle: _(
+                'How many recent recordings to keep under records/. Older ' +
+                    'WAVs are deleted automatically (0 = keep none)'
+            ),
+            titleLines: 0,
+            subtitleLines: 0,
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 100,
+                step_increment: 1,
+                page_increment: 5,
+                value: 3,
+            }),
+            digits: 0,
+        });
+        outputGroup.add(keepRecordsRow);
 
         // -- Debug -----------------------------------------------------------
         const debugGroup = new Adw.PreferencesGroup({
@@ -763,13 +785,14 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
                 m ? parseInt(m[1], 10) : -1
             );
         });
-        settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, () =>
-            void refreshGpuDevices()
+        settings.connect(
+            `changed::${SETTINGS_KEYS.CLI_MODE}`,
+            () => void refreshGpuDevices()
         );
-        settings.connect(`changed::${SETTINGS_KEYS.CLI_PATH}`, () =>
-            void refreshGpuDevices()
+        settings.connect(
+            `changed::${SETTINGS_KEYS.CLI_PATH}`,
+            () => void refreshGpuDevices()
         );
-
 
         // --- Quality -------------------------------------------------------
         settings.bind(
@@ -821,6 +844,12 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             const id = OUTPUT_IDS[outputRow.selected];
             if (id) settings.set_string(SETTINGS_KEYS.OUTPUT_MODE, id);
         });
+        settings.bind(
+            SETTINGS_KEYS.KEEP_RECORDS,
+            keepRecordsRow,
+            'value',
+            Gio.SettingsBindFlags.DEFAULT
+        );
 
         // --- Debug ---------------------------------------------------------
         settings.bind(

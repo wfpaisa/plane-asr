@@ -55,10 +55,15 @@ export const SETTINGS_KEYS = {
     /** Where to send transcribed text: 'clipboard' or 'paste' (string). */
     OUTPUT_MODE: 'output-mode',
 
+    /**
+     * How many of the most recent recordings to keep under records/. Older
+     * WAVs are pruned after each run. 0 keeps none (delete right after
+     * transcription); keep a high value to disable pruning.
+     */
+    KEEP_RECORDS: 'keep-records',
+
     /** Last successful transcription text (string). */
     LAST_TEXT: 'last-text',
-    /** Absolute path of the last recorded WAV file (string). */
-    LAST_AUDIO_PATH: 'last-audio-path',
 
     /** Global keybinding that toggles recording (string array). */
     TOGGLE_RECORD_SHORTCUT: 'toggle-record-shortcut',

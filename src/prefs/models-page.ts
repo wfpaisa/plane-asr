@@ -52,9 +52,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     // -- Model selection group (radio: catalog vs custom path) ----------
     const selectionGroup = new Adw.PreferencesGroup({
         title: _('Model selection'),
-        description: _(
-            'Choose between a catalog model or a custom model path'
-        ),
+        description: _('Choose between a catalog model or a custom model path'),
     });
     page.add(selectionGroup);
 
@@ -112,8 +110,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
 
     // Helper to refresh active model display
     const refreshActiveModel = () => {
-        const id =
-            ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+        const id = ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
         if (id && ctx.extensionDir) {
             const entry = findModel(ctx.extensionDir, id);
             if (entry) {
@@ -179,19 +176,16 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     };
 
     // Listen for changes to active model to refresh display
-    ctx.settings.connect(
-        `changed::${SETTINGS_KEYS.ACTIVE_MODEL_ID}`,
-        () => {
-            refreshActiveModel();
-            // If a catalog model was selected, ensure catalog radio is active
-            const modelId =
-                ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
-            if (modelId && !catalogRadioButton.get_active()) {
-                catalogRadioButton.set_active(true);
-                syncSelectionMode();
-            }
+    ctx.settings.connect(`changed::${SETTINGS_KEYS.ACTIVE_MODEL_ID}`, () => {
+        refreshActiveModel();
+        // If a catalog model was selected, ensure catalog radio is active
+        const modelId =
+            ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+        if (modelId && !catalogRadioButton.get_active()) {
+            catalogRadioButton.set_active(true);
+            syncSelectionMode();
         }
-    );
+    });
 
     // Bind the custom path entry to the setting
     ctx.settings.bind(

@@ -14,6 +14,7 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
+import {cacheDir, pruneRecordings, recordsDir} from '../config/paths.js';
 import {resolveAutoCli} from './cli-resolver.js';
 import {getBackend} from './asr-backends.js';
 import {Recorder} from './recorder.js';
@@ -62,8 +63,6 @@ interface StreamSession {
     /** Byte offset of the PCM data in the WAV, once the header is readable. */
     dataOffset: number | null;
 }
-
-const CACHE_DIR_NAME = 'planeasr';
 
 /**
  * Single owner of the {@link Recorder} and {@link Transcriber}. Drives the
@@ -148,8 +147,12 @@ export class AsrService {
         const raw = this._settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu';
         const mode = normalizeCliMode(raw);
         if (mode === 'gpu') {
-            const cliPath = this._settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
-            if (!cliPath || !Gio.File.new_for_path(cliPath).query_exists(null)) {
+            const cliPath =
+                this._settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
+            if (
+                !cliPath ||
+                !Gio.File.new_for_path(cliPath).query_exists(null)
+            ) {
                 return _('ASR binary not found. Set it in preferences.');
             }
             return null;
@@ -177,6 +180,7 @@ export class AsrService {
 
         const audioPath = this._newAudioPath();
         this._currentAudioPath = audioPath;
+        this._migrateLooseWavs();
 
         try {
             this._recorder.start(audioPath);
@@ -220,9 +224,6 @@ export class AsrService {
             return;
         }
 
-        // The WAV is finalized now, so record it as the openable "last audio".
-        this._settings.set_string(SETTINGS_KEYS.LAST_AUDIO_PATH, audioPath);
-
         const isPaste =
             (this._settings.get_string('output-mode') ?? 'clipboard') ===
             'paste';
@@ -252,6 +253,7 @@ export class AsrService {
             const full = session.texts.join(' ').trim();
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
             if (full) copyToClipboard(full);
+            this._pruneRecordings();
             Main.notify(
                 isPaste
                     ? _('Plane ASR: transcription pasted')
@@ -288,6 +290,7 @@ export class AsrService {
                     ? _('Plane ASR: transcription pasted')
                     : _('Plane ASR: transcription copied')
             );
+            this._pruneRecordings();
             this._setState(AsrState.Idle, {text: full});
         } catch (e) {
             this._setState(AsrState.Idle, {error: this._errMsg(e)});
@@ -342,10 +345,8 @@ export class AsrService {
                 ? Math.max(3, Math.ceil(overlapSeconds * 5 + 2))
                 : 0;
 
-        const cacheDir = GLib.build_filenamev([
-            GLib.get_user_cache_dir(),
-            CACHE_DIR_NAME,
-        ]);
+        // Live chunks are written next to the recording, under records/.
+        const cacheDir = recordsDir();
         const base = GLib.path_get_basename(audioPath).replace(/\.wav$/i, '');
         let part = 0;
         // Start of the current window in samples; advances by `step` each pass.
@@ -480,13 +481,70 @@ export class AsrService {
     }
 
     private _newAudioPath(): string {
-        const dir = GLib.build_filenamev([
-            GLib.get_user_cache_dir(),
-            CACHE_DIR_NAME,
-        ]);
+        const dir = recordsDir();
         GLib.mkdir_with_parents(dir, 0o755);
         const stamp = GLib.get_real_time(); // microseconds since epoch
         return GLib.build_filenamev([dir, `recording_${stamp}.wav`]);
+    }
+
+    /**
+     * One-time, idempotent migration: older versions stored WAV recordings flat
+     * in the cache root (`<cache>/planeasr/*.wav`). Move any such loose files
+     * into `<cache>/planeasr/records/` so the new layout takes effect without
+     * losing existing recordings. Safe to call repeatedly — it is a no-op once
+     * everything is already under records/.
+     */
+    private _migrateLooseWavs(): void {
+        const root = cacheDir();
+        const dest = recordsDir();
+        const rootFile = Gio.File.new_for_path(root);
+        let iter: Gio.FileEnumerator | null;
+        try {
+            iter = rootFile.enumerate_children(
+                'standard::name,standard::type',
+                Gio.FileQueryInfoFlags.NONE,
+                null
+            );
+        } catch {
+            return; // cache root doesn't exist yet — nothing to migrate
+        }
+        try {
+            GLib.mkdir_with_parents(dest, 0o755);
+            let info = iter.next_file(null);
+            while (info !== null) {
+                const name = info.get_name();
+                if (
+                    info.get_file_type() === Gio.FileType.REGULAR &&
+                    /\.wav$/i.test(name)
+                ) {
+                    const src = Gio.File.new_for_path(
+                        GLib.build_filenamev([root, name])
+                    );
+                    const dst = Gio.File.new_for_path(
+                        GLib.build_filenamev([dest, name])
+                    );
+                    try {
+                        src.move(dst, Gio.FileCopyFlags.NONE, null, null);
+                    } catch {
+                        // Name collision or transient error: leave the file in
+                        // place rather than aborting the recording.
+                    }
+                }
+                info = iter.next_file(null);
+            }
+        } finally {
+            iter.close(null);
+        }
+    }
+
+    /**
+     * Trim the records folder down to the `keep-records` most recent WAVs, as
+     * configured in preferences. Called after each successful transcription so
+     * the cache does not grow unbounded.
+     */
+    private _pruneRecordings(): void {
+        const keep = this._settings.get_int(SETTINGS_KEYS.KEEP_RECORDS);
+        pruneRecordings(keep);
     }
 
     private _errMsg(e: unknown): string {
