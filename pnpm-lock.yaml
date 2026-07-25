@@ -18,6 +18,9 @@ importers:
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.5
+      '@girs/soup-3.0':
+        specifier: ^4.1.0
+        version: 4.1.0
       eslint:
         specifier: ^9.0.0
         version: 9.39.5
@@ -187,6 +190,9 @@ packages:
 
   '@girs/shew-0@4.1.0':
     resolution: {integrity: sha512-ErZ+tzi9SQBHIqOD+Arprk7iFw8cweQmp2aXQe4yol2i6cj8VbSow2OinjgBBJzoHGyPCKCuIQLzjDEzTWKIig==}
+
+  '@girs/soup-3.0@4.1.0':
+    resolution: {integrity: sha512-QYUNG9942aQqNgYBs3wN9jFdZOFWRkxetAxoKAfES8m5p+Ex1/javpAtOv+Z3b37QnQhRuXYmc8F33Vxl5RUng==}
 
   '@girs/st-18@4.1.0':
     resolution: {integrity: sha512-Ki/B94KToCbl19nU3q1RaPcwU2X3jswBXZhSRFA+8envBdFRWvXaIxEyB9rL9dK5TlO17/MygdCc3cdBmmc4jA==}
@@ -1079,6 +1085,14 @@ snapshots:
       '@girs/harfbuzz-0.0': 4.1.0
       '@girs/pango-1.0': 4.1.0
       '@girs/pangocairo-1.0': 4.1.0
+
+  '@girs/soup-3.0@4.1.0':
+    dependencies:
+      '@girs/gio-2.0': 4.1.0
+      '@girs/gjs': 4.1.0
+      '@girs/glib-2.0': 4.1.0
+      '@girs/gmodule-2.0': 4.1.0
+      '@girs/gobject-2.0': 4.1.0
 
   '@girs/st-18@4.1.0':
     dependencies:

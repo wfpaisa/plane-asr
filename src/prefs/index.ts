@@ -2,171 +2,99 @@
  *
  * Preferences window for the Plane ASR extension.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Two pages:
+ *  - "General": model selection, language, compute (CPU/Vulkan), ASR quality,
+ *    output, long recordings, debug.
+ *  - "Models": searchable downloader for the bundled GGUF catalog.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 import Gtk from 'gi://Gtk';
-import Gdk from 'gi://Gdk';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 
 import {
     ExtensionPreferences,
     gettext as _,
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import { SETTINGS_KEYS } from '../config/settings.js';
+import {SETTINGS_KEYS} from '../config/settings.js';
 import {
     ASR_BACKENDS,
     getBackend,
     parseArgs,
 } from '../extension/asr-backends.js';
+import {resolveAutoCli} from '../extension/cli-resolver.js';
+import {GpuDetector, formatVram} from '../extension/gpu-detector.js';
+import {
+    findModel,
+    formatSize,
+    pickFile,
+    resolveModelDir,
+} from '../models/catalog.js';
+import {buildModelsPage} from './models-page.js';
+import {entryRow, shortcutRow} from './widgets.js';
 
 /** Ids backing the "Output" combo, in display order. */
 const OUTPUT_IDS = ['clipboard', 'paste'] as const;
 
-/**
- * Build a full-width row with the label stacked above a Gtk.Entry, so the
- * whole placeholder hint stays visible (a side-by-side entry would clip it).
- */
-function entryRow(
-    title: string,
-    placeholder: string
-): { row: Adw.PreferencesRow; entry: Gtk.Entry; label: Gtk.Label } {
-    const label = new Gtk.Label({
-        label: title,
-        xalign: 0,
-        cssClasses: ['heading'],
-    });
-    const entry = new Gtk.Entry({
-        placeholder_text: placeholder,
-        hexpand: true,
-    });
-    const box = new Gtk.Box({
-        orientation: Gtk.Orientation.VERTICAL,
-        spacing: 6,
-        marginTop: 10,
-        marginBottom: 10,
-        marginStart: 12,
-        marginEnd: 12,
-    });
-    box.append(label);
-    box.append(entry);
+/** Ids backing the "Accelerator" combo. */
+const ACCELERATOR_IDS = ['auto', 'cpu', 'vulkan'] as const;
 
-    const row = new Adw.PreferencesRow({ title, activatable: false });
-    row.set_child(box);
-    return { row, entry, label };
-}
+/** Ids backing the "Binary mode" combo, in display order. */
+const CLI_MODE_IDS = ['auto', 'manual'] as const;
 
-/**
- * Show a modal dialog that captures the next key combination and reports it as
- * a GTK accelerator string (empty string means "disable"). Esc cancels.
- */
-function captureShortcut(
-    parent: Adw.PreferencesWindow,
-    onCaptured: (accel: string) => void
-): void {
-    const dialog = new Adw.Window({
-        modal: true,
-        transient_for: parent,
-        default_width: 440,
-        default_height: 200,
-    });
+/** Common language codes offered in the language combo. Labels are translated
+ *  lazily inside `fillPreferencesWindow`, because `gettext` can only be called
+ *  once the extension domain is registered (never at module load time). */
+const LANGUAGE_CODES = [
+    'auto',
+    'en',
+    'es',
+    'fr',
+    'de',
+    'it',
+    'pt',
+    'nl',
+    'ru',
+    'ja',
+    'ko',
+    'zh',
+    'ar',
+    'hi',
+    'tr',
+    'pl',
+    'uk',
+    'vi',
+] as const;
 
-    dialog.set_content(
-        new Adw.StatusPage({
-            title: _('Press the desired combination'),
-            description: _('Esc to cancel · Backspace to disable'),
-            icon_name: 'preferences-desktop-keyboard-shortcuts-symbolic',
-        })
-    );
+/** English display names for {@link LANGUAGE_CODES} (kept untranslated at module
+ *  scope so they never need gettext; overridden by translation below). */
+const LANGUAGE_DEFAULT_NAMES: Record<string, string> = {
+    auto: 'Auto-detect',
+    en: 'English',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    it: 'Italian',
+    pt: 'Portuguese',
+    nl: 'Dutch',
+    ru: 'Russian',
+    ja: 'Japanese',
+    ko: 'Korean',
+    zh: 'Chinese',
+    ar: 'Arabic',
+    hi: 'Hindi',
+    tr: 'Turkish',
+    pl: 'Polish',
+    uk: 'Ukrainian',
+    vi: 'Vietnamese',
+};
 
-    const controller = new Gtk.EventControllerKey();
-    dialog.add_controller(controller);
-    controller.connect('key-pressed', (_c, keyval, _keycode, state) => {
-        const mods = state & Gtk.accelerator_get_default_mod_mask();
-        if (keyval === Gdk.KEY_Escape && mods === 0) {
-            dialog.close();
-            return true;
-        }
-        if (keyval === Gdk.KEY_BackSpace && mods === 0) {
-            onCaptured('');
-            dialog.close();
-            return true;
-        }
-        // Require at least one modifier and a valid accelerator so we don't
-        // capture stray plain keys.
-        if (mods === 0 || !Gtk.accelerator_valid(keyval, mods)) {
-            return true;
-        }
-        onCaptured(Gtk.accelerator_name(keyval, mods));
-        dialog.close();
-        return true;
-    });
-
-    dialog.present();
-}
-
-/** Row that displays the current toggle shortcut and lets the user record one. */
-function shortcutRow(
-    settings: Gio.Settings,
-    key: string,
-    window: Adw.PreferencesWindow
-): Adw.ActionRow {
-    const row = new Adw.ActionRow({
-        title: _('Toggle recording shortcut'),
-        subtitle: _('Click Set and press the keys you want to use'),
-    });
-
-    const display = new Gtk.ShortcutLabel({
-        disabled_text: _('Disabled'),
-        valign: Gtk.Align.CENTER,
-    });
-    const setButton = new Gtk.Button({
-        label: _('Set'),
-        valign: Gtk.Align.CENTER,
-    });
-    const clearButton = new Gtk.Button({
-        icon_name: 'edit-clear-symbolic',
-        valign: Gtk.Align.CENTER,
-        tooltip_text: _('Disable shortcut'),
-        cssClasses: ['flat'],
-    });
-
-    row.add_suffix(display);
-    row.add_suffix(setButton);
-    row.add_suffix(clearButton);
-    row.activatable_widget = setButton;
-
-    const sync = () => {
-        display.accelerator = settings.get_strv(key)[0] ?? '';
-    };
-    sync();
-    settings.connect(`changed::${key}`, sync);
-
-    setButton.connect('clicked', () => {
-        captureShortcut(window, accel => {
-            if (accel) settings.set_strv(key, [accel]);
-            else settings.set_strv(key, []);
-        });
-    });
-    clearButton.connect('clicked', () => settings.set_strv(key, []));
-
-    return row;
-}
+/** Default language labels are resolved through gettext at runtime, inside
+ *  `fillPreferencesWindow`, using {@link LANGUAGE_DEFAULT_NAMES}. */
 
 /** Extract the model file path from a `model-params` string, if present. */
 function extractModelPath(params: string): string | null {
@@ -180,34 +108,81 @@ function extractModelPath(params: string): string | null {
 }
 
 /** Quick sanity check over the configured binary and model, for the UI. */
-function validateSetup(settings: Gio.Settings): string {
+function validateSetup(
+    settings: Gio.Settings,
+    extensionDir: string | null
+): string {
     const problems: string[] = [];
 
-    const cliPath = settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
-    if (!cliPath) {
-        problems.push(_('binary path is empty'));
-    } else {
-        const file = Gio.File.new_for_path(cliPath);
-        if (!file.query_exists(null)) {
-            problems.push(_('binary not found: %s').format(cliPath));
+    const mode = settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'auto';
+    let cliPath: string;
+    if (mode === 'manual') {
+        cliPath = settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
+        if (!cliPath) {
+            problems.push(_('binary path is empty'));
         } else {
-            const info = file.query_info(
+            const file = Gio.File.new_for_path(cliPath);
+            if (!file.query_exists(null)) {
+                problems.push(_('binary not found: %s').format(cliPath));
+            } else {
+                const info = file.query_info(
+                    'access::can-execute',
+                    Gio.FileQueryInfoFlags.NONE,
+                    null
+                );
+                if (!info.get_attribute_boolean('access::can-execute')) {
+                    problems.push(
+                        _('binary is not executable: %s').format(cliPath)
+                    );
+                }
+            }
+        }
+    } else {
+        // Automatic mode: validate the resolved binary (bundled or PATH).
+        const backendId =
+            settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ?? 'transcribe-cli';
+        const pathName = getBackend(backendId).defaultCliName;
+        const resolved = resolveAutoCli(extensionDir, pathName);
+        if (resolved.source === 'none') {
+            problems.push(
+                _('no transcription binary found (bundled or on PATH)')
+            );
+        } else {
+            const info = Gio.File.new_for_path(resolved.path).query_info(
                 'access::can-execute',
                 Gio.FileQueryInfoFlags.NONE,
                 null
             );
             if (!info.get_attribute_boolean('access::can-execute')) {
                 problems.push(
-                    _('binary is not executable: %s').format(cliPath)
+                    _('binary is not executable: %s').format(resolved.path)
                 );
             }
         }
     }
 
-    const params = settings.get_string(SETTINGS_KEYS.MODEL_PARAMS) ?? '';
-    const modelPath = extractModelPath(params);
+    // Resolve the model: catalog active model takes precedence over params.
+    const modelId = settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+    let modelPath: string | null = null;
+    if (modelId && extensionDir) {
+        const entry = findModel(extensionDir, modelId);
+        if (entry) {
+            const file = pickFile(
+                entry,
+                settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ?? ''
+            );
+            if (file) {
+                modelPath = resolveModelFilePath(settings, file.filename);
+            }
+        }
+    }
     if (!modelPath) {
-        problems.push(_('no model file found in model params'));
+        const params = settings.get_string(SETTINGS_KEYS.MODEL_PARAMS) ?? '';
+        modelPath = extractModelPath(params);
+    }
+
+    if (!modelPath) {
+        problems.push(_('no model file found'));
     } else if (modelPath.startsWith('/')) {
         if (!Gio.File.new_for_path(modelPath).query_exists(null)) {
             problems.push(_('model not found: %s').format(modelPath));
@@ -225,17 +200,107 @@ function validateSetup(settings: Gio.Settings): string {
         : problems.join('; ');
 }
 
+/** Resolve where a model filename lives given the model-dir setting. */
+function resolveModelFilePath(
+    settings: Gio.Settings,
+    filename: string
+): string {
+    const dir = resolveModelDir(
+        settings.get_string(SETTINGS_KEYS.MODEL_DIR) ?? ''
+    );
+    return GLib.build_filenamev([dir, filename]);
+}
+
 export default class PlaneAsrPreferences extends ExtensionPreferences {
     _settings?: Gio.Settings;
 
     fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         this._settings = this.getSettings();
         const settings = this._settings!;
+        const extensionDir = this.path ?? null;
+        const gpuDetector = new GpuDetector();
 
+        const toast = (title: string) =>
+            window.add_toast(new Adw.Toast({title, timeout: 5}));
+
+        // ===== General page ==============================================
         const page = new Adw.PreferencesPage({
             title: _('General'),
             iconName: 'dialog-information-symbolic',
         });
+
+        // -- Active model --------------------------------------------------
+        const modelGroup = new Adw.PreferencesGroup({
+            title: _('Model'),
+            description: _('Pick a downloaded model or use advanced params'),
+        });
+        page.add(modelGroup);
+
+        const activeModelRow = new Adw.ActionRow({
+            title: _('Active model'),
+            subtitle: _('Open the Models page to download and select'),
+        });
+        const openModelsBtn = new Gtk.Button({
+            label: _('Models →'),
+            valign: Gtk.Align.CENTER,
+        });
+        activeModelRow.add_suffix(openModelsBtn);
+        activeModelRow.activatable_widget = openModelsBtn;
+        modelGroup.add(activeModelRow);
+
+        const activeModelLabel = new Gtk.Label({
+            xalign: 0,
+            cssClasses: ['caption'],
+            wrap: true,
+        });
+        const activeModelBox = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 4,
+            marginStart: 12,
+            marginEnd: 12,
+            marginBottom: 8,
+        });
+        activeModelBox.append(activeModelLabel);
+        const activeModelInfoRow = new Adw.PreferencesRow({
+            activatable: false,
+        });
+        activeModelInfoRow.set_child(activeModelBox);
+        modelGroup.add(activeModelInfoRow);
+
+        const modelParamsRow = entryRow(
+            _('Advanced model params'),
+            'e.g. -m /home/user/models/parakeet-tdt-0.6b-v2-Q8_0.gguf'
+        );
+        modelGroup.add(modelParamsRow.row);
+
+        const refreshActiveModel = () => {
+            const id = settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+            const showAdvanced = !id;
+            modelParamsRow.row.visible = showAdvanced;
+            if (id && extensionDir) {
+                const entry = findModel(extensionDir, id);
+                if (entry) {
+                    const file = pickFile(
+                        entry,
+                        settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ??
+                            ''
+                    );
+                    activeModelLabel.label =
+                        `${entry.name} · ${entry.parameters} · ` +
+                        `${file ? formatSize(file.size_bytes) : ''} · ` +
+                        `${entry.backend}`;
+                    return;
+                }
+            }
+            activeModelLabel.label = _(
+                'No catalog model selected — using advanced params.'
+            );
+        };
+        refreshActiveModel();
+        settings.connect(
+            `changed::${SETTINGS_KEYS.ACTIVE_MODEL_ID}`,
+            refreshActiveModel
+        );
 
         // -- ASR backend ---------------------------------------------------
         const asrGroup = new Adw.PreferencesGroup({
@@ -254,17 +319,30 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         asrGroup.add(backendRow);
 
+        const cliModeModel = new Gtk.StringList({
+            strings: [_('Automatic (bundled CPU)'), _('Manual (custom path)')],
+        });
+        const cliModeRow = new Adw.ComboRow({
+            title: _('Binary mode'),
+            subtitle: _(
+                'Automatic uses the transcribe-cli shipped with the extension (CPU, x86_64). Manual lets you point to your own build, e.g. with Vulkan/CUDA.'
+            ),
+            model: cliModeModel,
+        });
+        asrGroup.add(cliModeRow);
+
+        // Status line shown only in Automatic mode: reports where the binary
+        // was resolved from (bundled / PATH) or that none was found.
+        const cliStatusRow = new Adw.ActionRow({
+            title: _('Resolved binary'),
+        });
+        asrGroup.add(cliStatusRow);
+
         const cliPathRow = entryRow(
             _('Binary path'),
             'e.g. /home/user/transcribe.cpp/build/bin/transcribe-cli'
         );
         asrGroup.add(cliPathRow.row);
-
-        const modelParamsRow = entryRow(
-            _('Model params'),
-            'e.g. -m /home/user/models/parakeet-tdt-0.6b-v2-Q8_0.gguf'
-        );
-        asrGroup.add(modelParamsRow.row);
 
         const realtimeRow = new Adw.SwitchRow({
             title: _('Realtime mode'),
@@ -291,10 +369,165 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         asrGroup.add(validateRow);
 
         validateButton.connect('clicked', () => {
-            window.add_toast(
-                new Adw.Toast({ title: validateSetup(settings), timeout: 5 })
-            );
+            toast(validateSetup(settings, extensionDir));
         });
+
+        // -- Language ------------------------------------------------------
+        const langGroup = new Adw.PreferencesGroup({title: _('Language')});
+        page.add(langGroup);
+
+        const languageOptions = LANGUAGE_CODES.map(id => ({
+            id,
+            label: _(LANGUAGE_DEFAULT_NAMES[id] ?? id),
+        }));
+
+        const langModel = new Gtk.StringList({
+            strings: languageOptions.map(o => o.label),
+        });
+        const langRow = new Adw.ComboRow({
+            title: _('Spoken language'),
+            subtitle: _('Language hint passed to the model'),
+            model: langModel,
+        });
+        langGroup.add(langRow);
+
+        const translateRow = new Adw.SwitchRow({
+            title: _('Translate to English'),
+            subtitle: _('When the model supports translation'),
+        });
+        langGroup.add(translateRow);
+
+        // -- Performance / compute ----------------------------------------
+        const perfGroup = new Adw.PreferencesGroup({
+            title: _('Performance'),
+            description: _('CPU vs Vulkan GPU acceleration'),
+        });
+        page.add(perfGroup);
+
+        const accelModel = new Gtk.StringList({
+            strings: [_('Auto'), _('CPU'), _('Vulkan')],
+        });
+        const accelRow = new Adw.ComboRow({
+            title: _('Accelerator'),
+            subtitle: _('Compute backend for inference'),
+            model: accelModel,
+        });
+        perfGroup.add(accelRow);
+
+        const autoDetectRow = new Adw.SwitchRow({
+            title: _('Auto-detect GPU'),
+            subtitle: _('Probe for a Vulkan GPU when accelerator is Auto'),
+        });
+        perfGroup.add(autoDetectRow);
+
+        const gpuRow = new Adw.SpinRow({
+            title: _('GPU device index'),
+            subtitle: _('-1 = auto'),
+            adjustment: new Gtk.Adjustment({
+                lower: -1,
+                upper: 7,
+                step_increment: 1,
+                page_increment: 1,
+                value: -1,
+            }),
+            digits: 0,
+        });
+        perfGroup.add(gpuRow);
+
+        const gpuInfoLabel = new Gtk.Label({
+            xalign: 0,
+            cssClasses: ['caption'],
+            wrap: true,
+        });
+        const gpuInfoBox = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 4,
+            marginStart: 12,
+            marginEnd: 12,
+            marginBottom: 8,
+        });
+        gpuInfoBox.append(gpuInfoLabel);
+        const gpuInfoRow = new Adw.PreferencesRow({activatable: false});
+        gpuInfoRow.set_child(gpuInfoBox);
+        perfGroup.add(gpuInfoRow);
+
+        const threadsRow = new Adw.SpinRow({
+            title: _('CPU threads'),
+            subtitle: _('0 = auto (use all cores)'),
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 128,
+                step_increment: 1,
+                page_increment: 4,
+                value: 0,
+            }),
+            digits: 0,
+        });
+        perfGroup.add(threadsRow);
+
+        const refreshGpuInfo = async () => {
+            const on = settings.get_boolean(SETTINGS_KEYS.AUTO_DETECT_GPU);
+            const accel =
+                settings.get_string(SETTINGS_KEYS.ACCELERATOR) ?? 'auto';
+            if (!on || accel === 'cpu') {
+                gpuInfoLabel.label =
+                    accel === 'cpu'
+                        ? _('CPU mode: GPU detection disabled.')
+                        : _('GPU auto-detection is off.');
+                return;
+            }
+            gpuInfoLabel.label = _('Detecting GPU…');
+            try {
+                const gpus = await gpuDetector.detect();
+                if (gpus.length === 0) {
+                    gpuInfoLabel.label = _(
+                        'No Vulkan GPU detected. ' +
+                            'Install vulkan-tools (vulkaninfo) to enable detection.'
+                    );
+                } else {
+                    gpuInfoLabel.label = gpus
+                        .map(
+                            g =>
+                                `${g.name} (${g.kind}, ${formatVram(
+                                    g.vramBytes
+                                )})`
+                        )
+                        .join('\n');
+                }
+            } catch {
+                gpuInfoLabel.label = _('GPU detection failed.');
+            }
+        };
+        void refreshGpuInfo();
+        settings.connect(
+            `changed::${SETTINGS_KEYS.AUTO_DETECT_GPU}`,
+            () => void refreshGpuInfo()
+        );
+        settings.connect(
+            `changed::${SETTINGS_KEYS.ACCELERATOR}`,
+            () => void refreshGpuInfo()
+        );
+
+        // -- Quality -------------------------------------------------------
+        const qualityGroup = new Adw.PreferencesGroup({
+            title: _('Quality'),
+            description: _('Voice activity detection and custom vocabulary'),
+        });
+        page.add(qualityGroup);
+
+        const vadRow = new Adw.SwitchRow({
+            title: _('Voice Activity Detection (VAD)'),
+            subtitle: _(
+                'Filter silence before transcription. whisper-cli only.'
+            ),
+        });
+        qualityGroup.add(vadRow);
+
+        const promptRow = entryRow(
+            _('Initial prompt / custom words'),
+            'e.g. García, UPB, Kubernetes, PostgreSQL'
+        );
+        qualityGroup.add(promptRow.row);
 
         // -- Output --------------------------------------------------------
         const outputGroup = new Adw.PreferencesGroup({
@@ -312,7 +545,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             model: outputModel,
         });
         outputGroup.add(outputRow);
-
         outputGroup.add(
             shortcutRow(settings, SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT, window)
         );
@@ -322,9 +554,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             title: _('Long recordings'),
             description: _(
                 'Transcribe live in N-second chunks while you keep ' +
-                'speaking, so the first words are pasted right away and ' +
-                'backends with a per-call generation cap ' +
-                '(e.g. Qwen3-ASR at 256 tokens) do not truncate the output.'
+                    'speaking, so the first words are pasted right away and ' +
+                    'backends with a per-call generation cap ' +
+                    '(e.g. Qwen3-ASR at 256 tokens) do not truncate the output.'
             ),
         });
         page.add(chunkGroup);
@@ -337,7 +569,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
 
         const chunkSecondsRow = new Adw.SpinRow({
             title: _('Seconds per chunk'),
-            subtitle: _('Lower values are safer for models that cap output tokens'),
+            subtitle: _(
+                'Lower values are safer for models that cap output tokens'
+            ),
             adjustment: new Gtk.Adjustment({
                 lower: 5,
                 upper: 60,
@@ -353,7 +587,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             title: _('Overlap seconds'),
             subtitle: _(
                 'Re-transcribe this much at each chunk boundary so words ' +
-                'split across the seam are not lost (0 = off)'
+                    'split across the seam are not lost (0 = off)'
             ),
             adjustment: new Gtk.Adjustment({
                 lower: 0,
@@ -371,9 +605,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             title: _('Debug'),
             description: _(
                 'When enabled, every transcription run is logged to the ' +
-                'system journal (command line, exit status and the raw ' +
-                'stdout/stderr of the ASR CLI). Inspect it with:\n' +
-                'journalctl --user -b /usr/bin/gnome-shell | grep planeasr'
+                    'system journal (command line, exit status and the raw ' +
+                    'stdout/stderr of the ASR CLI). Inspect it with:\n' +
+                    'journalctl --user -b /usr/bin/gnome-shell | grep planeasr'
             ),
         });
         page.add(debugGroup);
@@ -388,7 +622,20 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
 
         window.add(page);
 
-        // -- Bindings ------------------------------------------------------
+        // ===== Models page ===============================================
+        const modelsPage = buildModelsPage({
+            extensionDir,
+            settings,
+            toast,
+        });
+        window.add(modelsPage);
+
+        openModelsBtn.connect('clicked', () => {
+            window.visible_page = modelsPage;
+        });
+
+        // ===== Bindings ===================================================
+        // Backend combo + derived rows.
         const syncBackendRows = () => {
             const id =
                 settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
@@ -404,8 +651,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
                 : _('Binary path');
             realtimeRow.sensitive = backend.supportsRealtime;
             customTemplateRow.row.visible = backend.id === 'custom';
+            // VAD is only meaningful for whisper-cli.
+            vadRow.sensitive = backend.capabilities.vad;
         };
-        // Initialize combo position + derived rows from the stored id.
         syncBackendRows();
 
         backendRow.connect('notify::selected', () => {
@@ -417,6 +665,52 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             `changed::${SETTINGS_KEYS.ASR_BACKEND}`,
             syncBackendRows
         );
+
+        // Binary mode combo: Automatic vs Manual. Drives which rows are shown
+        // and reports where the automatic binary was resolved from.
+        const syncCliMode = () => {
+            const id =
+                settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'auto';
+            const idx = Math.max(
+                0,
+                CLI_MODE_IDS.indexOf(id as (typeof CLI_MODE_IDS)[number])
+            );
+            cliModeRow.selected = idx;
+            const manual = id === 'manual';
+            cliPathRow.row.visible = manual;
+            cliPathRow.row.sensitive = manual;
+            cliStatusRow.visible = !manual;
+            if (!manual) {
+                const backendId =
+                    settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
+                    'transcribe-cli';
+                const pathName = getBackend(backendId).defaultCliName;
+                const resolved = resolveAutoCli(extensionDir, pathName);
+                if (resolved.source === 'bundled') {
+                    cliStatusRow.subtitle = _(
+                        'Using bundled CPU binary (transcribe-cli, x86_64).'
+                    ).format();
+                } else if (resolved.source === 'path') {
+                    cliStatusRow.subtitle = _(
+                        'Using transcribe-cli from PATH: %s'
+                    ).format(resolved.path);
+                } else {
+                    cliStatusRow.subtitle = _(
+                        'No binary found for this system. Switch to Manual or install transcribe-cli.'
+                    );
+                }
+            }
+        };
+        syncCliMode();
+        cliModeRow.connect('notify::selected', () => {
+            const modeId = CLI_MODE_IDS[cliModeRow.selected];
+            if (modeId)
+                settings.set_string(SETTINGS_KEYS.CLI_MODE, modeId);
+        });
+        settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncCliMode);
+        // Re-evaluate the status line when the backend changes too, since the
+        // PATH lookup name depends on the active backend.
+        settings.connect(`changed::${SETTINGS_KEYS.ASR_BACKEND}`, syncCliMode);
 
         settings.bind(
             SETTINGS_KEYS.CLI_PATH,
@@ -443,6 +737,75 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT
         );
 
+        // Language combo (index-based two-way sync).
+        const syncLang = () => {
+            const id =
+                settings.get_string(SETTINGS_KEYS.SELECTED_LANGUAGE) ?? 'auto';
+            const idx = Math.max(
+                0,
+                languageOptions.findIndex(o => o.id === id)
+            );
+            langRow.selected = idx;
+        };
+        syncLang();
+        langRow.connect('notify::selected', () => {
+            const opt = languageOptions[langRow.selected];
+            if (opt)
+                settings.set_string(SETTINGS_KEYS.SELECTED_LANGUAGE, opt.id);
+        });
+        settings.bind(
+            SETTINGS_KEYS.TRANSLATE_TO_ENGLISH,
+            translateRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+
+        // Accelerator combo + GPU device + threads.
+        const syncAccel = () => {
+            const id = settings.get_string(SETTINGS_KEYS.ACCELERATOR) ?? 'auto';
+            const idx = Math.max(0, ACCELERATOR_IDS.indexOf(id as never));
+            accelRow.selected = idx;
+            gpuRow.sensitive = id === 'vulkan' || id === 'auto';
+        };
+        syncAccel();
+        accelRow.connect('notify::selected', () => {
+            const id = ACCELERATOR_IDS[accelRow.selected];
+            if (id) settings.set_string(SETTINGS_KEYS.ACCELERATOR, id);
+        });
+        settings.connect(`changed::${SETTINGS_KEYS.ACCELERATOR}`, syncAccel);
+
+        settings.bind(
+            SETTINGS_KEYS.AUTO_DETECT_GPU,
+            autoDetectRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        settings.bind(
+            SETTINGS_KEYS.GPU_DEVICE,
+            gpuRow,
+            'value',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        settings.bind(
+            SETTINGS_KEYS.CPU_THREADS,
+            threadsRow,
+            'value',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+
+        settings.bind(
+            SETTINGS_KEYS.VAD_ENABLED,
+            vadRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        settings.bind(
+            SETTINGS_KEYS.INITIAL_PROMPT,
+            promptRow.entry,
+            'text',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+
         settings.bind(
             SETTINGS_KEYS.CHUNK_ENABLED,
             chunkEnabledRow,
@@ -461,8 +824,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             'value',
             Gio.SettingsBindFlags.DEFAULT
         );
-        // Disable the chunk-tuning rows when chunking is off; keep them in sync
-        // if the key changes from elsewhere (e.g. gsettings CLI).
         const syncChunkSensitivity = () => {
             const on = settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
             chunkSecondsRow.sensitive = on;

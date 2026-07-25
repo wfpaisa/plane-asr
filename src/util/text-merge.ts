@@ -53,11 +53,7 @@ function matchRatio(a: string[], b: string[]): number {
  * - Longer windows (k >= 3) tolerate ASR variation: a ratio >= 0.7 is accepted,
  *   so a word misheard at the seam doesn't defeat the whole stitch.
  */
-function isOverlap(
-    prevTail: string[],
-    currHead: string[],
-    k: number
-): boolean {
+function isOverlap(prevTail: string[], currHead: string[], k: number): boolean {
     if (k <= 0 || k > prevTail.length || k > currHead.length) return false;
     const a = prevTail.slice(prevTail.length - k);
     const b = currHead.slice(0, k);

@@ -25,6 +25,8 @@ ifndef ZIP
 Install it and retry: Arch: sudo pacman -S zip | Debian/Ubuntu: sudo apt install zip | Fedora: sudo dnf install zip)
 endif
 	@cp -r schemas dist/
+	@cp -r data dist/
+	@cp -r bin dist/
 	@cp metadata.json dist/
 	@cp stylesheet.css dist/
 	@(cd dist && zip ../$(NAME)@$(DOMAIN).zip -9r .)

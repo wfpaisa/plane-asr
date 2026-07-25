@@ -10,12 +10,14 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { SETTINGS_KEYS } from '../config/settings.js';
-import { Recorder } from './recorder.js';
-import { Transcriber } from './transcriber.js';
+import {SETTINGS_KEYS} from '../config/settings.js';
+import {resolveAutoCli} from './cli-resolver.js';
+import {getBackend} from './asr-backends.js';
+import {Recorder} from './recorder.js';
+import {Transcriber, type TranscriberOptions} from './transcriber.js';
 import {
     SAMPLE_RATE,
     cleanupChunks,
@@ -23,8 +25,8 @@ import {
     wavAvailableSamples,
     writeWavChunk,
 } from './audio-chunker.js';
-import { copyToClipboard, pasteAtCursor } from '../util/paste.js';
-import { dedupChunkJoin } from '../util/text-merge.js';
+import {copyToClipboard, pasteAtCursor} from '../util/paste.js';
+import {dedupChunkJoin} from '../util/text-merge.js';
 
 /** Coarse lifecycle states surfaced to the UI. */
 export enum AsrState {
@@ -74,16 +76,22 @@ export class AsrService {
     private _state: AsrState = AsrState.Idle;
     private _recorder = new Recorder();
     private _transcriber: Transcriber;
+    private _extensionDir: string | null;
     private _currentAudioPath: string | null = null;
     /** Active live-transcription session while streaming; null otherwise. */
     private _stream: StreamSession | null = null;
     /** Resolves when the live worker has fully drained the recording. */
     private _streamDone: Promise<void> | null = null;
 
-    constructor(settings: Gio.Settings, onChange: ChangeCb) {
+    constructor(
+        settings: Gio.Settings,
+        onChange: ChangeCb,
+        transcriberOpts: TranscriberOptions
+    ) {
         this._settings = settings;
         this._onChange = onChange;
-        this._transcriber = new Transcriber(settings);
+        this._extensionDir = transcriberOpts.extensionDir;
+        this._transcriber = new Transcriber(settings, transcriberOpts);
     }
 
     /** Current lifecycle state. */
@@ -129,12 +137,39 @@ export class AsrService {
 
     // -- state transitions -------------------------------------------------
 
+    /**
+     * Pre-flight check that a usable transcription binary is available before
+     * committing to a recording. Honors `cli-mode`: 'manual' validates the
+     * user-provided `cli-path`; 'auto' prefers the bundled binary and falls back
+     * to PATH. Returns a localized error string, or null when the binary is OK.
+     */
+    private _validateCliBinary(): string | null {
+        const mode = this._settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'auto';
+        if (mode === 'manual') {
+            const cliPath = this._settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
+            if (!cliPath || !Gio.File.new_for_path(cliPath).query_exists(null)) {
+                return _('ASR binary not found. Set it in preferences.');
+            }
+            return null;
+        }
+        // auto: bundled binary first, then PATH.
+        const backendId =
+            this._settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
+            'transcribe-cli';
+        const pathName = getBackend(backendId).defaultCliName;
+        const resolved = resolveAutoCli(this._extensionDir, pathName);
+        if (resolved.source !== 'none') return null;
+        return _(
+            'No transcription binary available for this system. ' +
+                'Switch to manual mode and set the binary path, or install ' +
+                'transcribe-cli on your PATH.'
+        );
+    }
+
     private async _startRecording(): Promise<void> {
-        const cliPath = this._settings.get_string('cli-path') ?? '';
-        if (!cliPath || !Gio.File.new_for_path(cliPath).query_exists(null)) {
-            this._setState(AsrState.Idle, {
-                error: _('ASR binary not found. Set it in preferences.'),
-            });
+        const missing = this._validateCliBinary();
+        if (missing) {
+            this._setState(AsrState.Idle, {error: missing});
             return;
         }
 
@@ -146,7 +181,7 @@ export class AsrService {
             this._setState(AsrState.Recording);
         } catch (e) {
             this._currentAudioPath = null;
-            this._setState(AsrState.Idle, { error: this._errMsg(e) });
+            this._setState(AsrState.Idle, {error: this._errMsg(e)});
             return;
         }
 
@@ -174,7 +209,7 @@ export class AsrService {
             await this._recorder.stop();
         } catch (e) {
             if (this._stream) this._stream.cancelled = true;
-            this._setState(AsrState.Idle, { error: this._errMsg(e) });
+            this._setState(AsrState.Idle, {error: this._errMsg(e)});
             return;
         }
 
@@ -201,7 +236,7 @@ export class AsrService {
             } catch (e) {
                 this._stream = null;
                 this._streamDone = null;
-                this._setState(AsrState.Idle, { error: this._errMsg(e) });
+                this._setState(AsrState.Idle, {error: this._errMsg(e)});
                 return;
             }
             this._stream = null;
@@ -220,7 +255,7 @@ export class AsrService {
                     ? _('Plane ASR: transcription pasted')
                     : _('Plane ASR: transcription copied')
             );
-            this._setState(AsrState.Idle, { text: full });
+            this._setState(AsrState.Idle, {text: full});
             return;
         }
 
@@ -251,9 +286,9 @@ export class AsrService {
                     ? _('Plane ASR: transcription pasted')
                     : _('Plane ASR: transcription copied')
             );
-            this._setState(AsrState.Idle, { text: full });
+            this._setState(AsrState.Idle, {text: full});
         } catch (e) {
-            this._setState(AsrState.Idle, { error: this._errMsg(e) });
+            this._setState(AsrState.Idle, {error: this._errMsg(e)});
         }
     }
 
@@ -282,7 +317,8 @@ export class AsrService {
         const chunkSamples = Math.max(
             1,
             Math.floor(
-                this._settings.get_int(SETTINGS_KEYS.CHUNK_SECONDS) * SAMPLE_RATE
+                this._settings.get_int(SETTINGS_KEYS.CHUNK_SECONDS) *
+                    SAMPLE_RATE
             )
         );
         const overlapSeconds = Math.max(
@@ -301,7 +337,7 @@ export class AsrService {
         // 0 disables dedup entirely (contiguous-window path).
         const maxOverlapWords =
             overlapSamples > 0
-                ? Math.max(3, Math.ceil((overlapSeconds * 5) + 2))
+                ? Math.max(3, Math.ceil(overlapSeconds * 5 + 2))
                 : 0;
 
         const cacheDir = GLib.build_filenamev([

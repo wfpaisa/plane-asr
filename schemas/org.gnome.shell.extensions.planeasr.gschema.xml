@@ -7,6 +7,15 @@
       <summary>ASR backend</summary>
       <description>Which transcription binary preset to use (whisper-cli, transcribe-cli, nero-asr, custom).</description>
     </key>
+    <key name="cli-mode" type="s">
+      <choices>
+        <choice value="auto"/>
+        <choice value="manual"/>
+      </choices>
+      <default>'auto'</default>
+      <summary>CLI mode</summary>
+      <description>How to resolve the transcription binary. 'auto' uses the CPU-only transcribe-cli bundled with the extension (x86_64), falling back to a transcribe-cli found on PATH. 'manual' uses the absolute path set in cli-path (e.g. a Vulkan/CUDA build).</description>
+    </key>
     <key name="cli-path" type="s">
       <default>''</default>
       <summary>Binary path</summary>
@@ -26,6 +35,72 @@
       <default>'{cli} {params} {audio}'</default>
       <summary>Custom argument template</summary>
       <description>Template used when backend is 'custom'. Placeholders: {cli} {params} {audio}.</description>
+    </key>
+
+    <!-- Model selection -->
+    <key name="active-model-id" type="s">
+      <default>''</default>
+      <summary>Active model id</summary>
+      <description>Id of the active catalog model. When empty, the free-form model-params string is used instead.</description>
+    </key>
+    <key name="model-dir" type="s">
+      <default>''</default>
+      <summary>Model directory</summary>
+      <description>Directory where downloaded models are stored. Empty means ~/.cache/planeasr/models.</description>
+    </key>
+    <key name="quant-preference" type="s">
+      <default>'Q8_0'</default>
+      <summary>Preferred quantization</summary>
+      <description>Quantization selected by default when a model offers several files (Q4_K_M, Q5_K_M, Q6_K, Q8_0, F16, F32).</description>
+    </key>
+
+    <!-- Compute backend -->
+    <key name="accelerator" type="s">
+      <choices>
+        <choice value="auto"/>
+        <choice value="cpu"/>
+        <choice value="vulkan"/>
+      </choices>
+      <default>'auto'</default>
+      <summary>Accelerator</summary>
+      <description>Compute backend: auto (let the CLI pick), cpu, or vulkan.</description>
+    </key>
+    <key name="gpu-device" type="i">
+      <default>-1</default>
+      <summary>GPU device index</summary>
+      <description>Index of the GPU device to use. -1 means auto-detect.</description>
+    </key>
+    <key name="auto-detect-gpu" type="b">
+      <default>true</default>
+      <summary>Auto-detect GPU</summary>
+      <description>Probe for a Vulkan GPU at runtime and use it when 'accelerator' is 'auto'.</description>
+    </key>
+
+    <!-- ASR parameters -->
+    <key name="selected-language" type="s">
+      <default>'auto'</default>
+      <summary>Spoken language</summary>
+      <description>ISO 639-1 language code or 'auto' for detection.</description>
+    </key>
+    <key name="translate-to-english" type="b">
+      <default>false</default>
+      <summary>Translate to English</summary>
+      <description>Translate the transcription to English when the model supports it.</description>
+    </key>
+    <key name="cpu-threads" type="i">
+      <default>0</default>
+      <summary>CPU threads</summary>
+      <description>Number of CPU threads to use. 0 means auto (all available cores).</description>
+    </key>
+    <key name="vad-enabled" type="b">
+      <default>false</default>
+      <summary>Voice Activity Detection</summary>
+      <description>Enable Silero VAD to filter silence. whisper-cli only.</description>
+    </key>
+    <key name="initial-prompt" type="s">
+      <default>''</default>
+      <summary>Initial prompt / custom words</summary>
+      <description>Custom vocabulary or context biasing passed as the model initial prompt.</description>
     </key>
     <key name="chunk-enabled" type="b">
       <default>true</default>

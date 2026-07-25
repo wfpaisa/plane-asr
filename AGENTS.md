@@ -86,7 +86,7 @@ and `pnpm run lint` as the correctness gates.
   `Object.defineProperty(this, '_field', {value: undefined})` for every class
   field — including definite-assignment ones (`_icon!: St.Icon`). In GJS the
   `GObject.registerClass` lifecycle means `super._init(...)` can fire callbacks
-  that touch those fields *before* your `_init` body runs, and the field
+  that touch those fields _before_ your `_init` body runs, and the field
   initializer then clobbers them back to `undefined`. Symptom: cryptic runtime
   `TypeError: can't access property "x", this._y is undefined`. Do NOT remove
   this flag and do NOT add class-field initializers with side effects; assign
@@ -134,8 +134,9 @@ terminal where the Shell was started.
 `Alt+F2` → `lg` opens an inspector/REPL running in the live Shell. `GLib`,
 `GObject`, `Gio`, `Clutter`, `Meta`, `St`, `Shell`, and `Main` are pre-imported.
 Notable pages: **Evaluator** (REPL), **Extensions** (shows per-extension errors
-+ "view source" — the fastest way to see a runtime stack from this repo),
-**Actors** (widget tree). It is not a stepping debugger.
+
+- "view source" — the fastest way to see a runtime stack from this repo),
+  **Actors** (widget tree). It is not a stepping debugger.
 
 ### GDB (advanced, for native crashes)
 
