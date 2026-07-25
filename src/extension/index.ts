@@ -36,6 +36,17 @@ export default class PlaneAsrExtension extends Extension {
     _service?: AsrService;
     _gpuDetector?: GpuDetector;
 
+    constructor(
+        metadata: ConstructorParameters<typeof Extension>[0]
+    ) {
+        super(metadata);
+        // Bind the bundled translations under <extdir>/locale for the gettext
+        // domain declared in metadata.json, so every _('...') call resolves
+        // through them (e.g. the Spanish locale). No-op when no locale/ dir is
+        // shipped, in which case the system domain is used.
+        this.initTranslations();
+    }
+
     enable() {
         this._settings = this.getSettings();
 

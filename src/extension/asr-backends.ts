@@ -25,6 +25,11 @@ export interface BuildArgvOptions {
     realtime: boolean;
     /** Argument template (only used by the `custom` backend). */
     customTemplate: string;
+    /**
+     * Optional extra flags the user wants appended to every invocation, after
+     * the model params and feature args, before the audio path. '' = none.
+     */
+    extraFlags: string;
     /** Path of the WAV file to transcribe. */
     audioPath: string;
     /**
@@ -122,6 +127,7 @@ export const ASR_BACKENDS: AsrBackend[] = [
             ...transcribeCliFeatureArgs(opts.features),
             ...parseArgs(opts.modelParams),
             ...(opts.realtime ? REALTIME_ARGS : []),
+            ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],
     },
@@ -141,6 +147,7 @@ export const ASR_BACKENDS: AsrBackend[] = [
             opts.cliPath,
             ...whisperCliFeatureArgs(opts.features),
             ...parseArgs(opts.modelParams),
+            ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],
     },
@@ -159,6 +166,7 @@ export const ASR_BACKENDS: AsrBackend[] = [
         buildArgv: opts => [
             opts.cliPath,
             ...parseArgs(opts.modelParams),
+            ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],
     },
@@ -179,7 +187,12 @@ export const ASR_BACKENDS: AsrBackend[] = [
                 .replaceAll('{cli}', opts.cliPath)
                 .replaceAll('{params}', opts.modelParams)
                 .replaceAll('{audio}', opts.audioPath);
-            return parseArgs(rendered);
+            // Extra user flags are appended verbatim to the rendered template
+            // (after the {audio} placeholder) so they survive tokenization.
+            const withExtra = opts.extraFlags
+                ? `${rendered} ${opts.extraFlags}`
+                : rendered;
+            return parseArgs(withExtra);
         },
     },
 ];

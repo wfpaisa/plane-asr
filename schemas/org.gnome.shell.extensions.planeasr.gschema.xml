@@ -9,12 +9,12 @@
     </key>
     <key name="cli-mode" type="s">
       <choices>
-        <choice value="auto"/>
-        <choice value="manual"/>
+        <choice value="cpu"/>
+        <choice value="gpu"/>
       </choices>
-      <default>'auto'</default>
+      <default>'cpu'</default>
       <summary>CLI mode</summary>
-      <description>How to resolve the transcription binary. 'auto' uses the CPU-only transcribe-cli bundled with the extension (x86_64), falling back to a transcribe-cli found on PATH. 'manual' uses the absolute path set in cli-path (e.g. a Vulkan/CUDA build).</description>
+      <description>How to resolve the transcription binary. 'cpu' uses the CPU-only transcribe-cli bundled with the extension (x86_64), falling back to a transcribe-cli found on PATH. 'gpu' uses the absolute path set in cli-path (e.g. a Vulkan/CUDA build) and forces the Vulkan accelerator so inference runs on the GPU. Legacy values 'auto' and 'manual' are migrated at load time to 'cpu' and 'gpu' respectively.</description>
     </key>
     <key name="cli-path" type="s">
       <default>''</default>
@@ -35,6 +35,11 @@
       <default>'{cli} {params} {audio}'</default>
       <summary>Custom argument template</summary>
       <description>Template used when backend is 'custom'. Placeholders: {cli} {params} {audio}.</description>
+    </key>
+    <key name="extra-cli-flags" type="s">
+      <default>''</default>
+      <summary>Extra CLI flags</summary>
+      <description>Optional extra flags appended to every transcription command, after the model params and feature flags, before the audio path. Left blank means none. Quote values with spaces.</description>
     </key>
 
     <!-- Model selection -->

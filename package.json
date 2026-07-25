@@ -22,7 +22,8 @@
         "setup": "make all && make pack && make install",
         "debug": "dbus-run-session gnome-shell --devkit --wayland",
         "lint": "eslint .",
-        "format": "prettier --write ."
+        "format": "prettier --write .",
+        "i18n": "make pot && make locale"
     },
     "devDependencies": {
         "@eslint/js": "^9.0.0",

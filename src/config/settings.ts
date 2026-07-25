@@ -11,7 +11,7 @@
 export const SETTINGS_KEYS = {
     /** Id of the active ASR backend preset (string). */
     ASR_BACKEND: 'asr-backend',
-    /** How the CLI binary is resolved: 'auto' (bundled/PATH) or 'manual' (string). */
+    /** How the CLI binary is resolved: 'cpu' (bundled/PATH) or 'gpu' (string). */
     CLI_MODE: 'cli-mode',
     /** Absolute path to the transcription CLI binary (string). */
     CLI_PATH: 'cli-path',
@@ -21,6 +21,8 @@ export const SETTINGS_KEYS = {
     REALTIME_MODE: 'realtime-mode',
     /** Argument template used when backend === 'custom' (string). */
     CUSTOM_ARG_TEMPLATE: 'custom-arg-template',
+    /** Optional extra flags appended to every transcription command (string). */
+    EXTRA_CLI_FLAGS: 'extra-cli-flags',
 
     /** Id of the active catalog model; '' means use the free-form model-params (string). */
     ACTIVE_MODEL_ID: 'active-model-id',
@@ -77,8 +79,28 @@ export type OutputMode = 'clipboard' | 'paste';
 /** Allowed values for the `accelerator` key. */
 export type Accelerator = 'auto' | 'cpu' | 'vulkan';
 
-/** Allowed values for the `cli-mode` key. */
-export type CliMode = 'auto' | 'manual';
+/**
+ * Allowed values for the `cli-mode` key.
+ *
+ * - `cpu`: use the CPU-only `transcribe-cli` bundled with the extension
+ *   (x86_64), falling back to one found on PATH.
+ * - `gpu`: use the absolute path the user set in `cli-path` (e.g. a
+ *   personally compiled Vulkan/CUDA build). Selecting this in the UI also
+ *   forces the Vulkan accelerator.
+ *
+ * Legacy values `auto` and `manual` are migrated to `cpu` and `gpu`
+ * respectively by {@link normalizeCliMode}.
+ */
+export type CliMode = 'cpu' | 'gpu';
+
+/**
+ * Normalize a raw `cli-mode` GSetting value to the current enum, migrating
+ * the legacy `auto`/`manual` choices. Anything unrecognized defaults to `cpu`.
+ */
+export function normalizeCliMode(value: string | undefined | null): CliMode {
+    if (value === 'gpu' || value === 'manual') return 'gpu';
+    return 'cpu';
+}
 
 /** Allowed values for the `quant-preference` key. */
 export type Quant = 'Q4_K_M' | 'Q5_K_M' | 'Q6_K' | 'Q8_0' | 'F16' | 'F32';

@@ -13,7 +13,7 @@ import GLib from 'gi://GLib';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {SETTINGS_KEYS} from '../config/settings.js';
+import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
 import {resolveAutoCli} from './cli-resolver.js';
 import {getBackend} from './asr-backends.js';
 import {Recorder} from './recorder.js';
@@ -139,20 +139,22 @@ export class AsrService {
 
     /**
      * Pre-flight check that a usable transcription binary is available before
-     * committing to a recording. Honors `cli-mode`: 'manual' validates the
-     * user-provided `cli-path`; 'auto' prefers the bundled binary and falls back
-     * to PATH. Returns a localized error string, or null when the binary is OK.
+     * committing to a recording. Honors `cli-mode`: 'gpu' validates the
+     * user-provided `cli-path`; 'cpu' prefers the bundled binary and falls back
+     * to PATH. Legacy 'auto'/'manual' values are migrated. Returns a localized
+     * error string, or null when the binary is OK.
      */
     private _validateCliBinary(): string | null {
-        const mode = this._settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'auto';
-        if (mode === 'manual') {
+        const raw = this._settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu';
+        const mode = normalizeCliMode(raw);
+        if (mode === 'gpu') {
             const cliPath = this._settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
             if (!cliPath || !Gio.File.new_for_path(cliPath).query_exists(null)) {
                 return _('ASR binary not found. Set it in preferences.');
             }
             return null;
         }
-        // auto: bundled binary first, then PATH.
+        // cpu: bundled binary first, then PATH.
         const backendId =
             this._settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
             'transcribe-cli';
@@ -161,7 +163,7 @@ export class AsrService {
         if (resolved.source !== 'none') return null;
         return _(
             'No transcription binary available for this system. ' +
-                'Switch to manual mode and set the binary path, or install ' +
+                'Switch to GPU mode and set the binary path, or install ' +
                 'transcribe-cli on your PATH.'
         );
     }

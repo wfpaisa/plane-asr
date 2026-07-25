@@ -2,10 +2,13 @@
  *
  * Preferences window for the Plane ASR extension.
  *
- * Two pages:
- *  - "General": model selection, language, compute (CPU/Vulkan), ASR quality,
- *    output, long recordings, debug.
- *  - "Models": searchable downloader for the bundled GGUF catalog.
+ * Three pages (in user priority order):
+ *  - "Models": model selection (catalog vs custom), searchable downloader,
+ *    storage directory — the first thing a user needs to configure.
+ *  - "Backend": transcription backend, binary mode, performance (accelerator,
+ *    GPU, threads), and long-recording chunking — everything that affects how
+ *    the audio is processed.
+ *  - "General": language, quality (VAD, prompt), output mode, shortcut, debug.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -14,23 +17,21 @@ import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-
 import {
     ExtensionPreferences,
     gettext as _,
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import {SETTINGS_KEYS} from '../config/settings.js';
+import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
 import {
     ASR_BACKENDS,
     getBackend,
     parseArgs,
 } from '../extension/asr-backends.js';
 import {resolveAutoCli} from '../extension/cli-resolver.js';
-import {GpuDetector, formatVram} from '../extension/gpu-detector.js';
+import {listDevices} from '../extension/device-lister.js';
 import {
     findModel,
-    formatSize,
     pickFile,
     resolveModelDir,
 } from '../models/catalog.js';
@@ -44,7 +45,7 @@ const OUTPUT_IDS = ['clipboard', 'paste'] as const;
 const ACCELERATOR_IDS = ['auto', 'cpu', 'vulkan'] as const;
 
 /** Ids backing the "Binary mode" combo, in display order. */
-const CLI_MODE_IDS = ['auto', 'manual'] as const;
+const CLI_MODE_IDS = ['cpu', 'gpu'] as const;
 
 /** Common language codes offered in the language combo. Labels are translated
  *  lazily inside `fillPreferencesWindow`, because `gettext` can only be called
@@ -77,7 +78,7 @@ const LANGUAGE_DEFAULT_NAMES: Record<string, string> = {
     en: 'English',
     es: 'Spanish',
     fr: 'French',
-    de: 'German',
+    'de': 'German',
     it: 'Italian',
     pt: 'Portuguese',
     nl: 'Dutch',
@@ -92,9 +93,6 @@ const LANGUAGE_DEFAULT_NAMES: Record<string, string> = {
     uk: 'Ukrainian',
     vi: 'Vietnamese',
 };
-
-/** Default language labels are resolved through gettext at runtime, inside
- *  `fillPreferencesWindow`, using {@link LANGUAGE_DEFAULT_NAMES}. */
 
 /** Extract the model file path from a `model-params` string, if present. */
 function extractModelPath(params: string): string | null {
@@ -114,9 +112,11 @@ function validateSetup(
 ): string {
     const problems: string[] = [];
 
-    const mode = settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'auto';
+    const mode = normalizeCliMode(
+        settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu'
+    );
     let cliPath: string;
-    if (mode === 'manual') {
+    if (mode === 'gpu') {
         cliPath = settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
         if (!cliPath) {
             problems.push(_('binary path is empty'));
@@ -214,100 +214,66 @@ function resolveModelFilePath(
 export default class PlaneAsrPreferences extends ExtensionPreferences {
     _settings?: Gio.Settings;
 
+    constructor(
+        metadata: ConstructorParameters<typeof ExtensionPreferences>[0]
+    ) {
+        super(metadata);
+        // Bind the bundled translations under <extdir>/locale for the gettext
+        // domain declared in metadata.json, so every _('...') call in the prefs
+        // UI resolves through them (e.g. the Spanish locale).
+        this.initTranslations();
+    }
+
     fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         this._settings = this.getSettings();
         const settings = this._settings!;
         const extensionDir = this.path ?? null;
-        const gpuDetector = new GpuDetector();
 
         const toast = (title: string) =>
             window.add_toast(new Adw.Toast({title, timeout: 5}));
 
-        // ===== General page ==============================================
-        const page = new Adw.PreferencesPage({
-            title: _('General'),
-            iconName: 'dialog-information-symbolic',
-        });
-
-        // -- Active model --------------------------------------------------
-        const modelGroup = new Adw.PreferencesGroup({
-            title: _('Model'),
-            description: _('Pick a downloaded model or use advanced params'),
-        });
-        page.add(modelGroup);
-
-        const activeModelRow = new Adw.ActionRow({
-            title: _('Active model'),
-            subtitle: _('Open the Models page to download and select'),
-        });
-        const openModelsBtn = new Gtk.Button({
-            label: _('Models →'),
-            valign: Gtk.Align.CENTER,
-        });
-        activeModelRow.add_suffix(openModelsBtn);
-        activeModelRow.activatable_widget = openModelsBtn;
-        modelGroup.add(activeModelRow);
-
-        const activeModelLabel = new Gtk.Label({
-            xalign: 0,
-            cssClasses: ['caption'],
-            wrap: true,
-        });
-        const activeModelBox = new Gtk.Box({
-            orientation: Gtk.Orientation.VERTICAL,
-            spacing: 4,
-            marginStart: 12,
-            marginEnd: 12,
-            marginBottom: 8,
-        });
-        activeModelBox.append(activeModelLabel);
-        const activeModelInfoRow = new Adw.PreferencesRow({
-            activatable: false,
-        });
-        activeModelInfoRow.set_child(activeModelBox);
-        modelGroup.add(activeModelInfoRow);
-
-        const modelParamsRow = entryRow(
-            _('Advanced model params'),
-            'e.g. -m /home/user/models/parakeet-tdt-0.6b-v2-Q8_0.gguf'
-        );
-        modelGroup.add(modelParamsRow.row);
-
-        const refreshActiveModel = () => {
-            const id = settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
-            const showAdvanced = !id;
-            modelParamsRow.row.visible = showAdvanced;
-            if (id && extensionDir) {
-                const entry = findModel(extensionDir, id);
-                if (entry) {
-                    const file = pickFile(
-                        entry,
-                        settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ??
-                            ''
-                    );
-                    activeModelLabel.label =
-                        `${entry.name} · ${entry.parameters} · ` +
-                        `${file ? formatSize(file.size_bytes) : ''} · ` +
-                        `${entry.backend}`;
-                    return;
-                }
-            }
-            activeModelLabel.label = _(
-                'No catalog model selected — using advanced params.'
-            );
-        };
-        refreshActiveModel();
-        settings.connect(
-            `changed::${SETTINGS_KEYS.ACTIVE_MODEL_ID}`,
-            refreshActiveModel
+        // Load a small CSS provider for prefs-only styling that libadwaita
+        // does not expose as a built-in class — currently the highlight of the
+        // active catalog model row. Attached to the window's display so every
+        // prefs window instance picks it up.
+        const provider = new Gtk.CssProvider();
+        const css =
+            '.planeasr-active-model {\n' +
+            '  background-color: alpha(@accent_bg_color, 0.12);\n' +
+            '  outline: 1px solid alpha(@accent_color, 0.4);\n' +
+            '  outline-offset: -1px;\n' +
+            '}\n';
+        provider.load_from_data(css, css.length);
+        Gtk.StyleContext.add_provider_for_display(
+            window.get_display(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         );
 
-        // -- ASR backend ---------------------------------------------------
+        /* ================================================================
+         * PAGE 1: Models  (model selection, catalog, storage)
+         * ================================================================ */
+        const modelsPage = buildModelsPage({
+            extensionDir,
+            settings,
+            toast,
+        });
+        window.add(modelsPage);
+
+        /* ================================================================
+         * PAGE 2: Backend  (transcription + performance + chunking)
+         * ================================================================ */
+        const backendPage = new Adw.PreferencesPage({
+            title: _('Backend'),
+            iconName: 'utilities-terminal-symbolic',
+        });
+
+        // -- Transcription ---------------------------------------------------
         const asrGroup = new Adw.PreferencesGroup({
             title: _('Transcription'),
-            description: _('Configure the local ASR backend'),
+            description: _('Choose the ASR engine and configure its binary'),
         });
-        page.add(asrGroup);
+        backendPage.add(asrGroup);
 
         const backendModel = new Gtk.StringList({
             strings: ASR_BACKENDS.map(b => b.label),
@@ -320,19 +286,47 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         asrGroup.add(backendRow);
 
         const cliModeModel = new Gtk.StringList({
-            strings: [_('Automatic (bundled CPU)'), _('Manual (custom path)')],
+            strings: [_('CPU'), _('GPU')],
         });
         const cliModeRow = new Adw.ComboRow({
             title: _('Binary mode'),
             subtitle: _(
-                'Automatic uses the transcribe-cli shipped with the extension (CPU, x86_64). Manual lets you point to your own build, e.g. with Vulkan/CUDA.'
+                'CPU uses the transcribe-cli shipped with the extension ' +
+                    '(x86_64), falling back to one found on PATH. GPU lets ' +
+                    'you point to your own Vulkan/CUDA build.'
             ),
+            titleLines: 0,
+            subtitleLines: 0,
             model: cliModeModel,
         });
         asrGroup.add(cliModeRow);
 
-        // Status line shown only in Automatic mode: reports where the binary
-        // was resolved from (bundled / PATH) or that none was found.
+        // Explanatory note shown only in GPU mode
+        const gpuNoteLabel = new Gtk.Label({
+            xalign: 0,
+            cssClasses: ['caption'],
+            wrap: true,
+            label: _(
+                'GPU mode uses a manually configured binary (e.g. a ' +
+                    'transcribe.cpp build with Vulkan/CUDA/Metal). Point it ' +
+                    'to the compiled transcribe-cli; the accelerator is left ' +
+                    'on Auto so the CLI uses whatever GPU it was built for.'
+            ),
+        });
+        const gpuNoteBox = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 4,
+            marginStart: 12,
+            marginEnd: 12,
+            marginTop: 4,
+            marginBottom: 8,
+        });
+        gpuNoteBox.append(gpuNoteLabel);
+        const gpuNoteRow = new Adw.PreferencesRow({activatable: false});
+        gpuNoteRow.set_child(gpuNoteBox);
+        asrGroup.add(gpuNoteRow);
+
+        // Status line shown only in CPU mode
         const cliStatusRow = new Adw.ActionRow({
             title: _('Resolved binary'),
         });
@@ -343,6 +337,12 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             'e.g. /home/user/transcribe.cpp/build/bin/transcribe-cli'
         );
         asrGroup.add(cliPathRow.row);
+
+        const extraFlagsRow = entryRow(
+            _('Optional extra flags'),
+            _('e.g. --verbose --beam-size 4 (left blank = none)')
+        );
+        asrGroup.add(extraFlagsRow.row);
 
         const realtimeRow = new Adw.SwitchRow({
             title: _('Realtime mode'),
@@ -372,9 +372,130 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             toast(validateSetup(settings, extensionDir));
         });
 
-        // -- Language ------------------------------------------------------
-        const langGroup = new Adw.PreferencesGroup({title: _('Language')});
-        page.add(langGroup);
+        // -- Performance / compute -------------------------------------------
+        const perfGroup = new Adw.PreferencesGroup({
+            title: _('Performance'),
+            description: _('Tune CPU vs GPU acceleration and threading'),
+        });
+        backendPage.add(perfGroup);
+
+        const accelModel = new Gtk.StringList({
+            strings: [_('Auto'), _('CPU'), _('Vulkan')],
+        });
+        const accelRow = new Adw.ComboRow({
+            title: _('Accelerator'),
+            subtitle: _('Compute backend for inference'),
+            model: accelModel,
+        });
+        perfGroup.add(accelRow);
+
+        const autoDetectRow = new Adw.SwitchRow({
+            title: _('Auto-detect GPU'),
+            subtitle: _('Probe for a Vulkan GPU when accelerator is Auto'),
+        });
+        perfGroup.add(autoDetectRow);
+
+        // GPU device dropdown: populated from the configured CLI's
+        // `--list-devices` output, so the index a selection maps to matches
+        // what `--device N` actually interprets (vital for CUDA builds, whose
+        // registry order differs from `vulkaninfo`). The first entry is always
+        // "Auto" (= no --device flag, let the CLI pick device 0).
+        const gpuDeviceModel = new Gtk.StringList({
+            strings: [_('Auto (let CLI choose)')],
+        });
+        const gpuDeviceRow = new Adw.ComboRow({
+            title: _('GPU device'),
+            subtitle: _('Which compute device the CLI uses'),
+            model: gpuDeviceModel,
+        });
+        perfGroup.add(gpuDeviceRow);
+
+        const threadsRow = new Adw.SpinRow({
+            title: _('CPU threads'),
+            subtitle: _('0 = auto (use all cores)'),
+            titleLines: 0,
+            subtitleLines: 0,
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 128,
+                step_increment: 1,
+                page_increment: 4,
+                value: 0,
+            }),
+            digits: 0,
+        });
+        perfGroup.add(threadsRow);
+
+        // -- Long recordings (chunking) --------------------------------------
+        const chunkGroup = new Adw.PreferencesGroup({
+            title: _('Long recordings'),
+            description: _(
+                'Split live recordings into chunks so transcription streams ' +
+                    'progressively and backends with token limits do not ' +
+                    'truncate the output.'
+            ),
+        });
+        backendPage.add(chunkGroup);
+
+        const chunkEnabledRow = new Adw.SwitchRow({
+            title: _('Live chunked transcription'),
+            subtitle: _('Process each N-second chunk as you speak'),
+        });
+        chunkGroup.add(chunkEnabledRow);
+
+        const chunkSecondsRow = new Adw.SpinRow({
+            title: _('Seconds per chunk'),
+            subtitle: _(
+                'Lower values are safer for models that cap output tokens'
+            ),
+            titleLines: 0,
+            subtitleLines: 0,
+            adjustment: new Gtk.Adjustment({
+                lower: 5,
+                upper: 60,
+                step_increment: 1,
+                page_increment: 5,
+                value: 10,
+            }),
+            digits: 0,
+        });
+        chunkGroup.add(chunkSecondsRow);
+
+        const chunkOverlapRow = new Adw.SpinRow({
+            title: _('Overlap seconds'),
+            subtitle: _(
+                'Re-transcribe this much at each chunk boundary so words ' +
+                    'split across the seam are not lost (0 = off)'
+            ),
+            titleLines: 0,
+            subtitleLines: 0,
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 5,
+                step_increment: 1,
+                page_increment: 1,
+                value: 1,
+            }),
+            digits: 0,
+        });
+        chunkGroup.add(chunkOverlapRow);
+
+        window.add(backendPage);
+
+        /* ================================================================
+         * PAGE 3: General  (language, quality, output, debug)
+         * ================================================================ */
+        const generalPage = new Adw.PreferencesPage({
+            title: _('General'),
+            iconName: 'emblem-system-symbolic',
+        });
+
+        // -- Language --------------------------------------------------------
+        const langGroup = new Adw.PreferencesGroup({
+            title: _('Language'),
+            description: _('Spoken language and translation settings'),
+        });
+        generalPage.add(langGroup);
 
         const languageOptions = LANGUAGE_CODES.map(id => ({
             id,
@@ -397,129 +518,21 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         langGroup.add(translateRow);
 
-        // -- Performance / compute ----------------------------------------
-        const perfGroup = new Adw.PreferencesGroup({
-            title: _('Performance'),
-            description: _('CPU vs Vulkan GPU acceleration'),
-        });
-        page.add(perfGroup);
-
-        const accelModel = new Gtk.StringList({
-            strings: [_('Auto'), _('CPU'), _('Vulkan')],
-        });
-        const accelRow = new Adw.ComboRow({
-            title: _('Accelerator'),
-            subtitle: _('Compute backend for inference'),
-            model: accelModel,
-        });
-        perfGroup.add(accelRow);
-
-        const autoDetectRow = new Adw.SwitchRow({
-            title: _('Auto-detect GPU'),
-            subtitle: _('Probe for a Vulkan GPU when accelerator is Auto'),
-        });
-        perfGroup.add(autoDetectRow);
-
-        const gpuRow = new Adw.SpinRow({
-            title: _('GPU device index'),
-            subtitle: _('-1 = auto'),
-            adjustment: new Gtk.Adjustment({
-                lower: -1,
-                upper: 7,
-                step_increment: 1,
-                page_increment: 1,
-                value: -1,
-            }),
-            digits: 0,
-        });
-        perfGroup.add(gpuRow);
-
-        const gpuInfoLabel = new Gtk.Label({
-            xalign: 0,
-            cssClasses: ['caption'],
-            wrap: true,
-        });
-        const gpuInfoBox = new Gtk.Box({
-            orientation: Gtk.Orientation.VERTICAL,
-            spacing: 4,
-            marginStart: 12,
-            marginEnd: 12,
-            marginBottom: 8,
-        });
-        gpuInfoBox.append(gpuInfoLabel);
-        const gpuInfoRow = new Adw.PreferencesRow({activatable: false});
-        gpuInfoRow.set_child(gpuInfoBox);
-        perfGroup.add(gpuInfoRow);
-
-        const threadsRow = new Adw.SpinRow({
-            title: _('CPU threads'),
-            subtitle: _('0 = auto (use all cores)'),
-            adjustment: new Gtk.Adjustment({
-                lower: 0,
-                upper: 128,
-                step_increment: 1,
-                page_increment: 4,
-                value: 0,
-            }),
-            digits: 0,
-        });
-        perfGroup.add(threadsRow);
-
-        const refreshGpuInfo = async () => {
-            const on = settings.get_boolean(SETTINGS_KEYS.AUTO_DETECT_GPU);
-            const accel =
-                settings.get_string(SETTINGS_KEYS.ACCELERATOR) ?? 'auto';
-            if (!on || accel === 'cpu') {
-                gpuInfoLabel.label =
-                    accel === 'cpu'
-                        ? _('CPU mode: GPU detection disabled.')
-                        : _('GPU auto-detection is off.');
-                return;
-            }
-            gpuInfoLabel.label = _('Detecting GPU…');
-            try {
-                const gpus = await gpuDetector.detect();
-                if (gpus.length === 0) {
-                    gpuInfoLabel.label = _(
-                        'No Vulkan GPU detected. ' +
-                            'Install vulkan-tools (vulkaninfo) to enable detection.'
-                    );
-                } else {
-                    gpuInfoLabel.label = gpus
-                        .map(
-                            g =>
-                                `${g.name} (${g.kind}, ${formatVram(
-                                    g.vramBytes
-                                )})`
-                        )
-                        .join('\n');
-                }
-            } catch {
-                gpuInfoLabel.label = _('GPU detection failed.');
-            }
-        };
-        void refreshGpuInfo();
-        settings.connect(
-            `changed::${SETTINGS_KEYS.AUTO_DETECT_GPU}`,
-            () => void refreshGpuInfo()
-        );
-        settings.connect(
-            `changed::${SETTINGS_KEYS.ACCELERATOR}`,
-            () => void refreshGpuInfo()
-        );
-
-        // -- Quality -------------------------------------------------------
+        // -- Quality ---------------------------------------------------------
         const qualityGroup = new Adw.PreferencesGroup({
             title: _('Quality'),
-            description: _('Voice activity detection and custom vocabulary'),
+            description: _(
+                'Voice activity detection and custom vocabulary to bias ' +
+                    'the transcription'
+            ),
         });
-        page.add(qualityGroup);
+        generalPage.add(qualityGroup);
 
         const vadRow = new Adw.SwitchRow({
             title: _('Voice Activity Detection (VAD)'),
-            subtitle: _(
-                'Filter silence before transcription. whisper-cli only.'
-            ),
+            subtitle: _('Filter silence before transcription. whisper-cli only.'),
+            titleLines: 0,
+            subtitleLines: 0,
         });
         qualityGroup.add(vadRow);
 
@@ -529,12 +542,14 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         );
         qualityGroup.add(promptRow.row);
 
-        // -- Output --------------------------------------------------------
+        // -- Output ----------------------------------------------------------
         const outputGroup = new Adw.PreferencesGroup({
-            title: _('Output'),
-            description: _('Where the transcribed text goes'),
+            title: _('Output & Recording'),
+            description: _(
+                'Where the transcribed text goes and how to trigger recording'
+            ),
         });
-        page.add(outputGroup);
+        generalPage.add(outputGroup);
 
         const outputModel = new Gtk.StringList({
             strings: [_('Copy to clipboard'), _('Paste at cursor')],
@@ -549,93 +564,34 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             shortcutRow(settings, SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT, window)
         );
 
-        // -- Long recordings ----------------------------------------------
-        const chunkGroup = new Adw.PreferencesGroup({
-            title: _('Long recordings'),
-            description: _(
-                'Transcribe live in N-second chunks while you keep ' +
-                    'speaking, so the first words are pasted right away and ' +
-                    'backends with a per-call generation cap ' +
-                    '(e.g. Qwen3-ASR at 256 tokens) do not truncate the output.'
-            ),
-        });
-        page.add(chunkGroup);
-
-        const chunkEnabledRow = new Adw.SwitchRow({
-            title: _('Live chunked transcription'),
-            subtitle: _('Process each N-second chunk as you speak'),
-        });
-        chunkGroup.add(chunkEnabledRow);
-
-        const chunkSecondsRow = new Adw.SpinRow({
-            title: _('Seconds per chunk'),
-            subtitle: _(
-                'Lower values are safer for models that cap output tokens'
-            ),
-            adjustment: new Gtk.Adjustment({
-                lower: 5,
-                upper: 60,
-                step_increment: 1,
-                page_increment: 5,
-                value: 10,
-            }),
-            digits: 0,
-        });
-        chunkGroup.add(chunkSecondsRow);
-
-        const chunkOverlapRow = new Adw.SpinRow({
-            title: _('Overlap seconds'),
-            subtitle: _(
-                'Re-transcribe this much at each chunk boundary so words ' +
-                    'split across the seam are not lost (0 = off)'
-            ),
-            adjustment: new Gtk.Adjustment({
-                lower: 0,
-                upper: 5,
-                step_increment: 1,
-                page_increment: 1,
-                value: 1,
-            }),
-            digits: 0,
-        });
-        chunkGroup.add(chunkOverlapRow);
-
-        // -- Debug ---------------------------------------------------------
+        // -- Debug -----------------------------------------------------------
         const debugGroup = new Adw.PreferencesGroup({
             title: _('Debug'),
             description: _(
-                'When enabled, every transcription run is logged to the ' +
-                    'system journal (command line, exit status and the raw ' +
-                    'stdout/stderr of the ASR CLI). Inspect it with:\n' +
+                'Logs every transcription run to the system journal. ' +
+                    'Inspect with:\n' +
                     'journalctl --user -b /usr/bin/gnome-shell | grep planeasr'
             ),
         });
-        page.add(debugGroup);
+        generalPage.add(debugGroup);
 
         const debugRow = new Adw.SwitchRow({
             title: _('Debug logging'),
             subtitle: _(
                 'Record the ASR command and its raw output for troubleshooting'
             ),
+            titleLines: 0,
+            subtitleLines: 0,
         });
         debugGroup.add(debugRow);
 
-        window.add(page);
+        window.add(generalPage);
 
-        // ===== Models page ===============================================
-        const modelsPage = buildModelsPage({
-            extensionDir,
-            settings,
-            toast,
-        });
-        window.add(modelsPage);
+        /* ================================================================
+         * BINDINGS  (two-way sync between UI widgets and Gio.Settings)
+         * ================================================================ */
 
-        openModelsBtn.connect('clicked', () => {
-            window.visible_page = modelsPage;
-        });
-
-        // ===== Bindings ===================================================
-        // Backend combo + derived rows.
+        // --- Backend combo + derived rows ----------------------------------
         const syncBackendRows = () => {
             const id =
                 settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
@@ -666,21 +622,18 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             syncBackendRows
         );
 
-        // Binary mode combo: Automatic vs Manual. Drives which rows are shown
-        // and reports where the automatic binary was resolved from.
+        // --- Binary mode combo: CPU vs GPU ---------------------------------
         const syncCliMode = () => {
-            const id =
-                settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'auto';
-            const idx = Math.max(
-                0,
-                CLI_MODE_IDS.indexOf(id as (typeof CLI_MODE_IDS)[number])
-            );
+            const raw = settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu';
+            const id = normalizeCliMode(raw);
+            const idx = Math.max(0, CLI_MODE_IDS.indexOf(id));
             cliModeRow.selected = idx;
-            const manual = id === 'manual';
-            cliPathRow.row.visible = manual;
-            cliPathRow.row.sensitive = manual;
-            cliStatusRow.visible = !manual;
-            if (!manual) {
+            const gpu = id === 'gpu';
+            cliPathRow.row.visible = gpu;
+            cliPathRow.row.sensitive = gpu;
+            gpuNoteRow.visible = gpu;
+            cliStatusRow.visible = !gpu;
+            if (!gpu) {
                 const backendId =
                     settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
                     'transcribe-cli';
@@ -696,7 +649,8 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
                     ).format(resolved.path);
                 } else {
                     cliStatusRow.subtitle = _(
-                        'No binary found for this system. Switch to Manual or install transcribe-cli.'
+                        'No binary found for this system. Switch to GPU and ' +
+                            'set the binary path, or install transcribe-cli.'
                     );
                 }
             }
@@ -704,23 +658,34 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         syncCliMode();
         cliModeRow.connect('notify::selected', () => {
             const modeId = CLI_MODE_IDS[cliModeRow.selected];
-            if (modeId)
-                settings.set_string(SETTINGS_KEYS.CLI_MODE, modeId);
+            if (!modeId) return;
+            settings.set_string(SETTINGS_KEYS.CLI_MODE, modeId);
+            // Keep the accelerator in sync with the binary mode so the
+            // resolved binary and the --backend flag never disagree:
+            //  - GPU mode points at a user-compiled binary that may be a
+            //    Vulkan, CUDA or Metal build. Forcing 'vulkan' breaks CUDA
+            //    builds ("vulkan backend requested but not available"); instead
+            //    leave the accelerator on 'auto' so transcribe-cli picks the
+            //    first available GPU regardless of vendor.
+            //  - CPU mode uses the bundled/PATH CPU-only binary, which has no
+            //    GPU support, so force CPU and disable GPU probing (otherwise a
+            //    stale accelerator makes the CLI fail).
+            if (modeId === 'gpu') {
+                settings.set_string(SETTINGS_KEYS.ACCELERATOR, 'auto');
+                settings.set_boolean(SETTINGS_KEYS.AUTO_DETECT_GPU, true);
+            } else {
+                settings.set_string(SETTINGS_KEYS.ACCELERATOR, 'cpu');
+                settings.set_boolean(SETTINGS_KEYS.AUTO_DETECT_GPU, false);
+            }
         });
         settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncCliMode);
-        // Re-evaluate the status line when the backend changes too, since the
-        // PATH lookup name depends on the active backend.
+        // Re-evaluate the status line when the backend changes too.
         settings.connect(`changed::${SETTINGS_KEYS.ASR_BACKEND}`, syncCliMode);
 
+        // --- Direct settings bindings (backend page) -----------------------
         settings.bind(
             SETTINGS_KEYS.CLI_PATH,
             cliPathRow.entry,
-            'text',
-            Gio.SettingsBindFlags.DEFAULT
-        );
-        settings.bind(
-            SETTINGS_KEYS.MODEL_PARAMS,
-            modelParamsRow.entry,
             'text',
             Gio.SettingsBindFlags.DEFAULT
         );
@@ -736,8 +701,14 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             'text',
             Gio.SettingsBindFlags.DEFAULT
         );
+        settings.bind(
+            SETTINGS_KEYS.EXTRA_CLI_FLAGS,
+            extraFlagsRow.entry,
+            'text',
+            Gio.SettingsBindFlags.DEFAULT
+        );
 
-        // Language combo (index-based two-way sync).
+        // --- Language combo (index-based two-way sync) ---------------------
         const syncLang = () => {
             const id =
                 settings.get_string(SETTINGS_KEYS.SELECTED_LANGUAGE) ?? 'auto';
@@ -760,12 +731,22 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        // Accelerator combo + GPU device + threads.
+        // --- Accelerator combo + GPU device dropdown + threads -------------
         const syncAccel = () => {
             const id = settings.get_string(SETTINGS_KEYS.ACCELERATOR) ?? 'auto';
             const idx = Math.max(0, ACCELERATOR_IDS.indexOf(id as never));
             accelRow.selected = idx;
-            gpuRow.sensitive = id === 'vulkan' || id === 'auto';
+            // The bundled CPU binary has no GPU support, so in CPU mode the
+            // accelerator is locked to 'cpu' (set by syncCliMode) and the
+            // combo is read-only to prevent an out-of-band Vulkan selection.
+            const cliMode = normalizeCliMode(
+                settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu'
+            );
+            accelRow.sensitive = cliMode !== 'cpu';
+            // The GPU device dropdown only matters when a GPU backend may be
+            // used; hide it in CPU mode (no GPU to choose from).
+            gpuDeviceRow.visible = cliMode !== 'cpu';
+            gpuDeviceRow.sensitive = id === 'vulkan' || id === 'auto';
         };
         syncAccel();
         accelRow.connect('notify::selected', () => {
@@ -773,17 +754,14 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             if (id) settings.set_string(SETTINGS_KEYS.ACCELERATOR, id);
         });
         settings.connect(`changed::${SETTINGS_KEYS.ACCELERATOR}`, syncAccel);
+        // Re-evaluate accelerator sensitivity when the binary mode changes:
+        // CPU mode locks the accelerator to 'cpu' and disables the combo.
+        settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncAccel);
 
         settings.bind(
             SETTINGS_KEYS.AUTO_DETECT_GPU,
             autoDetectRow,
             'active',
-            Gio.SettingsBindFlags.DEFAULT
-        );
-        settings.bind(
-            SETTINGS_KEYS.GPU_DEVICE,
-            gpuRow,
-            'value',
             Gio.SettingsBindFlags.DEFAULT
         );
         settings.bind(
@@ -793,6 +771,85 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT
         );
 
+        // --- GPU device dropdown (dynamic, from <cli> --list-devices) ------
+        // The device list depends on which binary is active, so it must be
+        // rebuilt whenever cli-mode / cli-path / asr-backend changes. Each
+        // rebuild preserves the stored gpu-device selection when possible.
+        const refreshGpuDevices = async () => {
+            // Reset the model to just "Auto" before probing, so a transient
+            // empty/failed probe never leaves stale device entries.
+            gpuDeviceModel.splice(0, gpuDeviceModel.n_items, []);
+            gpuDeviceModel.append(_('Auto (let CLI choose)'));
+
+            const mode = normalizeCliMode(
+                settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu'
+            );
+            const backendId =
+                settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
+                'transcribe-cli';
+            const cliPath =
+                mode === 'gpu'
+                    ? (settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '')
+                    : resolveAutoCli(
+                          extensionDir,
+                          getBackend(backendId).defaultCliName
+                      ).path;
+
+            let devices = await listDevices(cliPath);
+            if (devices.length === 0) {
+                gpuDeviceRow.subtitle = cliPath
+                    ? _('No devices detected by %s').format(cliPath)
+                    : _('No transcription binary configured');
+                gpuDeviceRow.selected = 0;
+                return;
+            }
+            // Keep only usable compute devices (drop the CPU entry some CLIs
+            // append): selecting it would be equivalent to CPU mode.
+            devices = devices.filter(d => d.kind !== 'cpu');
+            for (const d of devices) {
+                const mem = d.vramLabel ? `, ${d.vramLabel}` : '';
+                gpuDeviceModel.append(
+                    _('%d · %s (%s%s)').format(d.index, d.name, d.kind, mem)
+                );
+            }
+            gpuDeviceRow.subtitle = _('Which compute device the CLI uses');
+
+            // Restore the stored selection. -1 (or an index no longer present)
+            // maps to "Auto" (position 0); entry N maps to position N+1.
+            const stored = settings.get_int(SETTINGS_KEYS.GPU_DEVICE);
+            const matchIdx = devices.findIndex(d => d.index === stored);
+            gpuDeviceRow.selected = matchIdx >= 0 ? matchIdx + 1 : 0;
+        };
+        void refreshGpuDevices();
+        // Rebuild whenever the binary that exposes the device list changes.
+        gpuDeviceRow.connect('notify::selected', () => {
+            const i = gpuDeviceRow.selected;
+            // Position 0 = "Auto". Positions 1..n carry the device index in
+            // the same order they were appended, but we read it back from the
+            // model label rather than caching a parallel array.
+            if (i <= 0) {
+                settings.set_int(SETTINGS_KEYS.GPU_DEVICE, -1);
+                return;
+            }
+            const label = gpuDeviceModel.get_item(i)?.get_string() ?? '';
+            const m = label.match(/^(\d+) ·/);
+            settings.set_int(
+                SETTINGS_KEYS.GPU_DEVICE,
+                m ? parseInt(m[1], 10) : -1
+            );
+        });
+        settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, () =>
+            void refreshGpuDevices()
+        );
+        settings.connect(`changed::${SETTINGS_KEYS.CLI_PATH}`, () =>
+            void refreshGpuDevices()
+        );
+        settings.connect(`changed::${SETTINGS_KEYS.ASR_BACKEND}`, () =>
+            void refreshGpuDevices()
+        );
+
+
+        // --- Quality -------------------------------------------------------
         settings.bind(
             SETTINGS_KEYS.VAD_ENABLED,
             vadRow,
@@ -806,6 +863,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT
         );
 
+        // --- Chunking sensitivity ------------------------------------------
         settings.bind(
             SETTINGS_KEYS.CHUNK_ENABLED,
             chunkEnabledRow,
@@ -835,6 +893,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             syncChunkSensitivity
         );
 
+        // --- Output mode ---------------------------------------------------
         outputRow.selected = Math.max(
             0,
             OUTPUT_IDS.indexOf(
@@ -847,6 +906,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             if (id) settings.set_string(SETTINGS_KEYS.OUTPUT_MODE, id);
         });
 
+        // --- Debug ---------------------------------------------------------
         settings.bind(
             SETTINGS_KEYS.DEBUG_LOGGING,
             debugRow,

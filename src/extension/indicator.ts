@@ -209,7 +209,16 @@ export const Indicator = GObject.registerClass(
                     this._icon.icon_name = 'audio-input-microphone-symbolic';
                     this._recordItem.label.text = _('Start recording');
                     if (ctx?.error) {
-                        Main.notify(_('Plane ASR: %s').format(ctx.error));
+                        // The notification body is where GNOME renders the full
+                        // text (the title is truncated); log it to the journal
+                        // too so long CLI diagnostics survive verbatim and can
+                        // be inspected with
+                        //   journalctl --user -b /usr/bin/gnome-shell | grep planeasr
+                        console.warn(`[planeasr] ${ctx.error}`);
+                        Main.notify(
+                            _('Plane ASR: transcription failed'),
+                            ctx.error
+                        );
                     }
                     break;
                 case AsrState.Recording:
