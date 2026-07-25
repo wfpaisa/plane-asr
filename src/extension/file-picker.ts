@@ -23,8 +23,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
+
+import system from 'system';
 
 /** Build the audio filter: every common container, plus a glob fallback. */
 function buildAudioFilter(): Gtk.FileFilter {
@@ -75,6 +78,10 @@ function main(): void {
     const acceptLabel = ARGV[1] ?? 'Open';
 
     const loop = new GLib.MainLoop(null, false);
+    // Exit code surfaced after the loop drains. 0 = picked, 1 = cancelled,
+    // 2 = error. Defaults to 2 so any unexpected early return is treated as
+    // a failure rather than silently succeeding with empty stdout.
+    let exitCode = 2;
 
     const filters = new Gio.ListStore();
     filters.append(buildAudioFilter());
@@ -88,36 +95,38 @@ function main(): void {
     dialog.open(
         null,
         null,
-        (_self: Gtk.FileDialog, res: Gio.AsyncResult) => {
+        (_self: Gtk.FileDialog | null, res: Gio.AsyncResult) => {
             let file: Gio.File;
             try {
                 file = dialog.open_finish(res);
             } catch (e) {
                 // Gtk.DialogError.DISMISSED is the documented "user cancelled"
-                // path — exit silently with code 1 so the caller can tell it
-                // apart from a real failure (code 2).
-                if (e instanceof GLib.Error) {
-                    if (
-                        e.matches(
-                            Gtk.DialogError.$gtype,
-                            Gtk.DialogError.DISMISSED
-                        )
-                    ) {
-                        loop.quit();
-                        return;
-                    }
+                // path — exit silently (code 1) so the caller can tell it apart
+                // from a real failure (code 2). Anything else is logged.
+                const err = e as GLib.Error;
+                if (
+                    err?.matches?.(Gtk.DialogError, Gtk.DialogError.DISMISSED)
+                ) {
+                    exitCode = 1;
+                } else {
+                    printerr(String(e));
                 }
-                printerr(String(e));
                 loop.quit();
                 return;
             }
             const path = file.get_path();
-            if (path) print(path);
+            if (path) {
+                print(path);
+                exitCode = 0;
+            } else {
+                exitCode = 2;
+            }
             loop.quit();
         }
     );
 
     loop.run();
+    system.exit(exitCode);
 }
 
 main();

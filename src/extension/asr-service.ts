@@ -26,6 +26,7 @@ import {
     wavAvailableSamples,
     writeWavChunk,
 } from './audio-chunker.js';
+import {AudioConverter, NoConverterError} from './audio-converter.js';
 import {copyToClipboard, pasteAtCursor} from '../util/paste.js';
 import {dedupChunkJoin} from '../util/text-merge.js';
 
@@ -74,6 +75,7 @@ export class AsrService {
     private _onChange: ChangeCb;
     private _state: AsrState = AsrState.Idle;
     private _recorder = new Recorder();
+    private _converter = new AudioConverter();
     private _transcriber: Transcriber;
     private _extensionDir: string | null;
     private _currentAudioPath: string | null = null;
@@ -124,6 +126,7 @@ export class AsrService {
         if (this._recorder.isRecording()) {
             this._recorder.stop().catch(e => logError(e));
         }
+        this._converter.forceExit();
         this._transcriber.forceExit();
         this._currentAudioPath = null;
         this._setState(AsrState.Idle);
@@ -267,10 +270,27 @@ export class AsrService {
         await this._transcribeWhole(audioPath, isPaste);
     }
 
-    /** Transcribe a whole WAV at once (chunking disabled). */
+    /**
+     * Transcribe a whole WAV at once (chunking disabled). Recordings go through
+     * the pruning step afterwards; a user-picked file passes `prune: false` so
+     * unrelated recordings under records/ are never deleted on its account.
+     */
     private async _transcribeWhole(
         audioPath: string,
         isPaste: boolean
+    ): Promise<void> {
+        await this._runTranscription(audioPath, isPaste, true);
+    }
+
+    /**
+     * Shared transcription core for both the recording path and the
+     * picked-file path: run the CLI on a whole WAV, publish the result and
+     * optionally prune the records folder.
+     */
+    private async _runTranscription(
+        audioPath: string,
+        isPaste: boolean,
+        prune: boolean
     ): Promise<void> {
         this._setState(AsrState.Transcribing);
         try {
@@ -290,11 +310,66 @@ export class AsrService {
                     ? _('Plane ASR: transcription pasted')
                     : _('Plane ASR: transcription copied')
             );
-            this._pruneRecordings();
+            if (prune) this._pruneRecordings();
             this._setState(AsrState.Idle, {text: full});
         } catch (e) {
             this._setState(AsrState.Idle, {error: this._errMsg(e)});
         }
+    }
+
+    /**
+     * Transcribe an existing audio file the user picked via the indicator's
+     * "Process audio file" entry. If the file is already a 16 kHz mono s16le
+     * WAV it is fed straight to the CLI; otherwise it is converted first
+     * (ffmpeg, falling back to gst-launch-1.0). When no converter is available
+     * the user is told the required format instead of failing generically.
+     *
+     * Converted files are written to records/ as `imported_*` and are NOT
+     * pruned (the prune regex only matches `recording_*.wav`).
+     */
+    async transcribeFile(srcPath: string): Promise<void> {
+        // No concurrency guard exists elsewhere — `toggle()`'s switch is the
+        // only thing keeping transcriptions from overlapping. This entry point
+        // is called directly from the indicator, so it must self-guard.
+        if (this._state !== AsrState.Idle) {
+            Main.notify(_('Plane ASR is busy'));
+            return;
+        }
+
+        const missing = this._validateCliBinary();
+        if (missing) {
+            this._setState(AsrState.Idle, {error: missing});
+            return;
+        }
+
+        // Already in the target format? getWavDataOffset validates RIFF/WAVE,
+        // PCM, mono, 16 kHz, 16-bit — exactly what the recorder produces.
+        let finalPath = srcPath;
+        if (getWavDataOffset(srcPath) === null) {
+            const destPath = this._newImportedPath(srcPath);
+            Main.notify(_('Converting audio…'));
+            try {
+                await this._converter.convert(srcPath, destPath);
+            } catch (e) {
+                if (e instanceof NoConverterError) {
+                    this._setState(AsrState.Idle, {
+                        error: _(
+                            'No audio converter found. Install ffmpeg, ' +
+                                'or use a 16 kHz mono 16-bit WAV.'
+                        ),
+                    });
+                } else {
+                    this._setState(AsrState.Idle, {error: this._errMsg(e)});
+                }
+                return;
+            }
+            finalPath = destPath;
+        }
+
+        const isPaste =
+            (this._settings.get_string('output-mode') ?? 'clipboard') ===
+            'paste';
+        await this._runTranscription(finalPath, isPaste, false);
     }
 
     /**
@@ -485,6 +560,24 @@ export class AsrService {
         GLib.mkdir_with_parents(dir, 0o755);
         const stamp = GLib.get_real_time(); // microseconds since epoch
         return GLib.build_filenamev([dir, `recording_${stamp}.wav`]);
+    }
+
+    /**
+     * Destination path for a converted user-picked file:
+     * `records/imported_<sanitized-basename>_<microseconds>.wav`. The `imported_`
+     * prefix keeps it out of the prune regex (`^recording_\d+\.wav$`) so a file
+     * the user explicitly chose is never auto-deleted. The original extension is
+     * stripped from the basename so `.mp3`/`.m4a`/... don't leak into the name.
+     */
+    private _newImportedPath(srcPath: string): string {
+        const dir = recordsDir();
+        GLib.mkdir_with_parents(dir, 0o755);
+        const base = GLib.path_get_basename(srcPath).replace(/\.[^.]+$/, '');
+        // Sanitize anything that is not word/dash/underscore so the filename
+        // stays portable and free of spaces the converter argv would mis-split.
+        const safe = base.replace(/[^\w-]+/g, '_') || 'audio';
+        const stamp = GLib.get_real_time();
+        return GLib.build_filenamev([dir, `imported_${safe}_${stamp}.wav`]);
     }
 
     /**

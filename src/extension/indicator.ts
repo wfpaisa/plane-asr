@@ -45,6 +45,8 @@ const RECORDING_STYLE_CLASS = 'planeasr-recording';
 export interface AsrServiceLike {
     toggle(): Promise<void>;
     cancel(): void;
+    /** Transcribe an existing audio file picked by the user. */
+    transcribeFile(path: string): Promise<void>;
     readonly state: AsrState;
 }
 
@@ -77,6 +79,7 @@ export const Indicator = GObject.registerClass(
         private _recordItem!: PopupMenu.PopupMenuItem;
         private _copyItem!: PopupMenu.PopupMenuItem;
         private _openAudioItem!: PopupMenu.PopupMenuItem;
+        private _processFileItem!: PopupMenu.PopupMenuItem;
         private _settingsHandlers: number[] = [];
 
         _init() {
@@ -140,6 +143,15 @@ export const Indicator = GObject.registerClass(
                 this._openAudios();
             });
             menu.addMenuItem(this._openAudioItem);
+
+            this._processFileItem = new PopupMenu.PopupMenuItem(
+                _('Process audio file')
+            );
+            this._processFileItem.connect('activate', () => {
+                menu.close();
+                this._pickAndTranscribe();
+            });
+            menu.addMenuItem(this._processFileItem);
 
             menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
@@ -240,6 +252,12 @@ export const Indicator = GObject.registerClass(
             // "Open audios" opens the records folder on demand (creating it if
             // missing), so it is always available.
             this._openAudioItem.sensitive = true;
+            // "Process audio file" kicks off a transcription run, so it is only
+            // enabled while idle — it must not race an in-flight recording or
+            // conversion (the service guards too, but disabling here avoids the
+            // pointless spawn).
+            this._processFileItem.sensitive =
+                this.service?.state === AsrState.Idle;
         }
 
         _copyLastText() {
@@ -251,6 +269,98 @@ export const Indicator = GObject.registerClass(
                 text
             );
             Main.notify(_('Plane ASR: copied transcription'));
+        }
+
+        /**
+         * Open a native file picker (an out-of-process Gtk.FileDialog, since GTK
+         * dialogs can't run inside the gnome-shell St/Clutter process) and feed
+         * the chosen path to {@link AsrServiceLike.transcribeFile}. Silent on
+         * cancel; any spawn failure is logged and notified.
+         */
+        _pickAndTranscribe(): Promise<void> {
+            if (this.service?.state !== AsrState.Idle) {
+                Main.notify(_('Plane ASR is busy'));
+                return Promise.resolve();
+            }
+
+            const gjs = GLib.find_program_in_path('gjs');
+            if (!gjs) {
+                Main.notify(
+                    _('Plane ASR'),
+                    _('gjs runtime not found; cannot open the file picker')
+                );
+                return Promise.resolve();
+            }
+            // The picker ships at <extdir>/src/extension/file-picker.js
+            // (compiled from src/extension/file-picker.ts; the build preserves
+            // the src/ layout under the extension root).
+            const pickerPath = GLib.build_filenamev([
+                this.extension.path,
+                'src',
+                'extension',
+                'file-picker.js',
+            ]);
+            if (!Gio.File.new_for_path(pickerPath).query_exists(null)) {
+                console.warn(
+                    `[planeasr] file picker script missing: ${pickerPath}`
+                );
+                Main.notify(
+                    _('Plane ASR'),
+                    _('File picker helper is missing; reinstall the extension')
+                );
+                return Promise.resolve();
+            }
+
+            // The picker is i18n-agnostic (it can't reach the shell's gettext
+            // domain), so the translated title/accept-label are passed on the
+            // command line as ARGV[0]/ARGV[1].
+            const argv = [
+                gjs,
+                '-m',
+                pickerPath,
+                _('Select audio file'),
+                _('Open'),
+            ];
+
+            return new Promise<void>(resolve => {
+                let proc: Gio.Subprocess;
+                try {
+                    proc = new Gio.Subprocess({
+                        argv,
+                        flags: Gio.SubprocessFlags.STDOUT_PIPE,
+                    });
+                    proc.init(null);
+                } catch (e) {
+                    console.warn(
+                        `[planeasr] could not spawn file picker: ${this._errMsg(e)}`
+                    );
+                    Main.notify(
+                        _('Plane ASR'),
+                        _('Could not open the file picker')
+                    );
+                    resolve();
+                    return;
+                }
+
+                proc.communicate_utf8_async(null, null, (_self, res) => {
+                    let stdout = '';
+                    try {
+                        const [, out] = proc.communicate_utf8_finish(res);
+                        stdout = (out ?? '').trim();
+                    } catch (e) {
+                        console.warn(
+                            `[planeasr] file picker failed: ${this._errMsg(e)}`
+                        );
+                        resolve();
+                        return;
+                    }
+                    // Empty stdout = user cancelled / dismissed the dialog.
+                    if (stdout) {
+                        void this.service?.transcribeFile(stdout);
+                    }
+                    resolve();
+                });
+            });
         }
 
         _openAudios() {
