@@ -247,7 +247,7 @@ export class AsrService {
                 this._setState(AsrState.Idle);
                 return;
             }
-            // The full transcript is always copied so "Copy last text" and the
+            // The full transcript is always copied so "Copy text" and the
             // clipboard hold every chunk joined together, even in paste mode.
             const full = session.texts.join(' ').trim();
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
@@ -443,6 +443,14 @@ export class AsrService {
                 copyToClipboard([...session.texts, emitted].join(' '));
             }
             session.texts.push(emitted);
+
+            // Keep `last-text` in sync with the running total so "Copy text"
+            // always reflects the full transcript since the start, not just the
+            // most recent chunk — even mid-recording.
+            this._settings.set_string(
+                SETTINGS_KEYS.LAST_TEXT,
+                session.texts.join(' ').trim()
+            );
         }
     }
 

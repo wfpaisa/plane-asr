@@ -2,10 +2,10 @@
  *
  * Lists the compute devices a transcription CLI exposes via its
  * `--list-devices` flag. Unlike the Vulkan-based `GpuDetector`, the indices
- * reported here are the *same* ones `--device N` (transcribe-cli) / `-dev N`
- * (whisper-cli) interpret, so the prefs dropdown can present the user with the
- * exact device a selection maps to — including CUDA builds where the CLI's
- * internal registry order differs from `vulkaninfo`.
+ * reported here are the *same* ones `--device N` (transcribe-cli) interprets,
+ * so the prefs dropdown can present the user with the exact device a selection
+ * maps to — including CUDA builds where the CLI's internal registry order
+ * differs from `vulkaninfo`.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */

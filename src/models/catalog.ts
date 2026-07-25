@@ -30,7 +30,7 @@ export interface ModelEntry {
     name: string;
     /** HuggingFace repo, e.g. 'handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf'. */
     repo: string;
-    /** Backend preset this model targets: 'transcribe-cli' or 'whisper-cli'. */
+    /** Backend preset this model targets; always 'transcribe-cli' (transcribe.cpp). */
     backend: string;
     architecture: string;
     parameters: string;

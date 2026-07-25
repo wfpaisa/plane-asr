@@ -8,7 +8,7 @@
  *  - "Backend": transcription backend, binary mode, performance (accelerator,
  *    GPU, threads), and long-recording chunking — everything that affects how
  *    the audio is processed.
- *  - "General": language, quality (VAD, prompt), output mode, shortcut, debug.
+ *  - "General": language, quality (prompt), output mode, shortcut, debug.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -23,11 +23,7 @@ import {
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
-import {
-    ASR_BACKENDS,
-    getBackend,
-    parseArgs,
-} from '../extension/asr-backends.js';
+import {parseArgs} from '../extension/asr-backends.js';
 import {resolveAutoCli} from '../extension/cli-resolver.js';
 import {listDevices} from '../extension/device-lister.js';
 import {
@@ -139,10 +135,7 @@ function validateSetup(
         }
     } else {
         // Automatic mode: validate the resolved binary (bundled or PATH).
-        const backendId =
-            settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ?? 'transcribe-cli';
-        const pathName = getBackend(backendId).defaultCliName;
-        const resolved = resolveAutoCli(extensionDir, pathName);
+        const resolved = resolveAutoCli(extensionDir, 'transcribe-cli');
         if (resolved.source === 'none') {
             problems.push(
                 _('no transcription binary found (bundled or on PATH)')
@@ -271,19 +264,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         // -- Transcription ---------------------------------------------------
         const asrGroup = new Adw.PreferencesGroup({
             title: _('Transcription'),
-            description: _('Choose the ASR engine and configure its binary'),
+            description: _('Configure the transcribe-cli binary (transcribe.cpp)'),
         });
         backendPage.add(asrGroup);
-
-        const backendModel = new Gtk.StringList({
-            strings: ASR_BACKENDS.map(b => b.label),
-        });
-        const backendRow = new Adw.ComboRow({
-            title: _('ASR backend'),
-            subtitle: _('Which transcription CLI to invoke'),
-            model: backendModel,
-        });
-        asrGroup.add(backendRow);
 
         const cliModeModel = new Gtk.StringList({
             strings: [_('CPU'), _('GPU')],
@@ -349,12 +332,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             subtitle: _('Append --stream-chunk-ms 500'),
         });
         asrGroup.add(realtimeRow);
-
-        const customTemplateRow = entryRow(
-            _('Custom arg template'),
-            'e.g. {cli} {params} {audio}'
-        );
-        asrGroup.add(customTemplateRow.row);
 
         const validateButton = new Gtk.Button({
             label: _('Validate'),
@@ -522,19 +499,11 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         const qualityGroup = new Adw.PreferencesGroup({
             title: _('Quality'),
             description: _(
-                'Voice activity detection and custom vocabulary to bias ' +
-                    'the transcription'
+                'Custom vocabulary to bias the transcription toward specific ' +
+                    'names or terms'
             ),
         });
         generalPage.add(qualityGroup);
-
-        const vadRow = new Adw.SwitchRow({
-            title: _('Voice Activity Detection (VAD)'),
-            subtitle: _('Filter silence before transcription. whisper-cli only.'),
-            titleLines: 0,
-            subtitleLines: 0,
-        });
-        qualityGroup.add(vadRow);
 
         const promptRow = entryRow(
             _('Initial prompt / custom words'),
@@ -591,36 +560,10 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
          * BINDINGS  (two-way sync between UI widgets and Gio.Settings)
          * ================================================================ */
 
-        // --- Backend combo + derived rows ----------------------------------
-        const syncBackendRows = () => {
-            const id =
-                settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
-                'transcribe-cli';
-            const backend = getBackend(id);
-            const idx = Math.max(
-                0,
-                ASR_BACKENDS.findIndex(b => b.id === backend.id)
-            );
-            backendRow.selected = idx;
-            cliPathRow.label.label = backend.defaultCliName
-                ? _('Binary path (%s)').format(backend.defaultCliName)
-                : _('Binary path');
-            realtimeRow.sensitive = backend.supportsRealtime;
-            customTemplateRow.row.visible = backend.id === 'custom';
-            // VAD is only meaningful for whisper-cli.
-            vadRow.sensitive = backend.capabilities.vad;
-        };
-        syncBackendRows();
-
-        backendRow.connect('notify::selected', () => {
-            const backend = ASR_BACKENDS[backendRow.selected];
-            if (backend)
-                settings.set_string(SETTINGS_KEYS.ASR_BACKEND, backend.id);
-        });
-        settings.connect(
-            `changed::${SETTINGS_KEYS.ASR_BACKEND}`,
-            syncBackendRows
-        );
+        // transcribe-cli is the only backend. The 'asr-backend' setting is
+        // pinned for compatibility but there is no combo to drive anymore.
+        cliPathRow.label.label = _('Binary path (%s)').format('transcribe-cli');
+        realtimeRow.sensitive = true; // transcribe-cli supports realtime
 
         // --- Binary mode combo: CPU vs GPU ---------------------------------
         const syncCliMode = () => {
@@ -634,11 +577,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             gpuNoteRow.visible = gpu;
             cliStatusRow.visible = !gpu;
             if (!gpu) {
-                const backendId =
-                    settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
-                    'transcribe-cli';
-                const pathName = getBackend(backendId).defaultCliName;
-                const resolved = resolveAutoCli(extensionDir, pathName);
+                const resolved = resolveAutoCli(extensionDir, 'transcribe-cli');
                 if (resolved.source === 'bundled') {
                     cliStatusRow.subtitle = _(
                         'Using bundled CPU binary (transcribe-cli, x86_64).'
@@ -679,8 +618,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             }
         });
         settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncCliMode);
-        // Re-evaluate the status line when the backend changes too.
-        settings.connect(`changed::${SETTINGS_KEYS.ASR_BACKEND}`, syncCliMode);
 
         // --- Direct settings bindings (backend page) -----------------------
         settings.bind(
@@ -693,12 +630,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             SETTINGS_KEYS.REALTIME_MODE,
             realtimeRow,
             'active',
-            Gio.SettingsBindFlags.DEFAULT
-        );
-        settings.bind(
-            SETTINGS_KEYS.CUSTOM_ARG_TEMPLATE,
-            customTemplateRow.entry,
-            'text',
             Gio.SettingsBindFlags.DEFAULT
         );
         settings.bind(
@@ -784,16 +715,10 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             const mode = normalizeCliMode(
                 settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu'
             );
-            const backendId =
-                settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
-                'transcribe-cli';
             const cliPath =
                 mode === 'gpu'
                     ? (settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '')
-                    : resolveAutoCli(
-                          extensionDir,
-                          getBackend(backendId).defaultCliName
-                      ).path;
+                    : resolveAutoCli(extensionDir, 'transcribe-cli').path;
 
             let devices = await listDevices(cliPath);
             if (devices.length === 0) {
@@ -844,18 +769,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         settings.connect(`changed::${SETTINGS_KEYS.CLI_PATH}`, () =>
             void refreshGpuDevices()
         );
-        settings.connect(`changed::${SETTINGS_KEYS.ASR_BACKEND}`, () =>
-            void refreshGpuDevices()
-        );
 
 
         // --- Quality -------------------------------------------------------
-        settings.bind(
-            SETTINGS_KEYS.VAD_ENABLED,
-            vadRow,
-            'active',
-            Gio.SettingsBindFlags.DEFAULT
-        );
         settings.bind(
             SETTINGS_KEYS.INITIAL_PROMPT,
             promptRow.entry,

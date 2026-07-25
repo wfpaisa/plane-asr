@@ -126,7 +126,7 @@ export const Indicator = GObject.registerClass(
 
             menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-            this._copyItem = new PopupMenu.PopupMenuItem(_('Copy last text'));
+            this._copyItem = new PopupMenu.PopupMenuItem(_('Copy text'));
             this._copyItem.connect('activate', () => {
                 menu.close();
                 this._copyLastText();
@@ -257,7 +257,7 @@ export const Indicator = GObject.registerClass(
                 St.ClipboardType.CLIPBOARD,
                 text
             );
-            Main.notify(_('Plane ASR: copied last transcription'));
+            Main.notify(_('Plane ASR: copied transcription'));
         }
 
         _openLastAudio() {

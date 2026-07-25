@@ -19,8 +19,6 @@ export const SETTINGS_KEYS = {
     MODEL_PARAMS: 'model-params',
     /** Whether to append --stream-chunk-ms 500 for realtime ASR (boolean). */
     REALTIME_MODE: 'realtime-mode',
-    /** Argument template used when backend === 'custom' (string). */
-    CUSTOM_ARG_TEMPLATE: 'custom-arg-template',
     /** Optional extra flags appended to every transcription command (string). */
     EXTRA_CLI_FLAGS: 'extra-cli-flags',
 
@@ -44,8 +42,6 @@ export const SETTINGS_KEYS = {
     TRANSLATE_TO_ENGLISH: 'translate-to-english',
     /** CPU threads to use; 0 = auto / all cores (int). */
     CPU_THREADS: 'cpu-threads',
-    /** Enable Voice Activity Detection (whisper-cli only) (boolean). */
-    VAD_ENABLED: 'vad-enabled',
     /** Custom vocabulary / initial-prompt text (string). */
     INITIAL_PROMPT: 'initial-prompt',
 

@@ -1,21 +1,20 @@
 /* asr-backends.ts
  *
- * Reusable abstraction over local ASR CLIs. Each preset knows how to build the
+ * Abstraction over the local ASR CLI. The preset knows how to build the
  * `argv` for a `Gio.Subprocess` from the user's settings (binary path, model
- * params, realtime flag and the target WAV path). A `custom` preset lets the
- * user provide an arbitrary template.
+ * params, realtime flag and the target WAV path).
  *
- * Beyond raw model params, each backend also translates a semantic
- * {@link BackendFeatures} bundle (accelerator, language, threads, VAD, prompt)
- * into the exact CLI flags of its binary. This keeps flag differences between
- * transcribe-cli and whisper-cli contained here instead of leaking into callers.
+ * Beyond raw model params, the backend also translates a semantic
+ * {@link BackendFeatures} bundle (accelerator, language, threads, prompt)
+ * into the exact CLI flags of its binary, keeping the flag details of
+ * transcribe-cli contained here instead of leaking into callers.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 import type {Accelerator} from '../config/settings.js';
 
-/** Input bundle used by every preset to assemble its argv. */
+/** Input bundle used to assemble the argv. */
 export interface BuildArgvOptions {
     /** Absolute path to the configured CLI binary. */
     cliPath: string;
@@ -23,8 +22,6 @@ export interface BuildArgvOptions {
     modelParams: string;
     /** Whether the realtime flag should be appended. */
     realtime: boolean;
-    /** Argument template (only used by the `custom` backend). */
-    customTemplate: string;
     /**
      * Optional extra flags the user wants appended to every invocation, after
      * the model params and feature args, before the audio path. '' = none.
@@ -40,7 +37,7 @@ export interface BuildArgvOptions {
 }
 
 /**
- * Semantic, CLI-agnostic transcription knobs. Each backend maps these to its
+ * Semantic, CLI-agnostic transcription knobs. The backend maps these to its
  * own flag names. Fields left at their default (0 / '' / false) are omitted so
  * the CLI uses its built-in default.
  */
@@ -55,8 +52,6 @@ export interface BackendFeatures {
     translate: boolean;
     /** CPU threads; 0 = auto (don't emit). */
     threads: number;
-    /** Enable Voice Activity Detection (whisper-cli only). */
-    vad: boolean;
     /** Initial prompt / custom vocabulary text; '' = none. */
     initialPrompt: string;
 }
@@ -68,7 +63,6 @@ export const NEUTRAL_FEATURES: BackendFeatures = {
     language: '',
     translate: false,
     threads: 0,
-    vad: false,
     initialPrompt: '',
 };
 
@@ -80,8 +74,6 @@ export interface BackendCapabilities {
     language: boolean;
     /** Whether the backend honors the threads flag. */
     threads: boolean;
-    /** Whether the backend supports VAD. */
-    vad: boolean;
     /** Whether the backend honors an initial-prompt flag. */
     initialPrompt: boolean;
 }
@@ -106,8 +98,8 @@ export interface AsrBackend {
 const REALTIME_ARGS = ['--stream-chunk-ms', '500'];
 
 /**
- * Registered ASR presets. Order matters: the prefs combo renders them in this
- * order and maps the selected index back to the id.
+ * Registered ASR preset. Kept as an array (with a single entry) so the
+ * `getBackend` lookup and the `ASR_BACKENDS[0]` fallback keep working.
  */
 export const ASR_BACKENDS: AsrBackend[] = [
     {
@@ -119,7 +111,6 @@ export const ASR_BACKENDS: AsrBackend[] = [
             accelerator: true,
             language: true,
             threads: true,
-            vad: false, // transcribe-cli has no VAD flag
             initialPrompt: true,
         },
         buildArgv: opts => [
@@ -130,70 +121,6 @@ export const ASR_BACKENDS: AsrBackend[] = [
             ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],
-    },
-    {
-        id: 'whisper-cli',
-        label: 'whisper-cli (whisper.cpp)',
-        defaultCliName: 'whisper-cli',
-        supportsRealtime: false,
-        capabilities: {
-            accelerator: true,
-            language: true,
-            threads: true,
-            vad: true,
-            initialPrompt: true,
-        },
-        buildArgv: opts => [
-            opts.cliPath,
-            ...whisperCliFeatureArgs(opts.features),
-            ...parseArgs(opts.modelParams),
-            ...parseArgs(opts.extraFlags),
-            opts.audioPath,
-        ],
-    },
-    {
-        id: 'nero-asr',
-        label: 'nero-asr',
-        defaultCliName: 'nero-asr',
-        supportsRealtime: false,
-        capabilities: {
-            accelerator: false,
-            language: false,
-            threads: false,
-            vad: false,
-            initialPrompt: false,
-        },
-        buildArgv: opts => [
-            opts.cliPath,
-            ...parseArgs(opts.modelParams),
-            ...parseArgs(opts.extraFlags),
-            opts.audioPath,
-        ],
-    },
-    {
-        id: 'custom',
-        label: 'Custom (use argument template)',
-        defaultCliName: '',
-        supportsRealtime: false,
-        capabilities: {
-            accelerator: false,
-            language: false,
-            threads: false,
-            vad: false,
-            initialPrompt: false,
-        },
-        buildArgv: opts => {
-            const rendered = opts.customTemplate
-                .replaceAll('{cli}', opts.cliPath)
-                .replaceAll('{params}', opts.modelParams)
-                .replaceAll('{audio}', opts.audioPath);
-            // Extra user flags are appended verbatim to the rendered template
-            // (after the {audio} placeholder) so they survive tokenization.
-            const withExtra = opts.extraFlags
-                ? `${rendered} ${opts.extraFlags}`
-                : rendered;
-            return parseArgs(withExtra);
-        },
     },
 ];
 
@@ -209,9 +136,8 @@ export function getBackend(id: string): AsrBackend {
  *
  * transcribe-cli uses `--backend {auto,cpu,vulkan,...}` + `--device N`
  * (registry index, 0 = auto). Note: there is NO `-ngl`/n-gpu-layers flag;
- * offload is automatic once a GPU backend is chosen. VAD is not supported and
- * silently ignored. Short-flag `-t` means translate, so threads must use the
- * long `--threads` form.
+ * offload is automatic once a GPU backend is chosen. Short-flag `-t` means
+ * translate, so threads must use the long `--threads` form.
  */
 function transcribeCliFeatureArgs(features?: BackendFeatures): string[] {
     if (!features) return [];
@@ -244,52 +170,6 @@ function transcribeCliFeatureArgs(features?: BackendFeatures): string[] {
     }
     if (features.initialPrompt) {
         args.push('--initial-prompt', features.initialPrompt);
-    }
-    // VAD intentionally omitted: transcribe-cli has no VAD support.
-    return args;
-}
-
-/**
- * Translate semantic features into whisper-cli (whisper.cpp) flags.
- *
- * whisper-cli uses `-dev N`/`--device N` for GPU selection and `-ng`/`--no-gpu`
- * to force CPU. Like transcribe-cli it has no `-ngl` (that is a llama.cpp
- * flag); GPU offload is automatic. Language is `-l`, translate `-tr`, threads
- * `-t`, prompt `--prompt` (long-only — `-p` is processors), VAD `--vad`.
- */
-function whisperCliFeatureArgs(features?: BackendFeatures): string[] {
-    if (!features) return [];
-    const args: string[] = [];
-
-    switch (features.accelerator) {
-        case 'cpu':
-            args.push('-ng'); // --no-gpu
-            break;
-        case 'vulkan':
-            if (features.gpuDevice >= 0) {
-                args.push('-dev', String(features.gpuDevice));
-            }
-            // No explicit device => whisper-cli uses device 0 (default GPU).
-            break;
-        case 'auto':
-        default:
-            break;
-    }
-
-    if (features.language) {
-        args.push('-l', features.language); // 'auto' is valid for whisper-cli
-    }
-    if (features.translate) {
-        args.push('-tr');
-    }
-    if (features.threads > 0) {
-        args.push('-t', String(features.threads));
-    }
-    if (features.vad) {
-        args.push('--vad');
-    }
-    if (features.initialPrompt) {
-        args.push('--prompt', features.initialPrompt);
     }
     return args;
 }

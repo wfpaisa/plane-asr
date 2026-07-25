@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-24 23:23-0500\n"
+"POT-Creation-Date: 2026-07-24 23:42-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -44,7 +44,7 @@ msgid "Start recording"
 msgstr ""
 
 #: src/extension/indicator.ts:129
-msgid "Copy last text"
+msgid "Copy text"
 msgstr ""
 
 #: src/extension/indicator.ts:137
@@ -77,7 +77,7 @@ msgid "Cancel transcription"
 msgstr ""
 
 #: src/extension/indicator.ts:260
-msgid "Plane ASR: copied last transcription"
+msgid "Plane ASR: copied transcription"
 msgstr ""
 
 #: src/extension/recorder.ts:40
@@ -88,336 +88,316 @@ msgstr ""
 msgid "Neither pw-record nor parecord was found in PATH"
 msgstr ""
 
-#: src/prefs/index.ts:122
+#: src/prefs/index.ts:118
 msgid "binary path is empty"
 msgstr ""
 
-#: src/prefs/index.ts:126
+#: src/prefs/index.ts:122
 #, javascript-format
 msgid "binary not found: %s"
 msgstr ""
 
-#: src/prefs/index.ts:135 src/prefs/index.ts:158
+#: src/prefs/index.ts:131 src/prefs/index.ts:151
 #, javascript-format
 msgid "binary is not executable: %s"
 msgstr ""
 
-#: src/prefs/index.ts:148
+#: src/prefs/index.ts:141
 msgid "no transcription binary found (bundled or on PATH)"
 msgstr ""
 
-#: src/prefs/index.ts:185
+#: src/prefs/index.ts:178
 msgid "no model file found"
 msgstr ""
 
-#: src/prefs/index.ts:188
+#: src/prefs/index.ts:181
 #, javascript-format
 msgid "model not found: %s"
 msgstr ""
 
-#: src/prefs/index.ts:192
+#: src/prefs/index.ts:185
 #, javascript-format
 msgid "model path is relative and cannot be verified: %s"
 msgstr ""
 
-#: src/prefs/index.ts:199
+#: src/prefs/index.ts:192
 msgid "Binary and model look OK"
 msgstr ""
 
-#: src/prefs/index.ts:267
+#: src/prefs/index.ts:260
 msgid "Backend"
 msgstr ""
 
-#: src/prefs/index.ts:273
+#: src/prefs/index.ts:266
 msgid "Transcription"
 msgstr ""
 
-#: src/prefs/index.ts:274
-msgid "Choose the ASR engine and configure its binary"
+#: src/prefs/index.ts:267
+msgid "Configure the transcribe-cli binary (transcribe.cpp)"
 msgstr ""
 
-#: src/prefs/index.ts:282
-msgid "ASR backend"
-msgstr ""
-
-#: src/prefs/index.ts:283
-msgid "Which transcription CLI to invoke"
-msgstr ""
-
-#: src/prefs/index.ts:289 src/prefs/index.ts:383
+#: src/prefs/index.ts:272 src/prefs/index.ts:360
 msgid "CPU"
 msgstr ""
 
-#: src/prefs/index.ts:289
+#: src/prefs/index.ts:272
 msgid "GPU"
 msgstr ""
 
-#: src/prefs/index.ts:292
+#: src/prefs/index.ts:275
 msgid "Binary mode"
 msgstr ""
 
-#: src/prefs/index.ts:294
+#: src/prefs/index.ts:277
 msgid ""
 "CPU uses the transcribe-cli shipped with the extension (x86_64), falling "
 "back to one found on PATH. GPU lets you point to your own Vulkan/CUDA build."
 msgstr ""
 
-#: src/prefs/index.ts:310
+#: src/prefs/index.ts:293
 msgid ""
 "GPU mode uses a manually configured binary (e.g. a transcribe.cpp build with "
 "Vulkan/CUDA/Metal). Point it to the compiled transcribe-cli; the accelerator "
 "is left on Auto so the CLI uses whatever GPU it was built for."
 msgstr ""
 
-#: src/prefs/index.ts:331
+#: src/prefs/index.ts:314
 msgid "Resolved binary"
 msgstr ""
 
-#: src/prefs/index.ts:336 src/prefs/index.ts:607
+#: src/prefs/index.ts:319
 msgid "Binary path"
 msgstr ""
 
-#: src/prefs/index.ts:342
+#: src/prefs/index.ts:325
 msgid "Optional extra flags"
 msgstr ""
 
-#: src/prefs/index.ts:343
+#: src/prefs/index.ts:326
 msgid "e.g. --verbose --beam-size 4 (left blank = none)"
 msgstr ""
 
-#: src/prefs/index.ts:348
+#: src/prefs/index.ts:331
 msgid "Realtime mode"
 msgstr ""
 
-#: src/prefs/index.ts:349
+#: src/prefs/index.ts:332
 msgid "Append --stream-chunk-ms 500"
 msgstr ""
 
-#: src/prefs/index.ts:354
-msgid "Custom arg template"
-msgstr ""
-
-#: src/prefs/index.ts:360
+#: src/prefs/index.ts:337
 msgid "Validate"
 msgstr ""
 
-#: src/prefs/index.ts:364
+#: src/prefs/index.ts:341
 msgid "Check binary and model"
 msgstr ""
 
-#: src/prefs/index.ts:365
+#: src/prefs/index.ts:342
 msgid "Verify the paths exist and the binary is executable"
 msgstr ""
 
-#: src/prefs/index.ts:377
+#: src/prefs/index.ts:354
 msgid "Performance"
 msgstr ""
 
-#: src/prefs/index.ts:378
+#: src/prefs/index.ts:355
 msgid "Tune CPU vs GPU acceleration and threading"
 msgstr ""
 
-#: src/prefs/index.ts:383
+#: src/prefs/index.ts:360
 msgid "Auto"
 msgstr ""
 
-#: src/prefs/index.ts:383
+#: src/prefs/index.ts:360
 msgid "Vulkan"
 msgstr ""
 
-#: src/prefs/index.ts:386
+#: src/prefs/index.ts:363
 msgid "Accelerator"
 msgstr ""
 
-#: src/prefs/index.ts:387
+#: src/prefs/index.ts:364
 msgid "Compute backend for inference"
 msgstr ""
 
-#: src/prefs/index.ts:393
+#: src/prefs/index.ts:370
 msgid "Auto-detect GPU"
 msgstr ""
 
-#: src/prefs/index.ts:394
+#: src/prefs/index.ts:371
 msgid "Probe for a Vulkan GPU when accelerator is Auto"
 msgstr ""
 
-#: src/prefs/index.ts:404 src/prefs/index.ts:782
+#: src/prefs/index.ts:381 src/prefs/index.ts:713
 msgid "Auto (let CLI choose)"
 msgstr ""
 
-#: src/prefs/index.ts:407
+#: src/prefs/index.ts:384
 msgid "GPU device"
 msgstr ""
 
-#: src/prefs/index.ts:408 src/prefs/index.ts:815
+#: src/prefs/index.ts:385 src/prefs/index.ts:740
 msgid "Which compute device the CLI uses"
 msgstr ""
 
-#: src/prefs/index.ts:414
+#: src/prefs/index.ts:391
 msgid "CPU threads"
 msgstr ""
 
-#: src/prefs/index.ts:415
+#: src/prefs/index.ts:392
 msgid "0 = auto (use all cores)"
 msgstr ""
 
-#: src/prefs/index.ts:431
+#: src/prefs/index.ts:408
 msgid "Long recordings"
 msgstr ""
 
-#: src/prefs/index.ts:433
+#: src/prefs/index.ts:410
 msgid ""
 "Split live recordings into chunks so transcription streams progressively and "
 "backends with token limits do not truncate the output."
 msgstr ""
 
-#: src/prefs/index.ts:441
+#: src/prefs/index.ts:418
 msgid "Live chunked transcription"
 msgstr ""
 
-#: src/prefs/index.ts:442
+#: src/prefs/index.ts:419
 msgid "Process each N-second chunk as you speak"
 msgstr ""
 
-#: src/prefs/index.ts:447
+#: src/prefs/index.ts:424
 msgid "Seconds per chunk"
 msgstr ""
 
-#: src/prefs/index.ts:449
+#: src/prefs/index.ts:426
 msgid "Lower values are safer for models that cap output tokens"
 msgstr ""
 
-#: src/prefs/index.ts:465
+#: src/prefs/index.ts:442
 msgid "Overlap seconds"
 msgstr ""
 
-#: src/prefs/index.ts:467
+#: src/prefs/index.ts:444
 msgid ""
 "Re-transcribe this much at each chunk boundary so words split across the "
 "seam are not lost (0 = off)"
 msgstr ""
 
-#: src/prefs/index.ts:489
+#: src/prefs/index.ts:466
 msgid "General"
 msgstr ""
 
-#: src/prefs/index.ts:495
+#: src/prefs/index.ts:472
 msgid "Language"
 msgstr ""
 
-#: src/prefs/index.ts:496
+#: src/prefs/index.ts:473
 msgid "Spoken language and translation settings"
 msgstr ""
 
-#: src/prefs/index.ts:509
+#: src/prefs/index.ts:486
 msgid "Spoken language"
 msgstr ""
 
-#: src/prefs/index.ts:510
+#: src/prefs/index.ts:487
 msgid "Language hint passed to the model"
 msgstr ""
 
-#: src/prefs/index.ts:516
+#: src/prefs/index.ts:493
 msgid "Translate to English"
 msgstr ""
 
-#: src/prefs/index.ts:517
+#: src/prefs/index.ts:494
 msgid "When the model supports translation"
 msgstr ""
 
-#: src/prefs/index.ts:523
+#: src/prefs/index.ts:500
 msgid "Quality"
 msgstr ""
 
-#: src/prefs/index.ts:525
+#: src/prefs/index.ts:502
 msgid ""
-"Voice activity detection and custom vocabulary to bias the transcription"
+"Custom vocabulary to bias the transcription toward specific names or terms"
 msgstr ""
 
-#: src/prefs/index.ts:532
-msgid "Voice Activity Detection (VAD)"
-msgstr ""
-
-#: src/prefs/index.ts:533
-msgid "Filter silence before transcription. whisper-cli only."
-msgstr ""
-
-#: src/prefs/index.ts:540
+#: src/prefs/index.ts:509
 msgid "Initial prompt / custom words"
 msgstr ""
 
-#: src/prefs/index.ts:547
+#: src/prefs/index.ts:516
 msgid "Output & Recording"
 msgstr ""
 
-#: src/prefs/index.ts:549
+#: src/prefs/index.ts:518
 msgid "Where the transcribed text goes and how to trigger recording"
 msgstr ""
 
-#: src/prefs/index.ts:555
+#: src/prefs/index.ts:524
 msgid "Copy to clipboard"
 msgstr ""
 
-#: src/prefs/index.ts:555
+#: src/prefs/index.ts:524
 msgid "Paste at cursor"
 msgstr ""
 
-#: src/prefs/index.ts:558
+#: src/prefs/index.ts:527
 msgid "Output mode"
 msgstr ""
 
-#: src/prefs/index.ts:559
+#: src/prefs/index.ts:528
 msgid "How to deliver the transcription"
 msgstr ""
 
-#: src/prefs/index.ts:569
+#: src/prefs/index.ts:538
 msgid "Debug"
 msgstr ""
 
-#: src/prefs/index.ts:571
+#: src/prefs/index.ts:540
 msgid ""
 "Logs every transcription run to the system journal. Inspect with:\n"
 "journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
 msgstr ""
 
-#: src/prefs/index.ts:579
+#: src/prefs/index.ts:548
 msgid "Debug logging"
 msgstr ""
 
-#: src/prefs/index.ts:581
+#: src/prefs/index.ts:550
 msgid "Record the ASR command and its raw output for troubleshooting"
 msgstr ""
 
-#: src/prefs/index.ts:606
+#: src/prefs/index.ts:565
 #, javascript-format
 msgid "Binary path (%s)"
 msgstr ""
 
-#: src/prefs/index.ts:644
+#: src/prefs/index.ts:583
 msgid "Using bundled CPU binary (transcribe-cli, x86_64)."
 msgstr ""
 
-#: src/prefs/index.ts:648
+#: src/prefs/index.ts:587
 #, javascript-format
 msgid "Using transcribe-cli from PATH: %s"
 msgstr ""
 
-#: src/prefs/index.ts:652
+#: src/prefs/index.ts:591
 msgid ""
 "No binary found for this system. Switch to GPU and set the binary path, or "
 "install transcribe-cli."
 msgstr ""
 
-#: src/prefs/index.ts:801
+#: src/prefs/index.ts:726
 #, javascript-format
 msgid "No devices detected by %s"
 msgstr ""
 
-#: src/prefs/index.ts:802
+#: src/prefs/index.ts:727
 msgid "No transcription binary configured"
 msgstr ""
 
-#: src/prefs/index.ts:812
+#: src/prefs/index.ts:737
 #, javascript-format
 msgid "%d · %s (%s%s)"
 msgstr ""

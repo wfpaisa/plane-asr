@@ -45,8 +45,8 @@ msgid "Start recording"
 msgstr "Iniciar grabación"
 
 #: src/extension/indicator.ts:129
-msgid "Copy last text"
-msgstr "Copiar último texto"
+msgid "Copy text"
+msgstr "Copiar texto"
 
 #: src/extension/indicator.ts:137
 msgid "Open last audio"
@@ -79,8 +79,8 @@ msgid "Cancel transcription"
 msgstr "Cancelar transcripción"
 
 #: src/extension/indicator.ts:251
-msgid "Plane ASR: copied last transcription"
-msgstr "Plane ASR: se copió la última transcripción"
+msgid "Plane ASR: copied transcription"
+msgstr "Plane ASR: transcripción copiada"
 
 #: src/extension/recorder.ts:40
 msgid "A recording is already in progress"

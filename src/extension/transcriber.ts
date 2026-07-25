@@ -5,8 +5,8 @@
  * orchestrator can kill it on cancel.
  *
  * It also resolves the active model (catalog download or free-form model-params)
- * and the semantic backend features (accelerator, language, threads, VAD,
- * prompt) from GSettings, mapping them to CLI flags via the active backend.
+ * and the semantic backend features (accelerator, language, threads, prompt)
+ * from GSettings, mapping them to CLI flags via the active backend.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -238,8 +238,6 @@ export class Transcriber {
         const modelParams = await this._resolveModelParams();
         const features = await this._resolveFeatures();
         const realtime = this._settings.get_boolean('realtime-mode');
-        const customTemplate =
-            this._settings.get_string('custom-arg-template') ?? '';
         const extraFlags =
             this._settings.get_string(SETTINGS_KEYS.EXTRA_CLI_FLAGS) ?? '';
 
@@ -247,7 +245,6 @@ export class Transcriber {
             cliPath: this._resolveCliPath(),
             modelParams,
             realtime,
-            customTemplate,
             extraFlags,
             audioPath,
             features,
@@ -338,7 +335,6 @@ export class Transcriber {
                 SETTINGS_KEYS.TRANSLATE_TO_ENGLISH
             ),
             threads,
-            vad: this._settings.get_boolean(SETTINGS_KEYS.VAD_ENABLED),
             initialPrompt:
                 this._settings.get_string(SETTINGS_KEYS.INITIAL_PROMPT) ?? '',
         };

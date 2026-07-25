@@ -5,7 +5,7 @@
     <key name="asr-backend" type="s">
       <default>'transcribe-cli'</default>
       <summary>ASR backend</summary>
-      <description>Which transcription binary preset to use (whisper-cli, transcribe-cli, nero-asr, custom).</description>
+      <description>The transcription binary preset. Only 'transcribe-cli' (transcribe.cpp) is supported; the key is kept for compatibility with existing profiles.</description>
     </key>
     <key name="cli-mode" type="s">
       <choices>
@@ -30,11 +30,6 @@
       <default>false</default>
       <summary>Realtime mode</summary>
       <description>Append --stream-chunk-ms 500 when supported by the backend.</description>
-    </key>
-    <key name="custom-arg-template" type="s">
-      <default>'{cli} {params} {audio}'</default>
-      <summary>Custom argument template</summary>
-      <description>Template used when backend is 'custom'. Placeholders: {cli} {params} {audio}.</description>
     </key>
     <key name="extra-cli-flags" type="s">
       <default>''</default>
@@ -96,11 +91,6 @@
       <default>0</default>
       <summary>CPU threads</summary>
       <description>Number of CPU threads to use. 0 means auto (all available cores).</description>
-    </key>
-    <key name="vad-enabled" type="b">
-      <default>false</default>
-      <summary>Voice Activity Detection</summary>
-      <description>Enable Silero VAD to filter silence. whisper-cli only.</description>
     </key>
     <key name="initial-prompt" type="s">
       <default>''</default>
