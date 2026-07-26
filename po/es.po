@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: plane-asr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-25 12:34-0500\n"
+"POT-Creation-Date: 2026-07-25 13:09-0500\n"
 "PO-Revision-Date: 2026-07-24 19:26-0500\n"
 "Last-Translator: Felipe Uribe <felipe@wfelipe.com>\n"
 "Language-Team: Spanish\n"
@@ -39,7 +39,7 @@ msgstr "Plane ASR: transcripción pegada"
 msgid "Plane ASR: transcription copied"
 msgstr "Plane ASR: transcripción copiada"
 
-#: src/extension/asr-service.ts:335 src/extension/indicator.ts:282
+#: src/extension/asr-service.ts:335 src/extension/indicator.ts:283
 msgid "Plane ASR is busy"
 msgstr "Plane ASR está ocupado"
 
@@ -54,81 +54,80 @@ msgstr ""
 "No se encontró conversor de audio. Instala ffmpeg o usa un WAV de 16 kHz "
 "mono 16-bit."
 
-#: src/extension/indicator.ts:86 src/extension/indicator.ts:289
-#: src/extension/indicator.ts:308 src/extension/indicator.ts:338
-#: src/extension/indicator.ts:396
+#: src/extension/indicator.ts:87 src/extension/indicator.ts:290
+#: src/extension/indicator.ts:309 src/extension/indicator.ts:339
+#: src/extension/indicator.ts:430
 msgid "Plane ASR"
 msgstr "Plane ASR"
 
-#: src/extension/indicator.ts:123 src/extension/indicator.ts:217
+#: src/extension/indicator.ts:124 src/extension/indicator.ts:218
 msgid "Start recording"
 msgstr "Iniciar grabación"
 
-#: src/extension/indicator.ts:133
+#: src/extension/indicator.ts:134
 msgid "Copy text"
 msgstr "Copiar texto"
 
-#: src/extension/indicator.ts:140
+#: src/extension/indicator.ts:141
 msgid "Open audios"
 msgstr "Abrir audios"
 
-#: src/extension/indicator.ts:148
+#: src/extension/indicator.ts:149
 msgid "Process audio file"
 msgstr "Procesar archivo de audio"
 
-#: src/extension/indicator.ts:158
+#: src/extension/indicator.ts:159
 msgid "Preferences"
 msgstr "Preferencias"
 
-#: src/extension/indicator.ts:202
+#: src/extension/indicator.ts:203
 msgid "Plane ASR is not ready yet"
 msgstr "Plane ASR aún no está listo"
 
-#: src/extension/indicator.ts:226
+#: src/extension/indicator.ts:227
 #, fuzzy
 msgid "Plane ASR: transcription failed"
 msgstr "Plane ASR: transcripción pegada"
 
-#: src/extension/indicator.ts:235
+#: src/extension/indicator.ts:236
 msgid "Stop recording"
 msgstr "Detener grabación"
 
-#: src/extension/indicator.ts:240
+#: src/extension/indicator.ts:241
 #, javascript-format
 msgid "Transcribing %s"
 msgstr "Transcribiendo %s"
 
-#: src/extension/indicator.ts:241
+#: src/extension/indicator.ts:242
 msgid "Cancel transcription"
 msgstr "Cancelar transcripción"
 
-#: src/extension/indicator.ts:271
+#: src/extension/indicator.ts:272
 msgid "Plane ASR: copied transcription"
 msgstr "Plane ASR: transcripción copiada"
 
-#: src/extension/indicator.ts:290
+#: src/extension/indicator.ts:291
 msgid "gjs runtime not found; cannot open the file picker"
 msgstr ""
 "No se encontró el runtime gjs; no se puede abrir el selector de archivos"
 
-#: src/extension/indicator.ts:309
+#: src/extension/indicator.ts:310
 msgid "File picker helper is missing; reinstall the extension"
-msgstr ""
-"Falta el asistente del selector de archivos; reinstala la extensión"
+msgstr "Falta el asistente del selector de archivos; reinstala la extensión"
 
-#: src/extension/indicator.ts:321
+#: src/extension/indicator.ts:322
 msgid "Select audio file"
 msgstr "Seleccionar archivo de audio"
 
-#: src/extension/indicator.ts:322
+#: src/extension/indicator.ts:323
 msgid "Open"
 msgstr "Abrir"
 
-#: src/extension/indicator.ts:339
+#: src/extension/indicator.ts:340
 msgid "Could not open the file picker"
 msgstr "No se pudo abrir el selector de archivos"
 
-#: src/extension/indicator.ts:397
+#: src/extension/indicator.ts:431
 msgid "Could not open the audios folder"
 msgstr ""
 
@@ -176,32 +175,52 @@ msgstr "la ruta del modelo es relativa y no se puede verificar: %s"
 msgid "Binary and model look OK"
 msgstr "El binario y el modelo parecen correctos"
 
-#: src/prefs/index.ts:256
+#: src/prefs/index.ts:214
+msgid "Reset all settings?"
+msgstr "¿Restablecer todas las opciones?"
+
+#: src/prefs/index.ts:216
+msgid ""
+"This restores every option to its default value. Your downloaded model files "
+"are kept on disk."
+msgstr ""
+"Esto restaura todas las opciones a su valor predeterminado. Los archivos de "
+"modelo descargados se conservan en el disco."
+
+#: src/prefs/index.ts:221 src/prefs/models-page.ts:552
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/prefs/index.ts:222 src/prefs/index.ts:617
+msgid "Reset"
+msgstr "Restablecer"
+
+#: src/prefs/index.ts:289
 #, fuzzy
 msgid "Backend"
 msgstr "Motor ASR"
 
-#: src/prefs/index.ts:262
+#: src/prefs/index.ts:295
 msgid "Transcription"
 msgstr "Transcripción"
 
-#: src/prefs/index.ts:264
+#: src/prefs/index.ts:297
 msgid "Configure the transcribe-cli binary (transcribe.cpp)"
 msgstr ""
 
-#: src/prefs/index.ts:270 src/prefs/index.ts:359
+#: src/prefs/index.ts:303 src/prefs/index.ts:392
 msgid "CPU"
 msgstr "CPU"
 
-#: src/prefs/index.ts:270
+#: src/prefs/index.ts:303
 msgid "GPU"
 msgstr "GPU"
 
-#: src/prefs/index.ts:273
+#: src/prefs/index.ts:306
 msgid "Binary mode"
 msgstr "Modo del binario"
 
-#: src/prefs/index.ts:275
+#: src/prefs/index.ts:308
 #, fuzzy
 msgid ""
 "CPU uses the transcribe-cli shipped with the extension (x86_64), falling "
@@ -211,7 +230,7 @@ msgstr ""
 "recurriendo a uno encontrado en el PATH. GPU le permite indicar su propia "
 "compilación, p. ej. con Vulkan/CUDA."
 
-#: src/prefs/index.ts:292
+#: src/prefs/index.ts:325
 #, fuzzy
 msgid ""
 "GPU mode uses a manually configured binary (e.g. a transcribe.cpp build with "
@@ -222,129 +241,129 @@ msgstr ""
 "de transcribe.cpp con Vulkan/CUDA). Apúntelo al transcribe-cli compilado; el "
 "acelerador se fuerza a Vulkan para que la inferencia se ejecute en su GPU."
 
-#: src/prefs/index.ts:313
+#: src/prefs/index.ts:346
 msgid "Resolved binary"
 msgstr "Binario resuelto"
 
-#: src/prefs/index.ts:318
+#: src/prefs/index.ts:351
 msgid "Binary path"
 msgstr "Ruta del binario"
 
-#: src/prefs/index.ts:324
+#: src/prefs/index.ts:357
 msgid "Optional extra flags"
 msgstr "Opciones adicionales opcionales"
 
-#: src/prefs/index.ts:325
+#: src/prefs/index.ts:358
 msgid "e.g. --verbose --beam-size 4 (left blank = none)"
 msgstr "p. ej. --verbose --beam-size 4 (vacío = ninguno)"
 
-#: src/prefs/index.ts:330
+#: src/prefs/index.ts:363
 msgid "Realtime mode"
 msgstr "Modo en tiempo real"
 
-#: src/prefs/index.ts:331
+#: src/prefs/index.ts:364
 msgid "Append --stream-chunk-ms 500"
 msgstr "Añadir --stream-chunk-ms 500"
 
-#: src/prefs/index.ts:336
+#: src/prefs/index.ts:369
 msgid "Validate"
 msgstr "Validar"
 
-#: src/prefs/index.ts:340
+#: src/prefs/index.ts:373
 msgid "Check binary and model"
 msgstr "Comprobar binario y modelo"
 
-#: src/prefs/index.ts:341
+#: src/prefs/index.ts:374
 msgid "Verify the paths exist and the binary is executable"
 msgstr "Verifique que las rutas existen y que el binario es ejecutable"
 
-#: src/prefs/index.ts:353
+#: src/prefs/index.ts:386
 msgid "Performance"
 msgstr "Rendimiento"
 
-#: src/prefs/index.ts:354
+#: src/prefs/index.ts:387
 #, fuzzy
 msgid "Tune CPU vs GPU acceleration and threading"
 msgstr "Aceleración por CPU frente a GPU Vulkan"
 
-#: src/prefs/index.ts:359
+#: src/prefs/index.ts:392
 msgid "Auto"
 msgstr "Automático"
 
-#: src/prefs/index.ts:359
+#: src/prefs/index.ts:392
 msgid "Vulkan"
 msgstr "Vulkan"
 
-#: src/prefs/index.ts:362
+#: src/prefs/index.ts:395
 msgid "Accelerator"
 msgstr "Acelerador"
 
-#: src/prefs/index.ts:363
+#: src/prefs/index.ts:396
 msgid "Compute backend for inference"
 msgstr "Motor de cálculo para la inferencia"
 
-#: src/prefs/index.ts:370
+#: src/prefs/index.ts:403
 msgid "Auto-detect GPU"
 msgstr "Detectar GPU automáticamente"
 
-#: src/prefs/index.ts:371
+#: src/prefs/index.ts:404
 msgid "Probe for a Vulkan GPU when accelerator is Auto"
 msgstr "Buscar una GPU Vulkan cuando el acelerador es Automático"
 
-#: src/prefs/index.ts:381 src/prefs/index.ts:735
+#: src/prefs/index.ts:414 src/prefs/index.ts:797
 msgid "Auto (let CLI choose)"
 msgstr ""
 
-#: src/prefs/index.ts:384
+#: src/prefs/index.ts:417
 #, fuzzy
 msgid "GPU device"
 msgstr "Índice de dispositivo GPU"
 
-#: src/prefs/index.ts:385 src/prefs/index.ts:762
+#: src/prefs/index.ts:418 src/prefs/index.ts:824
 msgid "Which compute device the CLI uses"
 msgstr ""
 
-#: src/prefs/index.ts:392
+#: src/prefs/index.ts:425
 msgid "CPU threads"
 msgstr "Hilos de CPU"
 
-#: src/prefs/index.ts:393
+#: src/prefs/index.ts:426
 msgid "0 = auto (use all cores)"
 msgstr "0 = automático (usar todos los núcleos)"
 
-#: src/prefs/index.ts:409
+#: src/prefs/index.ts:442
 msgid "Long recordings"
 msgstr "Grabaciones largas"
 
-#: src/prefs/index.ts:411
+#: src/prefs/index.ts:444
 msgid ""
 "Split live recordings into chunks so transcription streams progressively and "
 "backends with token limits do not truncate the output."
 msgstr ""
 
-#: src/prefs/index.ts:419
+#: src/prefs/index.ts:452
 msgid "Live chunked transcription"
 msgstr "Transcripción fragmentada en vivo"
 
-#: src/prefs/index.ts:420
+#: src/prefs/index.ts:453
 msgid "Process each N-second chunk as you speak"
 msgstr "Procesar cada fragmento de N segundos mientras habla"
 
-#: src/prefs/index.ts:425
+#: src/prefs/index.ts:458
 msgid "Seconds per chunk"
 msgstr "Segundos por fragmento"
 
-#: src/prefs/index.ts:427
+#: src/prefs/index.ts:460
 msgid "Lower values are safer for models that cap output tokens"
 msgstr ""
 "Los valores bajos son más seguros para modelos que limitan los tokens de "
 "salida"
 
-#: src/prefs/index.ts:443
+#: src/prefs/index.ts:476
 msgid "Overlap seconds"
 msgstr "Segundos de solapamiento"
 
-#: src/prefs/index.ts:445
+#: src/prefs/index.ts:478
 msgid ""
 "Re-transcribe this much at each chunk boundary so words split across the "
 "seam are not lost (0 = off)"
@@ -352,78 +371,78 @@ msgstr ""
 "Vuelve a transcribir esta cantidad en cada límite de fragmento para que no "
 "se pierdan las palabras divididas en la unión (0 = desactivado)"
 
-#: src/prefs/index.ts:467
+#: src/prefs/index.ts:500
 msgid "General"
 msgstr "General"
 
-#: src/prefs/index.ts:473
+#: src/prefs/index.ts:506
 msgid "Language"
 msgstr "Idioma"
 
-#: src/prefs/index.ts:474
+#: src/prefs/index.ts:507
 msgid "Spoken language and translation settings"
 msgstr ""
 
-#: src/prefs/index.ts:487
+#: src/prefs/index.ts:520
 msgid "Spoken language"
 msgstr "Idioma hablado"
 
-#: src/prefs/index.ts:488
+#: src/prefs/index.ts:521
 msgid "Language hint passed to the model"
 msgstr "Pista de idioma pasada al modelo"
 
-#: src/prefs/index.ts:495
+#: src/prefs/index.ts:528
 msgid "Translate to English"
 msgstr "Traducir al inglés"
 
-#: src/prefs/index.ts:496
+#: src/prefs/index.ts:529
 msgid "When the model supports translation"
 msgstr "Cuando el modelo admite traducción"
 
-#: src/prefs/index.ts:502
+#: src/prefs/index.ts:535
 msgid "Quality"
 msgstr "Calidad"
 
-#: src/prefs/index.ts:504
+#: src/prefs/index.ts:537
 msgid ""
 "Custom vocabulary to bias the transcription toward specific names or terms"
 msgstr ""
 
-#: src/prefs/index.ts:511
+#: src/prefs/index.ts:544
 msgid "Initial prompt / custom words"
 msgstr "Prompt inicial / palabras personalizadas"
 
-#: src/prefs/index.ts:518
+#: src/prefs/index.ts:551
 #, fuzzy
 msgid "Output & Recording"
 msgstr "Detener grabación"
 
-#: src/prefs/index.ts:520
+#: src/prefs/index.ts:553
 #, fuzzy
 msgid "Where the transcribed text goes and how to trigger recording"
 msgstr "A dónde va el texto transcrito"
 
-#: src/prefs/index.ts:526
+#: src/prefs/index.ts:559
 msgid "Copy to clipboard"
 msgstr "Copiar al portapapeles"
 
-#: src/prefs/index.ts:526
+#: src/prefs/index.ts:559
 msgid "Paste at cursor"
 msgstr "Pegar en el cursor"
 
-#: src/prefs/index.ts:529
+#: src/prefs/index.ts:562
 msgid "Output mode"
 msgstr "Modo de salida"
 
-#: src/prefs/index.ts:530
+#: src/prefs/index.ts:563
 msgid "How to deliver the transcription"
 msgstr "Cómo entregar la transcripción"
 
-#: src/prefs/index.ts:540
+#: src/prefs/index.ts:573
 msgid "Keep last recordings"
 msgstr "Conservar últimas grabaciones"
 
-#: src/prefs/index.ts:542
+#: src/prefs/index.ts:575
 msgid ""
 "How many recent recordings to keep under records/. Older WAVs are deleted "
 "automatically (0 = keep none)"
@@ -431,11 +450,11 @@ msgstr ""
 "Cuántas grabaciones recientes conservar en records/. Las más antiguas se "
 "eliminan automáticamente (0 = no conservar ninguna)"
 
-#: src/prefs/index.ts:560
+#: src/prefs/index.ts:593
 msgid "Debug"
 msgstr "Depuración"
 
-#: src/prefs/index.ts:562
+#: src/prefs/index.ts:595
 #, fuzzy
 msgid ""
 "Logs every transcription run to the system journal. Inspect with:\n"
@@ -446,29 +465,45 @@ msgstr ""
 "sin procesar del CLI ASR). Inspecciónelo con:\n"
 "journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
 
-#: src/prefs/index.ts:570
+#: src/prefs/index.ts:603
 msgid "Debug logging"
 msgstr "Registro de depuración"
 
-#: src/prefs/index.ts:572
+#: src/prefs/index.ts:605
 msgid "Record the ASR command and its raw output for troubleshooting"
 msgstr "Registra el comando ASR y su salida sin procesar para diagnóstico"
 
-#: src/prefs/index.ts:587
+#: src/prefs/index.ts:622
+msgid "Reset settings"
+msgstr "Restablecer opciones"
+
+#: src/prefs/index.ts:624
+msgid ""
+"Restore every option to its default value (binary, model, language, "
+"shortcut…)"
+msgstr ""
+"Restaura todas las opciones a su valor predeterminado (binario, modelo, "
+"idioma, atajo…)"
+
+#: src/prefs/index.ts:637
+msgid "Settings reset to their defaults"
+msgstr "Opciones restablecidas a sus valores predeterminados"
+
+#: src/prefs/index.ts:649
 #, javascript-format
 msgid "Binary path (%s)"
 msgstr "Ruta del binario (%s)"
 
-#: src/prefs/index.ts:605
+#: src/prefs/index.ts:667
 msgid "Using bundled CPU binary (transcribe-cli, x86_64)."
 msgstr "Usando el binario de CPU incluido (transcribe-cli, x86_64)."
 
-#: src/prefs/index.ts:609
+#: src/prefs/index.ts:671
 #, javascript-format
 msgid "Using transcribe-cli from PATH: %s"
 msgstr "Usando transcribe-cli del PATH: %s"
 
-#: src/prefs/index.ts:613
+#: src/prefs/index.ts:675
 msgid ""
 "No binary found for this system. Switch to GPU and set the binary path, or "
 "install transcribe-cli."
@@ -476,17 +511,17 @@ msgstr ""
 "No se encontró ningún binario para este sistema. Cambie a GPU y establezca "
 "la ruta del binario, o instale transcribe-cli."
 
-#: src/prefs/index.ts:748
+#: src/prefs/index.ts:810
 #, javascript-format
 msgid "No devices detected by %s"
 msgstr ""
 
-#: src/prefs/index.ts:749
+#: src/prefs/index.ts:811
 #, fuzzy
 msgid "No transcription binary configured"
 msgstr "no se encontró ningún binario de transcripción (incluido o en el PATH)"
 
-#: src/prefs/index.ts:759
+#: src/prefs/index.ts:821
 #, javascript-format
 msgid "%d · %s (%s%s)"
 msgstr ""
@@ -609,10 +644,6 @@ msgstr "¿Eliminar el archivo del modelo?"
 #, javascript-format
 msgid "This will remove \"%s\" from disk."
 msgstr "Esto eliminará «%s» del disco."
-
-#: src/prefs/models-page.ts:552
-msgid "Cancel"
-msgstr "Cancelar"
 
 #: src/prefs/models-page.ts:553
 msgid "Delete"

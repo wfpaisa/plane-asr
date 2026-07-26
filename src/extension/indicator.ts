@@ -19,6 +19,7 @@
  */
 
 import Clutter from 'gi://Clutter';
+import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -73,9 +74,11 @@ export const Indicator = GObject.registerClass(
         /** GSettings instance owned by the extension. */
         settings!: Gio.Settings;
 
-        private _box!: St.BoxLayout;
         private _icon!: St.Icon;
-        private _stopIcon!: St.Icon;
+        /** Icon shown while idle (data/icons/no-sound-symbolic.svg). */
+        private _noSoundIcon!: Gio.Icon;
+        /** Icon shown while recording (data/icons/sound-symbolic.svg). */
+        private _soundIcon!: Gio.Icon;
         private _recordItem!: PopupMenu.PopupMenuItem;
         private _copyItem!: PopupMenu.PopupMenuItem;
         private _openAudioItem!: PopupMenu.PopupMenuItem;
@@ -86,19 +89,9 @@ export const Indicator = GObject.registerClass(
             super._init(0.0, _('Plane ASR'));
 
             this._icon = new St.Icon({
-                icon_name: 'audio-input-microphone-symbolic',
                 style_class: 'system-status-icon',
             });
-            this._stopIcon = new St.Icon({
-                icon_name: 'media-playback-stop-symbolic',
-                style_class: 'system-status-icon planeasr-stop-icon',
-                visible: false,
-            });
-
-            this._box = new St.BoxLayout();
-            this._box.add_child(this._icon);
-            this._box.add_child(this._stopIcon);
-            this.add_child(this._box);
+            this.add_child(this._icon);
 
             this._buildMenu();
             this._overrideToggle();
@@ -112,6 +105,22 @@ export const Indicator = GObject.registerClass(
          */
         bind(settings: Gio.Settings) {
             this.settings = settings;
+            this._noSoundIcon = Gio.icon_new_for_string(
+                GLib.build_filenamev([
+                    this.extension.path,
+                    'data',
+                    'icons',
+                    'sound-symbolic.svg',
+                ])
+            );
+            this._soundIcon = Gio.icon_new_for_string(
+                GLib.build_filenamev([
+                    this.extension.path,
+                    'data',
+                    'icons',
+                    'no-sound-symbolic.svg',
+                ])
+            );
             this._connectSettings();
             this.onStateChanged(AsrState.Idle);
         }
@@ -209,11 +218,10 @@ export const Indicator = GObject.registerClass(
         /** Called by {@link AsrService} on every state transition. */
         onStateChanged(state: AsrState, ctx?: AsrChangeContext): void {
             this.remove_style_class_name(RECORDING_STYLE_CLASS);
-            this._stopIcon.visible = false;
 
             switch (state) {
                 case AsrState.Idle:
-                    this._icon.icon_name = 'audio-input-microphone-symbolic';
+                    this._icon.gicon = this._noSoundIcon;
                     this._recordItem.label.text = _('Start recording');
                     if (ctx?.error) {
                         // The notification body is where GNOME renders the full
@@ -229,9 +237,8 @@ export const Indicator = GObject.registerClass(
                     }
                     break;
                 case AsrState.Recording:
-                    this._icon.icon_name = 'audio-input-microphone-symbolic';
+                    this._icon.gicon = this._soundIcon;
                     this.add_style_class_name(RECORDING_STYLE_CLASS);
-                    this._stopIcon.visible = true;
                     this._recordItem.label.text = _('Stop recording');
                     break;
                 case AsrState.Transcribing:
@@ -372,20 +379,53 @@ export const Indicator = GObject.registerClass(
                 console.warn(`[planeasr] could not build URI for ${dir}`);
                 return;
             }
-            // Inside GNOME Shell, launch_default_for_uri_async with a null
-            // launch context can fail silently (no timestamp/focus handling),
-            // so try the synchronous variant first and fall back to spawning
-            // `xdg-open` if it throws. Any failure is logged to the journal.
+            // Inside GNOME Shell we need a real AppLaunchContext: passing null
+            // makes launch_default_for_uri() silently succeed on Wayland
+            // without ever showing a window (no startup-notification ID, no
+            // activation timestamp). Build one from the default GdkDisplay so
+            // the spawned app gets the right focus/activation semantics.
+            let launchContext: Gio.AppLaunchContext | null = null;
             try {
-                const launched = Gio.AppInfo.launch_default_for_uri(uri, null);
-                if (launched) return;
+                const display = Gdk.Display.get_default();
+                if (display) {
+                    launchContext = display.get_app_launch_context();
+                }
             } catch (e) {
                 console.warn(
-                    `[planeasr] launch_default_for_uri failed: ${this._errMsg(e)}`
+                    `[planeasr] could not build Gdk launch context: ${this._errMsg(e)}`
                 );
             }
             try {
-                // Fire-and-forget: init kicks the process off without waiting.
+                Gio.AppInfo.launch_default_for_uri_async(
+                    uri,
+                    launchContext,
+                    null,
+                    (_self, res) => {
+                        try {
+                            Gio.AppInfo.launch_default_for_uri_finish(res);
+                        } catch (e) {
+                            console.warn(
+                                `[planeasr] launch_default_for_uri_async failed: ${this._errMsg(e)}`
+                            );
+                            this._openAudiosFallback(uri);
+                        }
+                    }
+                );
+            } catch (e) {
+                console.warn(
+                    `[planeasr] launch_default_for_uri_async threw: ${this._errMsg(e)}`
+                );
+                this._openAudiosFallback(uri);
+            }
+        }
+
+        /**
+         * Last-resort fallback: spawn `xdg-open` directly. Only used when the
+         * proper AppInfo launch path threw (e.g. no default handler for
+         * `inode/directory`). Fire-and-forget.
+         */
+        _openAudiosFallback(uri: string) {
+            try {
                 new Gio.Subprocess({
                     argv: ['xdg-open', uri],
                     flags: Gio.SubprocessFlags.NONE,

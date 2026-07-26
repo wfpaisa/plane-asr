@@ -200,6 +200,39 @@ function resolveModelFilePath(
     return GLib.build_filenamev([dir, filename]);
 }
 
+/**
+ * Show a destructive confirmation dialog over the prefs window and run
+ * `onConfirm` only when the user picks "Reset". Mirrors the GNOME pattern of
+ * gating irreversible actions behind `Adw.MessageDialog` with a DESTRUCTIVE
+ * affirmative response.
+ */
+function confirmReset(
+    parent: Adw.PreferencesWindow,
+    onConfirm: () => void
+): void {
+    const dialog = new Adw.MessageDialog({
+        heading: _('Reset all settings?'),
+        body: _(
+            'This restores every option to its default value. Your downloaded ' +
+                'model files are kept on disk.'
+        ),
+    });
+    dialog.set_transient_for(parent);
+    dialog.add_response('cancel', _('Cancel'));
+    dialog.add_response('reset', _('Reset'));
+    dialog.set_response_appearance(
+        'reset',
+        Adw.ResponseAppearance.DESTRUCTIVE
+    );
+    dialog.default_response = 'cancel';
+    dialog.close_response = 'cancel';
+    dialog.connect('response', (_d, response) => {
+        if (response === 'reset') onConfirm();
+        dialog.destroy();
+    });
+    dialog.present();
+}
+
 export default class PlaneAsrPreferences extends ExtensionPreferences {
     _settings?: Gio.Settings;
 
@@ -575,6 +608,35 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             subtitleLines: 0,
         });
         debugGroup.add(debugRow);
+
+        // -- Reset to defaults ------------------------------------------------
+        // Destructive action: rolls every GSettings key back to its schema
+        // default, then fires a toast. A confirmation dialog guards against
+        // accidental clicks.
+        const resetButton = new Gtk.Button({
+            label: _('Reset'),
+            valign: Gtk.Align.CENTER,
+            cssClasses: ['destructive-action'],
+        });
+        const resetRow = new Adw.ActionRow({
+            title: _('Reset settings'),
+            subtitle: _(
+                'Restore every option to its default value (binary, model, ' +
+                    'language, shortcut…)'
+            ),
+        });
+        resetRow.add_suffix(resetButton);
+        resetRow.activatable_widget = resetButton;
+        debugGroup.add(resetRow);
+
+        resetButton.connect('clicked', () => {
+            void confirmReset(window, () => {
+                for (const key of Object.values(SETTINGS_KEYS)) {
+                    settings.reset(key);
+                }
+                toast(_('Settings reset to their defaults'));
+            });
+        });
 
         window.add(generalPage);
 
