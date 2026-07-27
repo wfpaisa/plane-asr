@@ -19,7 +19,6 @@
  */
 
 import Clutter from 'gi://Clutter';
-import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -419,20 +418,19 @@ export const Indicator = GObject.registerClass(
                 console.warn(`[planeasr] could not build URI for ${dir}`);
                 return;
             }
-            // Inside GNOME Shell we need a real AppLaunchContext: passing null
-            // makes launch_default_for_uri() silently succeed on Wayland
-            // without ever showing a window (no startup-notification ID, no
-            // activation timestamp). Build one from the default GdkDisplay so
-            // the spawned app gets the right focus/activation semantics.
+            // Inside GNOME Shell we need a real AppLaunchContext. Gdk is a GTK
+            // client library and is NOT initialized in the compositor process
+            // (`Gdk.Display.get_default()` returns null there), so a Gdk-based
+            // context is always null and the launch fails on Wayland with
+            // "Operation not supported". The shell exposes its own context via
+            // `global.create_app_launch_context(timestamp, workspace)` — the
+            // canonical way to launch apps from an extension.
             let launchContext: Gio.AppLaunchContext | null = null;
             try {
-                const display = Gdk.Display.get_default();
-                if (display) {
-                    launchContext = display.get_app_launch_context();
-                }
+                launchContext = global.create_app_launch_context(0, -1);
             } catch (e) {
                 console.warn(
-                    `[planeasr] could not build Gdk launch context: ${this._errMsg(e)}`
+                    `[planeasr] could not build shell launch context: ${this._errMsg(e)}`
                 );
             }
             try {
