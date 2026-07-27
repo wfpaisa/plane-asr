@@ -22,8 +22,6 @@ export interface BuildArgvOptions {
     cliPath: string;
     /** String crudo (posiblemente con comillas) de parámetros del modelo/extra. */
     modelParams: string;
-    /** Si se debe añadir la bandera de tiempo real. */
-    realtime: boolean;
     /**
      * Banderas extra opcionales que el usuario quiere añadir a cada
      * invocación, después de los parámetros del modelo y los argumentos de
@@ -91,16 +89,16 @@ export interface AsrBackend {
     label: string;
     /** Nombre de binario por defecto, usado como placeholder del campo en preferencias. */
     defaultCliName: string;
-    /** Si tiene sentido añadir `--stream-chunk-ms 500` para este CLI. */
+    /**
+     * Si el modo en tiempo real (pegado/copiado progresivo por trozos que
+     * gestiona la propia extensión) tiene sentido para este CLI.
+     */
     supportsRealtime: boolean;
     /** Qué features semánticas entiende este backend. */
     capabilities: BackendCapabilities;
     /** Construye el argv para `Gio.Subprocess`. */
     buildArgv(opts: BuildArgvOptions): string[];
 }
-
-/** Bandera de tiempo real insertada (cuando se soporta) antes del argumento de audio. */
-const REALTIME_ARGS = ['--stream-chunk-ms', '500'];
 
 /**
  * Preset de ASR registrado. Se mantiene como un arreglo (con una sola
@@ -123,7 +121,6 @@ export const ASR_BACKENDS: AsrBackend[] = [
             opts.cliPath,
             ...transcribeCliFeatureArgs(opts.features),
             ...parseArgs(opts.modelParams),
-            ...(opts.realtime ? REALTIME_ARGS : []),
             ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],

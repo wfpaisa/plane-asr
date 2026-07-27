@@ -484,6 +484,14 @@ export class AsrService {
         const isPaste =
             (this._settings.get_string('output-mode') ?? 'clipboard') ===
             'paste';
+        // En modo tiempo real con salida al portapapeles el usuario quiere el
+        // texto completo una sola vez al terminar, no un portapapeles que
+        // cambia con cada trozo. El total final lo publica
+        // `_stopAndTranscribe`; aquí solo se suprime la copia progresiva. La
+        // ruta de "Live chunked transcription" sin tiempo real conserva el
+        // portapapeles progresivo de siempre.
+        const realtime = this._settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
+        const progressiveClipboard = !realtime;
         const chunkSamples = Math.max(
             1,
             Math.floor(
@@ -616,7 +624,7 @@ export class AsrService {
                         ? emitted[0].toLowerCase() + emitted.slice(1)
                         : ` ${emitted}`
                 );
-            } else {
+            } else if (progressiveClipboard) {
                 // Portapapeles progresivo: el total en curso siempre está
                 // listo para pegar incluso antes de que la grabación se detenga.
                 copyToClipboard(
@@ -636,10 +644,18 @@ export class AsrService {
         }
     }
 
-    /** Si las grabaciones largas deben transcribirse en vivo en trozos de N segundos. */
+    /**
+     * Si la grabación debe transcribirse en vivo por trozos de N segundos.
+     *
+     * Se activa con el modo en tiempo real (que absorbe el troceo en vivo y
+     * lo fuerza) o con el interruptor independiente "Live chunked
+     * transcription". En ambos casos se exige una duración de trozo positiva.
+     */
     private _streamingEnabled(): boolean {
+        const realtime = this._settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
+        const chunk = this._settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
         return (
-            this._settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED) &&
+            (realtime || chunk) &&
             this._settings.get_int(SETTINGS_KEYS.CHUNK_SECONDS) > 0
         );
     }

@@ -21,8 +21,15 @@ test('matches on normalized tokens but preserves raw casing/punctuation', () => 
     // suffix keeps its original form.
     assert.equal(dedupChunkJoin('hola mundo', 'Mundo, cruel', 4), 'cruel');
 });
-test('tolerates one mishearing at a long seam (fuzzy >= 0.7)', () => {
-    assert.equal(dedupChunkJoin('w uno dos tres cuatro', 'uno dos tres XXXX resto', 5), 'resto');
+test('tolerates one mishearing inside a long seam (fuzzy >= 0.7)', () => {
+    // La palabra mal oída ("XXXX") está *dentro* del solapamiento, no en el
+    // borde: la costura se sigue reconociendo y se descarta completa.
+    assert.equal(dedupChunkJoin('w uno dos tres cuatro', 'uno XXXX tres cuatro resto', 5), 'resto');
+});
+test('does not eat the first new word past the seam', () => {
+    // El solapamiento real es "y que parecía"; "brillar" es la primera palabra
+    // nueva y debe sobrevivir aunque 3 de 4 tokens del prefijo coincidan.
+    assert.equal(dedupChunkJoin('sobre el mismo árbol y que parecía', 'y que parecía brillar más que las demás', 7), 'brillar más que las demás');
 });
 test('drops the overlap even when the ASR inserts a word inside it', () => {
     // El trozo previo oyó "que siempre aparecía"; el siguiente re-transcribe

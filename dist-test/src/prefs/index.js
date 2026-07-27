@@ -295,7 +295,10 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         asrGroup.add(extraFlagsRow.row);
         const realtimeRow = new Adw.SwitchRow({
             title: _('Realtime mode'),
-            subtitle: _('Append --stream-chunk-ms 500'),
+            subtitle: _('Transcribe live while you speak. With paste output the ' +
+                'text is typed at the cursor as you talk; with clipboard ' +
+                'output the full text is copied once at the end. Language ' +
+                'is auto-detected in this mode.'),
         });
         asrGroup.add(realtimeRow);
         const validateButton = new Gtk.Button({
@@ -688,12 +691,25 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         settings.bind(SETTINGS_KEYS.CHUNK_SECONDS, chunkSecondsRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         settings.bind(SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS, chunkOverlapRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         const syncChunkSensitivity = () => {
-            const on = settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
-            chunkSecondsRow.sensitive = on;
-            chunkOverlapRow.sensitive = on;
+            const realtime = settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
+            const chunk = settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
+            // El modo en tiempo real absorbe el troceo en vivo y lo fuerza,
+            // así que el interruptor manual queda deshabilitado (en gris)
+            // mientras esté activo; su subtítulo lo aclara.
+            chunkEnabledRow.sensitive = !realtime;
+            chunkEnabledRow.subtitle = realtime
+                ? _('Always on while Realtime mode is enabled')
+                : _('Process each N-second chunk as you speak');
+            // La duración y el solapamiento del trozo los usa la ruta en vivo
+            // tanto si la activa el modo en tiempo real como el interruptor
+            // manual, por eso siguen al estado efectivo de ambos.
+            const streaming = realtime || chunk;
+            chunkSecondsRow.sensitive = streaming;
+            chunkOverlapRow.sensitive = streaming;
         };
         syncChunkSensitivity();
         settings.connect(`changed::${SETTINGS_KEYS.CHUNK_ENABLED}`, syncChunkSensitivity);
+        settings.connect(`changed::${SETTINGS_KEYS.REALTIME_MODE}`, syncChunkSensitivity);
         // --- Modo de salida --------------------------------------------------
         outputRow.selected = Math.max(0, OUTPUT_IDS.indexOf((settings.get_string(SETTINGS_KEYS.OUTPUT_MODE) ??
             'clipboard')));

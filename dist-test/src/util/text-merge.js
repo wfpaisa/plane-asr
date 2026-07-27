@@ -71,11 +71,18 @@ function isOverlap(prevTail, currHead, d) {
         return false;
     const SLACK = 2;
     const head = currHead.slice(0, d);
+    // La costura debe estar anclada por su último token: si la palabra en el
+    // borde (posición d) no reaparece en la cola de `prev`, no es solapamiento
+    // sino la primera palabra *nueva*, y descartarla perdería contenido real.
+    // Esto tolera una variación del ASR *dentro* del solapamiento pero nunca
+    // se come la palabra que sigue a la costura.
+    const last = head[d - 1];
     const threshold = d < 3 ? 1 : 0.7;
     for (let w = d; w <= d + SLACK && w <= prevTail.length; w++) {
         const window = prevTail.slice(prevTail.length - w);
-        if (subseqMatch(head, window) >= threshold)
+        if (window.includes(last) && subseqMatch(head, window) >= threshold) {
             return true;
+        }
     }
     return false;
 }

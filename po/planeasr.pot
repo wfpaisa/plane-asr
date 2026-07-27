@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-27 15:16-0500\n"
+"POT-Creation-Date: 2026-07-27 16:05-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -184,7 +184,7 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: src/prefs/index.ts:235 src/prefs/index.ts:636
+#: src/prefs/index.ts:235 src/prefs/index.ts:641
 msgid "Reset"
 msgstr ""
 
@@ -200,7 +200,7 @@ msgstr ""
 msgid "Configure the transcribe-cli binary (transcribe.cpp)"
 msgstr ""
 
-#: src/prefs/index.ts:329 src/prefs/index.ts:415
+#: src/prefs/index.ts:329 src/prefs/index.ts:420
 msgid "CPU"
 msgstr ""
 
@@ -245,241 +245,248 @@ msgstr ""
 msgid "Realtime mode"
 msgstr ""
 
-#: src/prefs/index.ts:387
-msgid "Append --stream-chunk-ms 500"
-msgstr ""
-
-#: src/prefs/index.ts:392
-msgid "Validate"
-msgstr ""
-
-#: src/prefs/index.ts:396
-msgid "Check binary and model"
+#: src/prefs/index.ts:388
+msgid ""
+"Transcribe live while you speak. With paste output the text is typed at the "
+"cursor as you talk; with clipboard output the full text is copied once at "
+"the end. Language is auto-detected in this mode."
 msgstr ""
 
 #: src/prefs/index.ts:397
+msgid "Validate"
+msgstr ""
+
+#: src/prefs/index.ts:401
+msgid "Check binary and model"
+msgstr ""
+
+#: src/prefs/index.ts:402
 msgid "Verify the paths exist and the binary is executable"
 msgstr ""
 
-#: src/prefs/index.ts:409
+#: src/prefs/index.ts:414
 msgid "Performance"
 msgstr ""
 
-#: src/prefs/index.ts:410
+#: src/prefs/index.ts:415
 msgid "Tune CPU vs GPU acceleration and threading"
 msgstr ""
 
-#: src/prefs/index.ts:415
+#: src/prefs/index.ts:420
 msgid "Auto"
 msgstr ""
 
-#: src/prefs/index.ts:415
+#: src/prefs/index.ts:420
 msgid "Vulkan"
 msgstr ""
 
-#: src/prefs/index.ts:418
+#: src/prefs/index.ts:423
 msgid "Accelerator"
 msgstr ""
 
-#: src/prefs/index.ts:419
+#: src/prefs/index.ts:424
 msgid "Compute backend for inference"
 msgstr ""
 
-#: src/prefs/index.ts:433 src/prefs/index.ts:814
+#: src/prefs/index.ts:438 src/prefs/index.ts:819
 msgid "Auto (let CLI choose)"
 msgstr ""
 
-#: src/prefs/index.ts:436
+#: src/prefs/index.ts:441
 msgid "GPU device"
 msgstr ""
 
-#: src/prefs/index.ts:437 src/prefs/index.ts:842
+#: src/prefs/index.ts:442 src/prefs/index.ts:847
 msgid "Which compute device the CLI uses"
 msgstr ""
 
-#: src/prefs/index.ts:444
+#: src/prefs/index.ts:449
 msgid "CPU threads"
 msgstr ""
 
-#: src/prefs/index.ts:445
+#: src/prefs/index.ts:450
 msgid "0 = auto (use all cores)"
 msgstr ""
 
-#: src/prefs/index.ts:461
+#: src/prefs/index.ts:466
 msgid "Long recordings"
 msgstr ""
 
-#: src/prefs/index.ts:463
+#: src/prefs/index.ts:468
 msgid ""
 "Split live recordings into chunks so transcription streams progressively and "
 "backends with token limits do not truncate the output."
 msgstr ""
 
-#: src/prefs/index.ts:471
+#: src/prefs/index.ts:476
 msgid "Live chunked transcription"
 msgstr ""
 
-#: src/prefs/index.ts:472
+#: src/prefs/index.ts:477 src/prefs/index.ts:921
 msgid "Process each N-second chunk as you speak"
 msgstr ""
 
-#: src/prefs/index.ts:477
+#: src/prefs/index.ts:482
 msgid "Seconds per chunk"
 msgstr ""
 
-#: src/prefs/index.ts:479
+#: src/prefs/index.ts:484
 msgid "Lower values are safer for models that cap output tokens"
 msgstr ""
 
-#: src/prefs/index.ts:495
+#: src/prefs/index.ts:500
 msgid "Overlap seconds"
 msgstr ""
 
-#: src/prefs/index.ts:497
+#: src/prefs/index.ts:502
 msgid ""
 "Re-transcribe this much at each chunk boundary so words split across the "
 "seam are not lost (0 = off)"
 msgstr ""
 
-#: src/prefs/index.ts:519
+#: src/prefs/index.ts:524
 msgid "General"
 msgstr ""
 
-#: src/prefs/index.ts:525
+#: src/prefs/index.ts:530
 msgid "Language"
 msgstr ""
 
-#: src/prefs/index.ts:526
+#: src/prefs/index.ts:531
 msgid "Spoken language and translation settings"
 msgstr ""
 
-#: src/prefs/index.ts:539
+#: src/prefs/index.ts:544
 msgid "Spoken language"
 msgstr ""
 
-#: src/prefs/index.ts:540
+#: src/prefs/index.ts:545
 msgid "Language hint passed to the model"
 msgstr ""
 
-#: src/prefs/index.ts:547
+#: src/prefs/index.ts:552
 msgid "Translate to English"
 msgstr ""
 
-#: src/prefs/index.ts:548
+#: src/prefs/index.ts:553
 msgid "When the model supports translation"
 msgstr ""
 
-#: src/prefs/index.ts:554
+#: src/prefs/index.ts:559
 msgid "Quality"
 msgstr ""
 
-#: src/prefs/index.ts:556
+#: src/prefs/index.ts:561
 msgid ""
 "Custom vocabulary to bias the transcription toward specific names or terms"
 msgstr ""
 
-#: src/prefs/index.ts:563
+#: src/prefs/index.ts:568
 msgid "Initial prompt / custom words"
 msgstr ""
 
-#: src/prefs/index.ts:570
+#: src/prefs/index.ts:575
 msgid "Output & Recording"
 msgstr ""
 
-#: src/prefs/index.ts:572
+#: src/prefs/index.ts:577
 msgid "Where the transcribed text goes and how to trigger recording"
 msgstr ""
 
-#: src/prefs/index.ts:578
+#: src/prefs/index.ts:583
 msgid "Copy to clipboard"
 msgstr ""
 
-#: src/prefs/index.ts:578
+#: src/prefs/index.ts:583
 msgid "Paste at cursor"
 msgstr ""
 
-#: src/prefs/index.ts:581
+#: src/prefs/index.ts:586
 msgid "Output mode"
 msgstr ""
 
-#: src/prefs/index.ts:582
+#: src/prefs/index.ts:587
 msgid "How to deliver the transcription"
 msgstr ""
 
-#: src/prefs/index.ts:592
+#: src/prefs/index.ts:597
 msgid "Keep last recordings"
 msgstr ""
 
-#: src/prefs/index.ts:594
+#: src/prefs/index.ts:599
 msgid ""
 "How many recent recordings to keep under records/. Older WAVs are deleted "
 "automatically (0 = keep none)"
 msgstr ""
 
-#: src/prefs/index.ts:612
+#: src/prefs/index.ts:617
 msgid "Debug"
 msgstr ""
 
-#: src/prefs/index.ts:614
+#: src/prefs/index.ts:619
 msgid ""
 "Logs every transcription run to the system journal. Inspect with:\n"
 "journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
 msgstr ""
 
-#: src/prefs/index.ts:622
+#: src/prefs/index.ts:627
 msgid "Debug logging"
 msgstr ""
 
-#: src/prefs/index.ts:624
+#: src/prefs/index.ts:629
 msgid "Record the ASR command and its raw output for troubleshooting"
 msgstr ""
 
-#: src/prefs/index.ts:641
+#: src/prefs/index.ts:646
 msgid "Reset settings"
 msgstr ""
 
-#: src/prefs/index.ts:643
+#: src/prefs/index.ts:648
 msgid ""
 "Restore every option to its default value (binary, model, language, "
 "shortcut…)"
 msgstr ""
 
-#: src/prefs/index.ts:656
+#: src/prefs/index.ts:661
 msgid "Settings reset to their defaults"
 msgstr ""
 
-#: src/prefs/index.ts:668
+#: src/prefs/index.ts:673
 #, javascript-format
 msgid "Binary path (%s)"
 msgstr ""
 
-#: src/prefs/index.ts:686
+#: src/prefs/index.ts:691
 msgid "Using bundled CPU binary (transcribe-cli, x86_64)."
 msgstr ""
 
-#: src/prefs/index.ts:690
+#: src/prefs/index.ts:695
 #, javascript-format
 msgid "Using transcribe-cli from PATH: %s"
 msgstr ""
 
-#: src/prefs/index.ts:694
+#: src/prefs/index.ts:699
 msgid ""
 "No binary found for this system. Switch to GPU and set the binary path, or "
 "install transcribe-cli."
 msgstr ""
 
-#: src/prefs/index.ts:827
+#: src/prefs/index.ts:832
 #, javascript-format
 msgid "No devices detected by %s"
 msgstr ""
 
-#: src/prefs/index.ts:828
+#: src/prefs/index.ts:833
 msgid "No transcription binary configured"
 msgstr ""
 
-#: src/prefs/index.ts:839
+#: src/prefs/index.ts:844
 #, javascript-format
 msgid "%d · %s (%s%s)"
+msgstr ""
+
+#: src/prefs/index.ts:920
+msgid "Always on while Realtime mode is enabled"
 msgstr ""
 
 #: src/prefs/models-page.ts:46

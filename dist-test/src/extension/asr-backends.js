@@ -22,8 +22,6 @@ export const NEUTRAL_FEATURES = {
     threads: 0,
     initialPrompt: '',
 };
-/** Bandera de tiempo real insertada (cuando se soporta) antes del argumento de audio. */
-const REALTIME_ARGS = ['--stream-chunk-ms', '500'];
 /**
  * Preset de ASR registrado. Se mantiene como un arreglo (con una sola
  * entrada) para que la búsqueda de `getBackend` y el respaldo
@@ -45,7 +43,6 @@ export const ASR_BACKENDS = [
             opts.cliPath,
             ...transcribeCliFeatureArgs(opts.features),
             ...parseArgs(opts.modelParams),
-            ...(opts.realtime ? REALTIME_ARGS : []),
             ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],

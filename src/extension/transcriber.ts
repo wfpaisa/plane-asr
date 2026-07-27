@@ -184,14 +184,12 @@ export class Transcriber {
     ): Promise<BuildArgvOptions> {
         const modelParams = await this._resolveModelParams();
         const features = await this._resolveFeatures();
-        const realtime = this._settings.get_boolean('realtime-mode');
         const extraFlags =
             this._settings.get_string(SETTINGS_KEYS.EXTRA_CLI_FLAGS) ?? '';
 
         return {
             cliPath: this._resolveCliPath(),
             modelParams,
-            realtime,
             extraFlags,
             audioPath,
             features,
@@ -275,9 +273,20 @@ export class Transcriber {
         const accelerator = (this._settings.get_string(
             SETTINGS_KEYS.ACCELERATOR
         ) ?? 'auto') as Accelerator;
-        const language = this._settings.get_string(
-            SETTINGS_KEYS.SELECTED_LANGUAGE
+        // En modo tiempo real se ignora el idioma elegido y se deja en
+        // 'auto' (sin bandera --language). Motivo: los modelos de streaming
+        // (p. ej. nemotron) anuncian sus idiomas en formato BCP-47
+        // ('es-ES', 'es-US') mientras que el desplegable envía el código
+        // corto ISO ('es'); el CLI rechaza ese código con "unsupported
+        // language" y aborta la ejecución. La autodetección funciona de
+        // forma fiable en estos modelos, así que el modo en vivo la usa
+        // siempre para no fallar.
+        const realtime = this._settings.get_boolean(
+            SETTINGS_KEYS.REALTIME_MODE
         );
+        const language = realtime
+            ? 'auto'
+            : this._settings.get_string(SETTINGS_KEYS.SELECTED_LANGUAGE);
         const threads = this._settings.get_int(SETTINGS_KEYS.CPU_THREADS);
 
         const gpuDevice = this._resolveGpuDevice();

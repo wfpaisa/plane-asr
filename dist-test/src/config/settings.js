@@ -16,7 +16,13 @@ export const SETTINGS_KEYS = {
     CLI_PATH: 'cli-path',
     /** Argumentos extra del CLI: ruta del modelo, idioma, etc. (string). */
     MODEL_PARAMS: 'model-params',
-    /** Si se debe añadir --stream-chunk-ms 500 para ASR en tiempo real (boolean). */
+    /**
+     * Modo en tiempo real: transcribe en vivo por trozos mientras se graba.
+     * Con salida "paste" escribe el texto en el cursor a medida que hablas;
+     * con "clipboard" copia el texto completo una vez al terminar. Fuerza el
+     * troceo en vivo (absorbe `chunk-enabled`) e ignora el idioma elegido en
+     * favor de la autodetección (boolean).
+     */
     REALTIME_MODE: 'realtime-mode',
     /** Banderas extra opcionales añadidas a cada comando de transcripción (string). */
     EXTRA_CLI_FLAGS: 'extra-cli-flags',
