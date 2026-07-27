@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-26 22:53-0500\n"
+"POT-Creation-Date: 2026-07-27 07:34-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -555,7 +555,7 @@ msgstr ""
 msgid "Models directory"
 msgstr ""
 
-#: src/prefs/models-page.ts:444 src/prefs/models-page.ts:630
+#: src/prefs/models-page.ts:444 src/prefs/models-page.ts:629
 msgid "Download"
 msgstr ""
 
@@ -576,8 +576,8 @@ msgstr ""
 msgid "Downloaded"
 msgstr ""
 
-#: src/prefs/models-page.ts:496 src/prefs/models-page.ts:627
-#: src/prefs/models-page.ts:645
+#: src/prefs/models-page.ts:496 src/prefs/models-page.ts:626
+#: src/prefs/models-page.ts:644
 msgid "Active"
 msgstr ""
 
@@ -598,16 +598,16 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: src/prefs/models-page.ts:609
+#: src/prefs/models-page.ts:608
 #, javascript-format
 msgid "Path: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:627 src/prefs/models-page.ts:649
+#: src/prefs/models-page.ts:626 src/prefs/models-page.ts:648
 msgid "Use"
 msgstr ""
 
-#: src/prefs/models-page.ts:681
+#: src/prefs/models-page.ts:680
 #, javascript-format
 msgid "%d languages"
 msgstr ""

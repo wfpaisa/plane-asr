@@ -582,7 +582,6 @@ function buildModelRow(
     });
     content.append(titleLine);
     content.append(descLabel);
-    content.append(pathLabel);
     content.append(controlsLine);
     content.append(progressBar);
 
