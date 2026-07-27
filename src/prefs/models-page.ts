@@ -28,7 +28,7 @@ import {
 } from '../models/catalog.js';
 import {getModelStore} from '../models/model-store.js';
 import {getModelDownloader} from '../models/model-downloader.js';
-import {badgeLabel, entryRow, rowContentMargins} from './widgets.js';
+import {badgeIcon, badgeLabel, entryRow, rowContentMargins} from './widgets.js';
 
 /** Contexto entregado al constructor de la página. */
 export interface ModelsPageContext {
@@ -386,7 +386,7 @@ interface ModelRowState {
     progressBar: Gtk.ProgressBar;
     actionButton: Gtk.Button;
     deleteButton: Gtk.Button;
-    downloadedBadge: Gtk.Label;
+    downloadedBadge: Gtk.Image;
     activeBadge: Gtk.Label;
     pathLabel: Gtk.Label;
     entry: ModelEntry;
@@ -407,8 +407,8 @@ interface ModelRowState {
  * Adw.ActionRow: demasiados sufijos horizontales le quitan ancho al título
  * y el nombre del modelo termina envuelto un carácter por línea. Un box
  * autocontenido da control total sobre el diseño:
- *   línea 1: nombre (se expande) · insignias
- *   línea 2: cuantización · tamaño · botón de acción (alineado a la derecha)
+ *   línea 1: nombre - parámetros (se expande) · insignias
+ *   línea 2: cuantización · tamaño · usar/descargar · eliminar (der.)
  */
 function buildModelRow(
     entry: ModelEntry,
@@ -443,7 +443,7 @@ function buildModelRow(
     const actionButton = new Gtk.Button({
         label: _('Download'),
         valign: Gtk.Align.CENTER,
-        cssClasses: ['suggested-action'],
+        cssClasses: ['suggested-action', 'planeasr-compact-button'],
     });
     actionButton.connect('clicked', () => {
         if (isPresent) {
@@ -466,15 +466,28 @@ function buildModelRow(
         void getModelDownloader().download(entry, file, modelDir);
     });
 
-    // -- Línea de título: nombre + insignias -----------------------------
+    // -- Línea de título: nombre - parámetros + insignias ----------------
     const nameLabel = new Gtk.Label({
         label: entry.name,
-        hexpand: true,
-        halign: Gtk.Align.START,
         xalign: 0,
         wrap: true,
         cssClasses: ['heading'],
     });
+    const nameParamsBox = new Gtk.Box({
+        orientation: Gtk.Orientation.HORIZONTAL,
+        spacing: 6,
+        hexpand: true,
+        halign: Gtk.Align.START,
+    });
+    nameParamsBox.append(nameLabel);
+    nameParamsBox.append(
+        new Gtk.Label({
+            label: '-',
+            xalign: 0,
+            cssClasses: ['caption', 'dim-label'],
+        })
+    );
+    nameParamsBox.append(badgeLabel(entry.parameters, 'caption'));
     const badgeBox = new Gtk.Box({
         orientation: Gtk.Orientation.HORIZONTAL,
         spacing: 6,
@@ -482,14 +495,19 @@ function buildModelRow(
         valign: Gtk.Align.START,
     });
     if (entry.recommended)
-        badgeBox.append(badgeLabel(_('Recommended'), 'success'));
-    if (entry.streaming) badgeBox.append(badgeLabel(_('Streaming'), 'tag'));
-    badgeBox.append(badgeLabel(entry.parameters, 'caption'));
-    badgeBox.append(badgeLabel(entry.backend, 'caption'));
+        badgeBox.append(
+            badgeIcon('heart-symbolic', _('Favorite'), 'planeasr-icon-heart')
+        );
+    if (entry.streaming)
+        badgeBox.append(badgeIcon('flash-symbolic', _('Streaming'), 'tag'));
     // La insignia "Descargado" aparece una vez que el archivo del modelo está
     // en disco; la alterna updatePresence para que siga sincronizada con el
     // estado real de presencia.
-    const downloadedBadge = badgeLabel(_('Downloaded'), 'success');
+    const downloadedBadge = badgeIcon(
+        'downloaded-symbolic',
+        _('Downloaded'),
+        'success'
+    );
     downloadedBadge.visible = false;
     badgeBox.append(downloadedBadge);
     // La insignia "Activo" marca el modelo actualmente seleccionado para
@@ -504,7 +522,7 @@ function buildModelRow(
         spacing: 12,
         hexpand: true,
     });
-    titleLine.append(nameLabel);
+    titleLine.append(nameParamsBox);
     titleLine.append(badgeBox);
 
     // -- Línea de controles: cuantización · tamaño · botón ---------------
@@ -572,8 +590,8 @@ function buildModelRow(
     });
     controlsLine.append(quantCombo);
     controlsLine.append(sizeLabel);
-    controlsLine.append(deleteButton);
     controlsLine.append(actionButton);
+    controlsLine.append(deleteButton);
 
     // -- Barra de progreso (se muestra debajo de todo durante la descarga) --
     const progressBar = new Gtk.ProgressBar({visible: false, hexpand: true});
@@ -684,7 +702,5 @@ function buildSubtitle(entry: ModelEntry): string {
         entry.language_count <= 4
             ? entry.languages.join(', ').toUpperCase()
             : _('%d languages').format(entry.language_count);
-    const file = pickFile(entry, null);
-    const size = file ? formatSize(file.size_bytes) : '';
-    return [entry.description, langs, size].filter(Boolean).join(' · ');
+    return [entry.description, langs].filter(Boolean).join(' · ');
 }

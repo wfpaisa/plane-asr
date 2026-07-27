@@ -34,6 +34,7 @@ import {buildModelsPage} from './models-page.js';
 import {buildSetupPage} from './setup-page.js';
 import {
     entryRow,
+    registerIconSearchPath,
     rowContentMargins,
     shortcutRow,
     widenComboRow,
@@ -264,30 +265,28 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         const toast = (title: string) =>
             window.add_toast(new Adw.Toast({title, timeout: 5}));
 
-        // Carga un pequeño proveedor CSS para estilos exclusivos de
-        // preferencias que libadwaita no expone como clase incorporada —
-        // actualmente el resalte de la fila del modelo activo del catálogo.
-        // Se adjunta al display de la ventana para que toda instancia de la
+        // Carga el mismo stylesheet.css que usa la extensión (St/Clutter)
+        // también como proveedor CSS de GTK, para las clases exclusivas de
+        // preferencias que libadwaita no expone como clase incorporada. Se
+        // adjunta al display de la ventana para que toda instancia de la
         // ventana de preferencias lo recoja.
-        const provider = new Gtk.CssProvider();
-        const css =
-            '.planeasr-active-model {\n' +
-            '  background-color: alpha(@accent_bg_color, 0.12);\n' +
-            '  outline: 1px solid alpha(@accent_color, 0.4);\n' +
-            '  outline-offset: -1px;\n' +
-            '}\n' +
-            '.planeasr-setup-button {\n' +
-            '  min-width: 200px;\n' +
-            '  min-height: 72px;\n' +
-            '  font-size: 1.3em;\n' +
-            '  font-weight: bold;\n' +
-            '}\n';
-        provider.load_from_data(css, css.length);
-        Gtk.StyleContext.add_provider_for_display(
-            window.get_display(),
-            provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        );
+        if (extensionDir) {
+            const provider = new Gtk.CssProvider();
+            provider.load_from_path(`${extensionDir}/stylesheet.css`);
+            Gtk.StyleContext.add_provider_for_display(
+                window.get_display(),
+                provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            );
+        }
+
+        // Registra data/icons como ruta de búsqueda del tema para que los
+        // símbolos propios (heart-symbolic, flash-symbolic,
+        // downloaded-symbolic) se resuelvan por nombre y se puedan
+        // recolorear vía CSS igual que cualquier ícono symbolic del tema.
+        if (extensionDir) {
+            registerIconSearchPath(window.get_display(), extensionDir);
+        }
 
         /* ================================================================
          * PÁGINA 1: Setup  (guía de incorporación + instalación de modelo de un clic)

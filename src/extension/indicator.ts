@@ -80,10 +80,12 @@ export const Indicator = GObject.registerClass(
         settings!: Gio.Settings;
 
         private _icon!: St.Icon;
-        /** Icono mostrado en reposo (data/icons/no-sound-symbolic.svg). */
-        private _noSoundIcon!: Gio.Icon;
-        /** Icono mostrado mientras se graba (data/icons/sound-symbolic.svg). */
-        private _soundIcon!: Gio.Icon;
+        /** Icono mostrado en reposo (data/icons/sound-symbolic.svg). */
+        private _idleIcon!: Gio.Icon;
+        /** Primer cuadro de la animación de grabación (data/icons/sound-symbolic.svg). */
+        private _recordIconA!: Gio.Icon;
+        /** Segundo cuadro de la animación de grabación (data/icons/sound2-symbolic.svg), intercalado con {@link _recordIconA} en cada fase de parpadeo. */
+        private _recordIconB!: Gio.Icon;
         private _recordItem!: PopupMenu.PopupMenuItem;
         private _copyItem!: PopupMenu.PopupMenuItem;
         private _openAudioItem!: PopupMenu.PopupMenuItem;
@@ -115,20 +117,28 @@ export const Indicator = GObject.registerClass(
          */
         bind(settings: Gio.Settings) {
             this.settings = settings;
-            this._noSoundIcon = Gio.icon_new_for_string(
-                GLib.build_filenamev([
-                    this.extension.path,
-                    'data',
-                    'icons',
-                    'no-sound-symbolic.svg',
-                ])
-            );
-            this._soundIcon = Gio.icon_new_for_string(
+            this._idleIcon = Gio.icon_new_for_string(
                 GLib.build_filenamev([
                     this.extension.path,
                     'data',
                     'icons',
                     'sound-symbolic.svg',
+                ])
+            );
+            this._recordIconA = Gio.icon_new_for_string(
+                GLib.build_filenamev([
+                    this.extension.path,
+                    'data',
+                    'icons',
+                    'sound-symbolic.svg',
+                ])
+            );
+            this._recordIconB = Gio.icon_new_for_string(
+                GLib.build_filenamev([
+                    this.extension.path,
+                    'data',
+                    'icons',
+                    'sound2-symbolic.svg',
                 ])
             );
             this._connectSettings();
@@ -236,7 +246,7 @@ export const Indicator = GObject.registerClass(
 
             switch (state) {
                 case AsrState.Idle:
-                    this._icon.gicon = this._noSoundIcon;
+                    this._icon.gicon = this._idleIcon;
                     this._recordItem.label.text = _('Start recording');
                     if (ctx?.error) {
                         // El cuerpo de la notificación es donde GNOME
@@ -253,7 +263,7 @@ export const Indicator = GObject.registerClass(
                     }
                     break;
                 case AsrState.Recording:
-                    this._icon.gicon = this._soundIcon;
+                    this._icon.gicon = this._recordIconA;
                     this.add_style_class_name(RECORDING_STYLE_CLASS);
                     this._recordItem.label.text = _('Stop recording');
                     this._startBlink();
@@ -306,9 +316,15 @@ export const Indicator = GObject.registerClass(
             this.opacity = 255;
         }
 
-        /** Una fase de desvanecimiento del bucle de parpadeo; se rearma sola hasta que se detiene. */
+        /**
+         * Una fase de desvanecimiento del bucle de parpadeo; se rearma sola
+         * hasta que se detiene. Cada fase también intercala el ícono entre
+         * {@link _recordIconA} y {@link _recordIconB}, así el efecto de
+         * "respiración" viene acompañado de una pequeña animación de forma.
+         */
         _pulseBlink(dim: boolean) {
             if (!this._blinking) return;
+            this._icon.gicon = dim ? this._recordIconB : this._recordIconA;
             this.ease({
                 opacity: dim ? BLINK_DIM_OPACITY : 255,
                 duration: BLINK_PHASE_MS,
