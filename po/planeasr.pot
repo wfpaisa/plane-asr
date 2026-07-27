@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-26 22:26-0500\n"
+"POT-Creation-Date: 2026-07-26 22:53-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -131,350 +131,350 @@ msgstr ""
 msgid "Neither pw-record nor parecord was found in PATH"
 msgstr ""
 
-#: src/prefs/index.ts:114
+#: src/prefs/index.ts:123
 msgid "binary path is empty"
 msgstr ""
 
-#: src/prefs/index.ts:118
+#: src/prefs/index.ts:127
 #, javascript-format
 msgid "binary not found: %s"
 msgstr ""
 
-#: src/prefs/index.ts:127 src/prefs/index.ts:147
+#: src/prefs/index.ts:136 src/prefs/index.ts:156
 #, javascript-format
 msgid "binary is not executable: %s"
 msgstr ""
 
-#: src/prefs/index.ts:137
+#: src/prefs/index.ts:146
 msgid "no transcription binary found (bundled or on PATH)"
 msgstr ""
 
-#: src/prefs/index.ts:174
+#: src/prefs/index.ts:183
 msgid "no model file found"
 msgstr ""
 
-#: src/prefs/index.ts:177
+#: src/prefs/index.ts:186
 #, javascript-format
 msgid "model not found: %s"
 msgstr ""
 
-#: src/prefs/index.ts:181
+#: src/prefs/index.ts:190
 #, javascript-format
 msgid "model path is relative and cannot be verified: %s"
 msgstr ""
 
-#: src/prefs/index.ts:188
+#: src/prefs/index.ts:197
 msgid "Binary and model look OK"
 msgstr ""
 
-#: src/prefs/index.ts:214
+#: src/prefs/index.ts:223
 msgid "Reset all settings?"
 msgstr ""
 
-#: src/prefs/index.ts:216
+#: src/prefs/index.ts:225
 msgid ""
 "This restores every option to its default value. Your downloaded model files "
 "are kept on disk."
 msgstr ""
 
-#: src/prefs/index.ts:221 src/prefs/models-page.ts:555
+#: src/prefs/index.ts:230 src/prefs/models-page.ts:547
 msgid "Cancel"
 msgstr ""
 
-#: src/prefs/index.ts:222 src/prefs/index.ts:611
+#: src/prefs/index.ts:231 src/prefs/index.ts:630
 msgid "Reset"
 msgstr ""
 
-#: src/prefs/index.ts:289
+#: src/prefs/index.ts:311
 msgid "Backend"
 msgstr ""
 
-#: src/prefs/index.ts:295
+#: src/prefs/index.ts:317
 msgid "Transcription"
 msgstr ""
 
-#: src/prefs/index.ts:297
+#: src/prefs/index.ts:319
 msgid "Configure the transcribe-cli binary (transcribe.cpp)"
 msgstr ""
 
-#: src/prefs/index.ts:303 src/prefs/index.ts:392
+#: src/prefs/index.ts:325 src/prefs/index.ts:411
 msgid "CPU"
 msgstr ""
 
-#: src/prefs/index.ts:303
+#: src/prefs/index.ts:325
 msgid "GPU"
 msgstr ""
 
-#: src/prefs/index.ts:306
+#: src/prefs/index.ts:328
 msgid "Binary mode"
 msgstr ""
 
-#: src/prefs/index.ts:308
+#: src/prefs/index.ts:330
 msgid ""
 "CPU uses the transcribe-cli shipped with the extension (x86_64), falling "
 "back to one found on PATH. GPU lets you point to your own Vulkan/CUDA build."
 msgstr ""
 
-#: src/prefs/index.ts:325
+#: src/prefs/index.ts:347
 msgid ""
 "GPU mode uses a manually configured binary (e.g. a transcribe.cpp build with "
 "Vulkan/CUDA/Metal). Point it to the compiled transcribe-cli; the accelerator "
 "is left on Auto so the CLI uses whatever GPU it was built for."
 msgstr ""
 
-#: src/prefs/index.ts:346
+#: src/prefs/index.ts:365
 msgid "Resolved binary"
 msgstr ""
 
-#: src/prefs/index.ts:351
+#: src/prefs/index.ts:370
 msgid "Binary path"
 msgstr ""
 
-#: src/prefs/index.ts:357
+#: src/prefs/index.ts:376
 msgid "Optional extra flags"
 msgstr ""
 
-#: src/prefs/index.ts:358
+#: src/prefs/index.ts:377
 msgid "e.g. --verbose --beam-size 4 (left blank = none)"
 msgstr ""
 
-#: src/prefs/index.ts:363
+#: src/prefs/index.ts:382
 msgid "Realtime mode"
 msgstr ""
 
-#: src/prefs/index.ts:364
+#: src/prefs/index.ts:383
 msgid "Append --stream-chunk-ms 500"
 msgstr ""
 
-#: src/prefs/index.ts:369
+#: src/prefs/index.ts:388
 msgid "Validate"
 msgstr ""
 
-#: src/prefs/index.ts:373
+#: src/prefs/index.ts:392
 msgid "Check binary and model"
 msgstr ""
 
-#: src/prefs/index.ts:374
+#: src/prefs/index.ts:393
 msgid "Verify the paths exist and the binary is executable"
 msgstr ""
 
-#: src/prefs/index.ts:386
+#: src/prefs/index.ts:405
 msgid "Performance"
 msgstr ""
 
-#: src/prefs/index.ts:387
+#: src/prefs/index.ts:406
 msgid "Tune CPU vs GPU acceleration and threading"
 msgstr ""
 
-#: src/prefs/index.ts:392
+#: src/prefs/index.ts:411
 msgid "Auto"
 msgstr ""
 
-#: src/prefs/index.ts:392
+#: src/prefs/index.ts:411
 msgid "Vulkan"
 msgstr ""
 
-#: src/prefs/index.ts:395
+#: src/prefs/index.ts:414
 msgid "Accelerator"
 msgstr ""
 
-#: src/prefs/index.ts:396
+#: src/prefs/index.ts:415
 msgid "Compute backend for inference"
 msgstr ""
 
-#: src/prefs/index.ts:408 src/prefs/index.ts:783
+#: src/prefs/index.ts:427 src/prefs/index.ts:802
 msgid "Auto (let CLI choose)"
 msgstr ""
 
-#: src/prefs/index.ts:411
+#: src/prefs/index.ts:430
 msgid "GPU device"
 msgstr ""
 
-#: src/prefs/index.ts:412 src/prefs/index.ts:810
+#: src/prefs/index.ts:431 src/prefs/index.ts:829
 msgid "Which compute device the CLI uses"
 msgstr ""
 
-#: src/prefs/index.ts:419
+#: src/prefs/index.ts:438
 msgid "CPU threads"
 msgstr ""
 
-#: src/prefs/index.ts:420
+#: src/prefs/index.ts:439
 msgid "0 = auto (use all cores)"
 msgstr ""
 
-#: src/prefs/index.ts:436
+#: src/prefs/index.ts:455
 msgid "Long recordings"
 msgstr ""
 
-#: src/prefs/index.ts:438
+#: src/prefs/index.ts:457
 msgid ""
 "Split live recordings into chunks so transcription streams progressively and "
 "backends with token limits do not truncate the output."
 msgstr ""
 
-#: src/prefs/index.ts:446
+#: src/prefs/index.ts:465
 msgid "Live chunked transcription"
 msgstr ""
 
-#: src/prefs/index.ts:447
+#: src/prefs/index.ts:466
 msgid "Process each N-second chunk as you speak"
 msgstr ""
 
-#: src/prefs/index.ts:452
+#: src/prefs/index.ts:471
 msgid "Seconds per chunk"
 msgstr ""
 
-#: src/prefs/index.ts:454
+#: src/prefs/index.ts:473
 msgid "Lower values are safer for models that cap output tokens"
 msgstr ""
 
-#: src/prefs/index.ts:470
+#: src/prefs/index.ts:489
 msgid "Overlap seconds"
 msgstr ""
 
-#: src/prefs/index.ts:472
+#: src/prefs/index.ts:491
 msgid ""
 "Re-transcribe this much at each chunk boundary so words split across the "
 "seam are not lost (0 = off)"
 msgstr ""
 
-#: src/prefs/index.ts:494
+#: src/prefs/index.ts:513
 msgid "General"
 msgstr ""
 
-#: src/prefs/index.ts:500
+#: src/prefs/index.ts:519
 msgid "Language"
 msgstr ""
 
-#: src/prefs/index.ts:501
+#: src/prefs/index.ts:520
 msgid "Spoken language and translation settings"
 msgstr ""
 
-#: src/prefs/index.ts:514
+#: src/prefs/index.ts:533
 msgid "Spoken language"
 msgstr ""
 
-#: src/prefs/index.ts:515
+#: src/prefs/index.ts:534
 msgid "Language hint passed to the model"
 msgstr ""
 
-#: src/prefs/index.ts:522
+#: src/prefs/index.ts:541
 msgid "Translate to English"
 msgstr ""
 
-#: src/prefs/index.ts:523
+#: src/prefs/index.ts:542
 msgid "When the model supports translation"
 msgstr ""
 
-#: src/prefs/index.ts:529
+#: src/prefs/index.ts:548
 msgid "Quality"
 msgstr ""
 
-#: src/prefs/index.ts:531
+#: src/prefs/index.ts:550
 msgid ""
 "Custom vocabulary to bias the transcription toward specific names or terms"
 msgstr ""
 
-#: src/prefs/index.ts:538
+#: src/prefs/index.ts:557
 msgid "Initial prompt / custom words"
 msgstr ""
 
-#: src/prefs/index.ts:545
+#: src/prefs/index.ts:564
 msgid "Output & Recording"
 msgstr ""
 
-#: src/prefs/index.ts:547
+#: src/prefs/index.ts:566
 msgid "Where the transcribed text goes and how to trigger recording"
 msgstr ""
 
-#: src/prefs/index.ts:553
+#: src/prefs/index.ts:572
 msgid "Copy to clipboard"
 msgstr ""
 
-#: src/prefs/index.ts:553
+#: src/prefs/index.ts:572
 msgid "Paste at cursor"
 msgstr ""
 
-#: src/prefs/index.ts:556
+#: src/prefs/index.ts:575
 msgid "Output mode"
 msgstr ""
 
-#: src/prefs/index.ts:557
+#: src/prefs/index.ts:576
 msgid "How to deliver the transcription"
 msgstr ""
 
-#: src/prefs/index.ts:567
+#: src/prefs/index.ts:586
 msgid "Keep last recordings"
 msgstr ""
 
-#: src/prefs/index.ts:569
+#: src/prefs/index.ts:588
 msgid ""
 "How many recent recordings to keep under records/. Older WAVs are deleted "
 "automatically (0 = keep none)"
 msgstr ""
 
-#: src/prefs/index.ts:587
+#: src/prefs/index.ts:606
 msgid "Debug"
 msgstr ""
 
-#: src/prefs/index.ts:589
+#: src/prefs/index.ts:608
 msgid ""
 "Logs every transcription run to the system journal. Inspect with:\n"
 "journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
 msgstr ""
 
-#: src/prefs/index.ts:597
+#: src/prefs/index.ts:616
 msgid "Debug logging"
 msgstr ""
 
-#: src/prefs/index.ts:599
+#: src/prefs/index.ts:618
 msgid "Record the ASR command and its raw output for troubleshooting"
 msgstr ""
 
-#: src/prefs/index.ts:616
+#: src/prefs/index.ts:635
 msgid "Reset settings"
 msgstr ""
 
-#: src/prefs/index.ts:618
+#: src/prefs/index.ts:637
 msgid ""
 "Restore every option to its default value (binary, model, language, "
 "shortcut…)"
 msgstr ""
 
-#: src/prefs/index.ts:631
+#: src/prefs/index.ts:650
 msgid "Settings reset to their defaults"
 msgstr ""
 
-#: src/prefs/index.ts:643
+#: src/prefs/index.ts:662
 #, javascript-format
 msgid "Binary path (%s)"
 msgstr ""
 
-#: src/prefs/index.ts:661
+#: src/prefs/index.ts:680
 msgid "Using bundled CPU binary (transcribe-cli, x86_64)."
 msgstr ""
 
-#: src/prefs/index.ts:665
+#: src/prefs/index.ts:684
 #, javascript-format
 msgid "Using transcribe-cli from PATH: %s"
 msgstr ""
 
-#: src/prefs/index.ts:669
+#: src/prefs/index.ts:688
 msgid ""
 "No binary found for this system. Switch to GPU and set the binary path, or "
 "install transcribe-cli."
 msgstr ""
 
-#: src/prefs/index.ts:796
+#: src/prefs/index.ts:815
 #, javascript-format
 msgid "No devices detected by %s"
 msgstr ""
 
-#: src/prefs/index.ts:797
+#: src/prefs/index.ts:816
 msgid "No transcription binary configured"
 msgstr ""
 
-#: src/prefs/index.ts:807
+#: src/prefs/index.ts:826
 #, javascript-format
 msgid "%d · %s (%s%s)"
 msgstr ""
@@ -503,139 +503,139 @@ msgstr ""
 msgid "Model path"
 msgstr ""
 
-#: src/prefs/models-page.ts:131
+#: src/prefs/models-page.ts:129
 msgid ""
 "No catalog model selected — browse below and click \"Use\" to select one."
 msgstr ""
 
-#: src/prefs/models-page.ts:202
+#: src/prefs/models-page.ts:200
 msgid "Browse models"
 msgstr ""
 
-#: src/prefs/models-page.ts:204
+#: src/prefs/models-page.ts:202
 msgid ""
 "Download GGUF models from HuggingFace. They are verified with SHA-256 and "
 "stored locally."
 msgstr ""
 
-#: src/prefs/models-page.ts:212
+#: src/prefs/models-page.ts:210
 msgid "Search by name or language…"
 msgstr ""
 
-#: src/prefs/models-page.ts:301
+#: src/prefs/models-page.ts:296
 #, javascript-format
 msgid "Model downloaded: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:305
+#: src/prefs/models-page.ts:300
 #, javascript-format
 msgid "Download failed: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:324
+#: src/prefs/models-page.ts:319
 #, javascript-format
 msgid "Model deleted: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:334
+#: src/prefs/models-page.ts:329
 msgid "Storage"
 msgstr ""
 
-#: src/prefs/models-page.ts:336
+#: src/prefs/models-page.ts:331
 msgid ""
 "Directory where downloaded models are stored. You can also drop "
 "any .gguf/.bin file here and point to it with a custom path."
 msgstr ""
 
-#: src/prefs/models-page.ts:351
+#: src/prefs/models-page.ts:346
 msgid "Open folder"
 msgstr ""
 
-#: src/prefs/models-page.ts:375
+#: src/prefs/models-page.ts:367
 msgid "Models directory"
 msgstr ""
 
-#: src/prefs/models-page.ts:452 src/prefs/models-page.ts:641
+#: src/prefs/models-page.ts:444 src/prefs/models-page.ts:630
 msgid "Download"
 msgstr ""
 
-#: src/prefs/models-page.ts:460
+#: src/prefs/models-page.ts:452
 #, javascript-format
 msgid "Active model: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:492
+#: src/prefs/models-page.ts:484
 msgid "Recommended"
 msgstr ""
 
-#: src/prefs/models-page.ts:493
+#: src/prefs/models-page.ts:485
 msgid "Streaming"
 msgstr ""
 
-#: src/prefs/models-page.ts:498
+#: src/prefs/models-page.ts:490
 msgid "Downloaded"
 msgstr ""
 
-#: src/prefs/models-page.ts:504 src/prefs/models-page.ts:638
-#: src/prefs/models-page.ts:656
+#: src/prefs/models-page.ts:496 src/prefs/models-page.ts:627
+#: src/prefs/models-page.ts:645
 msgid "Active"
 msgstr ""
 
-#: src/prefs/models-page.ts:540
+#: src/prefs/models-page.ts:532
 msgid "Delete downloaded file"
 msgstr ""
 
-#: src/prefs/models-page.ts:552
+#: src/prefs/models-page.ts:544
 msgid "Delete model file?"
 msgstr ""
 
-#: src/prefs/models-page.ts:553
+#: src/prefs/models-page.ts:545
 #, javascript-format
 msgid "This will remove \"%s\" from disk."
 msgstr ""
 
-#: src/prefs/models-page.ts:556
+#: src/prefs/models-page.ts:548
 msgid "Delete"
 msgstr ""
 
-#: src/prefs/models-page.ts:620
+#: src/prefs/models-page.ts:609
 #, javascript-format
 msgid "Path: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:638 src/prefs/models-page.ts:660
+#: src/prefs/models-page.ts:627 src/prefs/models-page.ts:649
 msgid "Use"
 msgstr ""
 
-#: src/prefs/models-page.ts:692
+#: src/prefs/models-page.ts:681
 #, javascript-format
 msgid "%d languages"
 msgstr ""
 
-#: src/prefs/widgets.ts:105
+#: src/prefs/widgets.ts:131
 msgid "Press the desired combination"
 msgstr ""
 
-#: src/prefs/widgets.ts:106
+#: src/prefs/widgets.ts:132
 msgid "Esc to cancel · Backspace to disable"
 msgstr ""
 
-#: src/prefs/widgets.ts:142
+#: src/prefs/widgets.ts:168
 msgid "Toggle recording shortcut"
 msgstr ""
 
-#: src/prefs/widgets.ts:143
+#: src/prefs/widgets.ts:169
 msgid "Click Set and press the keys you want to use"
 msgstr ""
 
-#: src/prefs/widgets.ts:147
+#: src/prefs/widgets.ts:173
 msgid "Disabled"
 msgstr ""
 
-#: src/prefs/widgets.ts:151
+#: src/prefs/widgets.ts:177
 msgid "Set"
 msgstr ""
 
-#: src/prefs/widgets.ts:157
+#: src/prefs/widgets.ts:183
 msgid "Disable shortcut"
 msgstr ""

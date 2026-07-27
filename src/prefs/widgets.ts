@@ -17,6 +17,35 @@ import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 /**
+ * Inset estándar (libadwaita) para el contenido dentro de las filas
+ * compuestas de estas páginas. libadwaita aplica 12px de margen horizontal al
+ * contenido de sus filas nativas; centralizarlo aquí hace que las filas hechas
+ * a mano (etiqueta + entrada, notas, cajas de controles) igualen la altura y el
+ * ritmo vertical de las filas Adw nativas, en vez de mezclar 10/12/14px.
+ *
+ * `vertical` controla el alto: 12px para contenido apilado (etiqueta sobre
+ * entrada, notas de varias líneas), 8px para una sola fila horizontal de
+ * controles (una entrada, una búsqueda), acercándose a la altura mínima de
+ * ~50px de una fila Adw sin inflarla.
+ */
+export function rowContentMargins(vertical = 12): {
+    marginStart: number;
+    marginEnd: number;
+    marginTop: number;
+    marginBottom: number;
+} {
+    return {
+        marginStart: 12,
+        marginEnd: 12,
+        marginTop: vertical,
+        marginBottom: vertical,
+    };
+}
+
+/** Espaciado vertical entre la etiqueta y su control dentro de una fila apilada. */
+export const ROW_INNER_SPACING = 6;
+
+/**
  * Construye una fila de ancho completo con la etiqueta apilada encima de un
  * Gtk.Entry, para que toda la pista del placeholder quede visible (una
  * entrada lado a lado la recortaría).
@@ -36,11 +65,8 @@ export function entryRow(
     });
     const box = new Gtk.Box({
         orientation: Gtk.Orientation.VERTICAL,
-        spacing: 6,
-        marginTop: 10,
-        marginBottom: 10,
-        marginStart: 12,
-        marginEnd: 12,
+        spacing: ROW_INNER_SPACING,
+        ...rowContentMargins(),
     });
     box.append(label);
     box.append(entry);

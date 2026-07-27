@@ -28,7 +28,7 @@ import {
 } from '../models/catalog.js';
 import {getModelStore} from '../models/model-store.js';
 import {getModelDownloader} from '../models/model-downloader.js';
-import {badgeLabel, entryRow} from './widgets.js';
+import {badgeLabel, entryRow, rowContentMargins} from './widgets.js';
 
 /** Contexto entregado al constructor de la página. */
 export interface ModelsPageContext {
@@ -97,10 +97,8 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     });
     const activeModelBox = new Gtk.Box({
         orientation: Gtk.Orientation.VERTICAL,
-        spacing: 4,
-        marginStart: 12,
-        marginEnd: 12,
-        marginBottom: 8,
+        spacing: 6,
+        ...rowContentMargins(),
     });
     activeModelBox.append(activeModelLabel);
     const activeModelInfoRow = new Adw.PreferencesRow({
@@ -215,10 +213,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     const filterBox = new Gtk.Box({
         orientation: Gtk.Orientation.HORIZONTAL,
         spacing: 8,
-        marginTop: 6,
-        marginBottom: 6,
-        marginStart: 12,
-        marginEnd: 12,
+        ...rowContentMargins(8),
     });
     filterBox.append(search);
     const filterRow = new Adw.PreferencesRow({activatable: false});
@@ -364,10 +359,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     const dirBox = new Gtk.Box({
         orientation: Gtk.Orientation.HORIZONTAL,
         spacing: 6,
-        marginTop: 8,
-        marginBottom: 8,
-        marginStart: 12,
-        marginEnd: 12,
+        ...rowContentMargins(8),
     });
     dirBox.append(dirEntry);
     dirBox.append(openButton);
@@ -586,10 +578,7 @@ function buildModelRow(
     const content = new Gtk.Box({
         orientation: Gtk.Orientation.VERTICAL,
         spacing: 8,
-        marginTop: 10,
-        marginBottom: 10,
-        marginStart: 14,
-        marginEnd: 14,
+        ...rowContentMargins(),
     });
     content.append(titleLine);
     content.append(descLabel);

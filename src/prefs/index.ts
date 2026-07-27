@@ -2,9 +2,12 @@
  *
  * Preferences window for the Plane ASR extension.
  *
- * Three pages (in user priority order):
+ * Four pages (in user priority order):
+ *  - "Setup": three-step onboarding guide plus a one-click button that
+ *    downloads and activates the recommended model — the first thing a new
+ *    user sees.
  *  - "Models": model selection (catalog vs custom), searchable downloader,
- *    storage directory — the first thing a user needs to configure.
+ *    storage directory.
  *  - "Backend": transcription backend, binary mode, performance (accelerator,
  *    GPU, threads), and long-recording chunking — everything that affects how
  *    the audio is processed.
@@ -28,7 +31,13 @@ import {resolveAutoCli} from '../extension/cli-resolver.js';
 import {listDevices} from '../extension/device-lister.js';
 import {findModel, pickFile, resolveModelDir} from '../models/catalog.js';
 import {buildModelsPage} from './models-page.js';
-import {entryRow, shortcutRow, widenComboRow} from './widgets.js';
+import {buildSetupPage} from './setup-page.js';
+import {
+    entryRow,
+    rowContentMargins,
+    shortcutRow,
+    widenComboRow,
+} from './widgets.js';
 
 /** Ids backing the "Output" combo, in display order. */
 const OUTPUT_IDS = ['clipboard', 'paste'] as const;
@@ -220,10 +229,7 @@ function confirmReset(
     dialog.set_transient_for(parent);
     dialog.add_response('cancel', _('Cancel'));
     dialog.add_response('reset', _('Reset'));
-    dialog.set_response_appearance(
-        'reset',
-        Adw.ResponseAppearance.DESTRUCTIVE
-    );
+    dialog.set_response_appearance('reset', Adw.ResponseAppearance.DESTRUCTIVE);
     dialog.default_response = 'cancel';
     dialog.close_response = 'cancel';
     dialog.connect('response', (_d, response) => {
@@ -264,6 +270,12 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             '  background-color: alpha(@accent_bg_color, 0.12);\n' +
             '  outline: 1px solid alpha(@accent_color, 0.4);\n' +
             '  outline-offset: -1px;\n' +
+            '}\n' +
+            '.planeasr-setup-button {\n' +
+            '  min-width: 200px;\n' +
+            '  min-height: 72px;\n' +
+            '  font-size: 1.3em;\n' +
+            '  font-weight: bold;\n' +
             '}\n';
         provider.load_from_data(css, css.length);
         Gtk.StyleContext.add_provider_for_display(
@@ -273,7 +285,17 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         );
 
         /* ================================================================
-         * PAGE 1: Models  (model selection, catalog, storage)
+         * PAGE 1: Setup  (onboarding guide + one-click model install)
+         * ================================================================ */
+        const setupPage = buildSetupPage({
+            extensionDir,
+            settings,
+            toast,
+        });
+        window.add(setupPage);
+
+        /* ================================================================
+         * PAGE 2: Models  (model selection, catalog, storage)
          * ================================================================ */
         const modelsPage = buildModelsPage({
             extensionDir,
@@ -283,7 +305,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         window.add(modelsPage);
 
         /* ================================================================
-         * PAGE 2: Backend  (transcription + performance + chunking)
+         * PAGE 3: Backend  (transcription + performance + chunking)
          * ================================================================ */
         const backendPage = new Adw.PreferencesPage({
             title: _('Backend'),
@@ -330,11 +352,8 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         const gpuNoteBox = new Gtk.Box({
             orientation: Gtk.Orientation.VERTICAL,
-            spacing: 4,
-            marginStart: 12,
-            marginEnd: 12,
-            marginTop: 4,
-            marginBottom: 8,
+            spacing: 6,
+            ...rowContentMargins(),
         });
         gpuNoteBox.append(gpuNoteLabel);
         const gpuNoteRow = new Adw.PreferencesRow({activatable: false});
@@ -488,7 +507,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         window.add(backendPage);
 
         /* ================================================================
-         * PAGE 3: General  (language, quality, output, debug)
+         * PAGE 4: General  (language, quality, output, debug)
          * ================================================================ */
         const generalPage = new Adw.PreferencesPage({
             title: _('General'),
