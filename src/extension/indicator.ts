@@ -38,6 +38,11 @@ import {AsrState, type AsrChangeContext} from './asr-service.js';
 /** CSS class toggled on the button while recording. */
 const RECORDING_STYLE_CLASS = 'planeasr-recording';
 
+/** Opacity the button eases down to at the dim end of each blink phase. */
+const BLINK_DIM_OPACITY = 90;
+/** Duration (ms) of each fade phase; the full dim-bright cycle takes 2x this. */
+const BLINK_PHASE_MS = 1000;
+
 /**
  * Minimal shape the indicator needs from its owning service. The real
  * {@link AsrService} is assigned at runtime; this interface keeps the indicator
@@ -84,6 +89,8 @@ export const Indicator = GObject.registerClass(
         private _openAudioItem!: PopupMenu.PopupMenuItem;
         private _processFileItem!: PopupMenu.PopupMenuItem;
         private _settingsHandlers: number[] = [];
+        /** Guards the recursive ease loop in {@link _pulseBlink}; see {@link _startBlink}. */
+        private _blinking = false;
 
         _init() {
             super._init(0.0, _('Plane ASR'));
@@ -218,6 +225,7 @@ export const Indicator = GObject.registerClass(
         /** Called by {@link AsrService} on every state transition. */
         onStateChanged(state: AsrState, ctx?: AsrChangeContext): void {
             this.remove_style_class_name(RECORDING_STYLE_CLASS);
+            this._stopBlink();
 
             switch (state) {
                 case AsrState.Idle:
@@ -240,6 +248,7 @@ export const Indicator = GObject.registerClass(
                     this._icon.gicon = this._soundIcon;
                     this.add_style_class_name(RECORDING_STYLE_CLASS);
                     this._recordItem.label.text = _('Stop recording');
+                    this._startBlink();
                     break;
                 case AsrState.Transcribing:
                     this._icon.icon_name = 'content-loading-symbolic';
@@ -265,6 +274,37 @@ export const Indicator = GObject.registerClass(
             // pointless spawn).
             this._processFileItem.sensitive =
                 this.service?.state === AsrState.Idle;
+        }
+
+        /**
+         * Start a slow opacity "breathing" loop on the button so the red
+         * recording state is unmistakable at a glance. St's CSS engine has no
+         * `@keyframes`, so the blink is driven here via chained Clutter
+         * transitions instead of the stylesheet.
+         */
+        _startBlink() {
+            if (this._blinking) return;
+            this._blinking = true;
+            this._pulseBlink(true);
+        }
+
+        /** Stop the blink loop and snap the button back to full opacity. */
+        _stopBlink() {
+            if (!this._blinking) return;
+            this._blinking = false;
+            this.remove_all_transitions();
+            this.opacity = 255;
+        }
+
+        /** One fade phase of the blink loop; re-arms itself until stopped. */
+        _pulseBlink(dim: boolean) {
+            if (!this._blinking) return;
+            this.ease({
+                opacity: dim ? BLINK_DIM_OPACITY : 255,
+                duration: BLINK_PHASE_MS,
+                mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
+                onComplete: () => this._pulseBlink(!dim),
+            });
         }
 
         _copyLastText() {
@@ -444,6 +484,7 @@ export const Indicator = GObject.registerClass(
         }
 
         destroy() {
+            this._stopBlink();
             this._settingsHandlers.forEach(h => this.settings.disconnect(h));
             this._settingsHandlers = [];
             super.destroy();

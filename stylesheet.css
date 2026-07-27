@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-/* Recording state: green background, white icon. Applied to the indicator
- * button while a capture is running. */
+/* Recording state: red background, white icon. Applied to the indicator
+ * button while a capture is running. The slow blink itself is driven by a
+ * Clutter opacity transition in indicator.ts (St's CSS engine has no
+ * @keyframes support), so this only sets the base color. */
 .planeasr-recording {
-    background-color: #26a269;
+    background-color: #c01c28;
 }
 
 .planeasr-recording .system-status-icon {
