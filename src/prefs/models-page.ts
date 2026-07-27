@@ -496,17 +496,19 @@ function buildModelRow(
     });
     if (entry.recommended)
         badgeBox.append(
-            badgeIcon('heart-symbolic', _('Favorite'), 'planeasr-icon-heart')
+            badgeIcon('heart-symbolic', _('Favorite'), 'planeasr-icon-badge')
         );
     if (entry.streaming)
-        badgeBox.append(badgeIcon('flash-symbolic', _('Streaming'), 'tag'));
+        badgeBox.append(
+            badgeIcon('flash-symbolic', _('Streaming'), 'planeasr-icon-badge')
+        );
     // La insignia "Descargado" aparece una vez que el archivo del modelo está
     // en disco; la alterna updatePresence para que siga sincronizada con el
     // estado real de presencia.
     const downloadedBadge = badgeIcon(
         'downloaded-symbolic',
         _('Downloaded'),
-        'success'
+        'planeasr-icon-badge'
     );
     downloadedBadge.visible = false;
     badgeBox.append(downloadedBadge);

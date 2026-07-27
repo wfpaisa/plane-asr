@@ -49,12 +49,14 @@
     font-weight: bold;
 }
 
-/* Ícono de corazón (insignia "Favorito") en rojo. El SVG en
- * data/icons/heart-symbolic.svg no lleva color propio: se resuelve como
+/* Íconos de insignia (Favorito, Streaming, Descargado) en amarillo. El SVG
+ * de heart-symbolic en data/icons/ no lleva color propio: se resuelve como
  * ícono symbolic (vía registerIconSearchPath) y se recolorea aquí con
- * `color`, igual que cualquier ícono symbolic del tema del sistema. */
-.planeasr-icon-heart {
-    color: #e01b24;
+ * `color`, igual que cualquier ícono symbolic del tema del sistema; los
+ * íconos de flash-symbolic y downloaded-symbolic del tema estándar se
+ * recolorean de la misma forma. */
+.planeasr-icon-badge {
+    color: #f6d32d;
 }
 
 /* Botón de acción (Usar/Descargar) de cada fila de modelo, a la mitad del
