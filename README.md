@@ -6,6 +6,8 @@ written in TypeScript and following the official
 Transcription runs entirely on your machine via `transcribe-cli`
 (transcribe.cpp); nothing is sent to the cloud.
 
+![alt text](screenshot/screenshot01.png) ![alt text](screenshot/screenshot02.png) ![alt text](screenshot/screenshot03.png) ![alt text](screenshot/screenshot04.png) ![alt text](screenshot/screenshot05.png) ![alt text](screenshot/screenshot06.png) ![alt text](screenshot/screenshot07.png)
+
 ## Features
 
 - **Panel indicator** — left-click toggles record/stop (or cancels a running

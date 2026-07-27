@@ -30,7 +30,11 @@ import {
 } from './audio-chunker.js';
 import {AudioConverter, NoConverterError} from './audio-converter.js';
 import {copyToClipboard, pasteAtCursor} from '../util/paste.js';
-import {dedupChunkJoin} from '../util/text-merge.js';
+import {
+    dedupChunkJoin,
+    finalizeTranscript,
+    stripPlaceholders,
+} from '../util/text-merge.js';
 
 /** Estados generales del ciclo de vida, expuestos a la interfaz. */
 export enum AsrState {
@@ -318,7 +322,7 @@ export class AsrService {
             // La transcripción completa siempre se copia para que "Copiar
             // texto" y el portapapeles tengan todos los trozos unidos,
             // incluso en modo pegado.
-            const full = session.texts.join(' ').trim();
+            const full = finalizeTranscript(session.texts.join(' '));
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
             if (full) copyToClipboard(full);
             this._pruneRecordings();
@@ -571,7 +575,10 @@ export class AsrService {
                     session.cancelled = true;
                     break;
                 }
-                piece = result.text.trim();
+                // Descarta marcadores de silencio ("(empty)", "[BLANK_AUDIO]",
+                // ...) que el CLI emite para trozos sin habla — típico en la
+                // cola final de la grabación — para que no se cuelen en la salida.
+                piece = stripPlaceholders(result.text);
             } finally {
                 cleanupChunks([outPath]);
             }
@@ -601,14 +608,20 @@ export class AsrService {
             if (isPaste) {
                 // Un espacio inicial en cada fragmento salvo el primero
                 // evita que las palabras se junten, reflejando la unión con
-                // ' ' que se usa para el total.
+                // ' ' que se usa para el total. El primer fragmento arranca en
+                // minúscula: es texto que continúa donde esté el cursor, no
+                // una frase nueva.
                 await pasteAtCursor(
-                    session.texts.length === 0 ? emitted : ` ${emitted}`
+                    session.texts.length === 0
+                        ? emitted[0].toLowerCase() + emitted.slice(1)
+                        : ` ${emitted}`
                 );
             } else {
                 // Portapapeles progresivo: el total en curso siempre está
                 // listo para pegar incluso antes de que la grabación se detenga.
-                copyToClipboard([...session.texts, emitted].join(' '));
+                copyToClipboard(
+                    finalizeTranscript([...session.texts, emitted].join(' '))
+                );
             }
             session.texts.push(emitted);
 
@@ -618,7 +631,7 @@ export class AsrService {
             // mitad de la grabación.
             this._settings.set_string(
                 SETTINGS_KEYS.LAST_TEXT,
-                session.texts.join(' ').trim()
+                finalizeTranscript(session.texts.join(' '))
             );
         }
     }

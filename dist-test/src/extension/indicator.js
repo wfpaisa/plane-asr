@@ -23,12 +23,12 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { SETTINGS_KEYS } from '../config/settings.js';
 import { recordsDir } from '../config/paths.js';
 import { AsrState } from './asr-service.js';
+import { notify } from './notify.js';
 /** Clase CSS que se activa/desactiva en el botón mientras se graba. */
 const RECORDING_STYLE_CLASS = 'planeasr-recording';
 /** Opacidad hasta la que se atenúa el botón en el extremo tenue de cada fase de parpadeo. */
@@ -77,17 +77,23 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
      */
     bind(settings) {
         this.settings = settings;
-        this._noSoundIcon = Gio.icon_new_for_string(GLib.build_filenamev([
-            this.extension.path,
-            'data',
-            'icons',
-            'no-sound-symbolic.svg',
-        ]));
-        this._soundIcon = Gio.icon_new_for_string(GLib.build_filenamev([
+        this._idleIcon = Gio.icon_new_for_string(GLib.build_filenamev([
             this.extension.path,
             'data',
             'icons',
             'sound-symbolic.svg',
+        ]));
+        this._recordIconA = Gio.icon_new_for_string(GLib.build_filenamev([
+            this.extension.path,
+            'data',
+            'icons',
+            'sound-symbolic.svg',
+        ]));
+        this._recordIconB = Gio.icon_new_for_string(GLib.build_filenamev([
+            this.extension.path,
+            'data',
+            'icons',
+            'sound2-symbolic.svg',
         ]));
         this._connectSettings();
         this.onStateChanged(AsrState.Idle);
@@ -108,12 +114,12 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
             this._copyLastText();
         });
         menu.addMenuItem(this._copyItem);
-        this._openAudioItem = new PopupMenu.PopupMenuItem(_('Open audios'));
-        this._openAudioItem.connect('activate', () => {
+        this._copyAudiosPathItem = new PopupMenu.PopupMenuItem(_('Copy audios path'));
+        this._copyAudiosPathItem.connect('activate', () => {
             menu.close();
-            this._openAudios();
+            this._copyAudiosPath();
         });
-        menu.addMenuItem(this._openAudioItem);
+        menu.addMenuItem(this._copyAudiosPathItem);
         this._processFileItem = new PopupMenu.PopupMenuItem(_('Process audio file'));
         this._processFileItem.connect('activate', () => {
             menu.close();
@@ -160,7 +166,7 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
                 this.service.cancel();
                 break;
             case undefined:
-                Main.notify(_('Plane ASR is not ready yet'));
+                notify(this.extension.path, _('Plane ASR is not ready yet'));
                 break;
             default:
                 this.service.toggle();
@@ -172,7 +178,7 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
         this._stopBlink();
         switch (state) {
             case AsrState.Idle:
-                this._icon.gicon = this._noSoundIcon;
+                this._icon.gicon = this._idleIcon;
                 this._recordItem.label.text = _('Start recording');
                 if (ctx?.error) {
                     // El cuerpo de la notificación es donde GNOME
@@ -182,11 +188,11 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
                     // se puedan inspeccionar con:
                     //   journalctl --user -b /usr/bin/gnome-shell | grep planeasr
                     console.warn(`[planeasr] ${ctx.error}`);
-                    Main.notify(_('Plane ASR: transcription failed'), ctx.error);
+                    notify(this.extension.path, _('Plane ASR: transcription failed'), ctx.error);
                 }
                 break;
             case AsrState.Recording:
-                this._icon.gicon = this._soundIcon;
+                this._icon.gicon = this._recordIconA;
                 this.add_style_class_name(RECORDING_STYLE_CLASS);
                 this._recordItem.label.text = _('Stop recording');
                 this._startBlink();
@@ -204,9 +210,9 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
     _refreshMenuSensitivity() {
         const lastText = this.settings.get_string(SETTINGS_KEYS.LAST_TEXT) ?? '';
         this._copyItem.sensitive = lastText.length > 0;
-        // "Abrir audios" abre la carpeta de grabaciones bajo demanda
-        // (creándola si falta), así que siempre está disponible.
-        this._openAudioItem.sensitive = true;
+        // "Copiar ruta de audios" siempre está disponible: solo copia
+        // la ruta de la carpeta de grabaciones al portapapeles.
+        this._copyAudiosPathItem.sensitive = true;
         // "Procesar archivo de audio" inicia una transcripción, así que
         // solo se habilita en reposo — no debe competir con una
         // grabación o conversión en curso (el servicio también se
@@ -235,10 +241,16 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
         this.remove_all_transitions();
         this.opacity = 255;
     }
-    /** Una fase de desvanecimiento del bucle de parpadeo; se rearma sola hasta que se detiene. */
+    /**
+     * Una fase de desvanecimiento del bucle de parpadeo; se rearma sola
+     * hasta que se detiene. Cada fase también intercala el ícono entre
+     * {@link _recordIconA} y {@link _recordIconB}, así el efecto de
+     * "respiración" viene acompañado de una pequeña animación de forma.
+     */
     _pulseBlink(dim) {
         if (!this._blinking)
             return;
+        this._icon.gicon = dim ? this._recordIconB : this._recordIconA;
         this.ease({
             opacity: dim ? BLINK_DIM_OPACITY : 255,
             duration: BLINK_PHASE_MS,
@@ -252,7 +264,7 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
         if (!text)
             return;
         St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text);
-        Main.notify(_('Plane ASR: copied transcription'));
+        notify(this.extension.path, _('Plane ASR: copied transcription'));
     }
     /**
      * Abre un selector de archivos nativo (un Gtk.FileDialog fuera del
@@ -263,12 +275,12 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
      */
     _pickAndTranscribe() {
         if (this.service?.state !== AsrState.Idle) {
-            Main.notify(_('Plane ASR is busy'));
+            notify(this.extension.path, _('Plane ASR is busy'));
             return Promise.resolve();
         }
         const gjs = GLib.find_program_in_path('gjs');
         if (!gjs) {
-            Main.notify(_('Plane ASR'), _('gjs runtime not found; cannot open the file picker'));
+            notify(this.extension.path, _('Plane ASR'), _('gjs runtime not found; cannot open the file picker'));
             return Promise.resolve();
         }
         // El selector se distribuye en <extdir>/src/extension/file-picker.js
@@ -282,7 +294,7 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
         ]);
         if (!Gio.File.new_for_path(pickerPath).query_exists(null)) {
             console.warn(`[planeasr] file picker script missing: ${pickerPath}`);
-            Main.notify(_('Plane ASR'), _('File picker helper is missing; reinstall the extension'));
+            notify(this.extension.path, _('Plane ASR'), _('File picker helper is missing; reinstall the extension'));
             return Promise.resolve();
         }
         // El selector es agnóstico de i18n (no puede acceder al dominio
@@ -306,7 +318,7 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
             }
             catch (e) {
                 console.warn(`[planeasr] could not spawn file picker: ${this._errMsg(e)}`);
-                Main.notify(_('Plane ASR'), _('Could not open the file picker'));
+                notify(this.extension.path, _('Plane ASR'), _('Could not open the file picker'));
                 resolve();
                 return;
             }
@@ -329,65 +341,14 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
             });
         });
     }
-    /** Abre la carpeta de grabaciones en el gestor de archivos predeterminado. */
-    _openAudios() {
+    /** Copia la ruta de la carpeta de grabaciones al portapapeles. */
+    _copyAudiosPath() {
         const dir = recordsDir();
-        // Asegura que la carpeta exista para que el gestor de archivos
-        // realmente la muestre.
+        // Asegura que la carpeta exista para que la ruta copiada sea
+        // válida si el usuario la usa de inmediato.
         GLib.mkdir_with_parents(dir, 0o755);
-        const [uriOk, uri] = GLib.filename_to_uri(dir, null);
-        if (!uriOk || !uri) {
-            console.warn(`[planeasr] could not build URI for ${dir}`);
-            return;
-        }
-        // Dentro de GNOME Shell necesitamos un AppLaunchContext real.
-        // Gdk es una biblioteca cliente de GTK y NO está inicializada en
-        // el proceso del compositor (`Gdk.Display.get_default()`
-        // devuelve null ahí), así que un contexto basado en Gdk siempre
-        // es null y el lanzamiento falla en Wayland con "Operation not
-        // supported". El shell expone su propio contexto vía
-        // `global.create_app_launch_context(timestamp, workspace)` — la
-        // forma canónica de lanzar aplicaciones desde una extensión.
-        let launchContext = null;
-        try {
-            launchContext = global.create_app_launch_context(0, -1);
-        }
-        catch (e) {
-            console.warn(`[planeasr] could not build shell launch context: ${this._errMsg(e)}`);
-        }
-        try {
-            Gio.AppInfo.launch_default_for_uri_async(uri, launchContext, null, (_self, res) => {
-                try {
-                    Gio.AppInfo.launch_default_for_uri_finish(res);
-                }
-                catch (e) {
-                    console.warn(`[planeasr] launch_default_for_uri_async failed: ${this._errMsg(e)}`);
-                    this._openAudiosFallback(uri);
-                }
-            });
-        }
-        catch (e) {
-            console.warn(`[planeasr] launch_default_for_uri_async threw: ${this._errMsg(e)}`);
-            this._openAudiosFallback(uri);
-        }
-    }
-    /**
-     * Respaldo de último recurso: lanza `xdg-open` directamente. Solo se
-     * usa cuando la ruta apropiada de lanzamiento con AppInfo falló
-     * (por ejemplo, sin manejador por defecto para `inode/directory`).
-     * Se dispara sin esperar el resultado.
-     */
-    _openAudiosFallback(uri) {
-        try {
-            new Gio.Subprocess({
-                argv: ['xdg-open', uri],
-                flags: Gio.SubprocessFlags.NONE,
-            }).init(null);
-        }
-        catch (e) {
-            console.warn(`[planeasr] xdg-open failed: ${this._errMsg(e)}`);
-            Main.notify(_('Plane ASR'), _('Could not open the audios folder'));
-        }
+        St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, dir);
+        notify(this.extension.path, _('Plane ASR: copied audios path'));
     }
     /** Extrae un mensaje legible de cualquier error capturado. */
     _errMsg(e) {

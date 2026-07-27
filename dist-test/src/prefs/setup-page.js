@@ -78,9 +78,9 @@ export function buildSetupPage(ctx) {
     const progressBar = new Gtk.ProgressBar({ visible: false });
     const buttonBox = new Gtk.Box({
         orientation: Gtk.Orientation.VERTICAL,
-        spacing: 12,
+        spacing: 6,
         halign: Gtk.Align.CENTER,
-        ...rowContentMargins(24),
+        ...rowContentMargins(12),
     });
     buttonBox.append(setupButton);
     buttonBox.append(statusLabel);

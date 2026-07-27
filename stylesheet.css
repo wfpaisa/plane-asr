@@ -43,9 +43,9 @@
 /* Botón grande de la página de Setup para instalar/activar el modelo
  * recomendado de un clic. */
 .planeasr-setup-button {
-    min-width: 100px;
-    min-height: 36px;
-    font-size: 1.3em;
+    min-width: 50px;
+    min-height: 24px;
+    font-size: 1.1em;
     font-weight: bold;
 }
 
@@ -61,10 +61,4 @@
  * tamaño estándar de libadwaita: menos padding, sin altura mínima y fuente
  * más chica. */
 .planeasr-compact-button {
-    padding-left: 6px;
-    padding-right: 6px;
-    padding-top: 2px;
-    padding-bottom: 2px;
-    min-height: 0;
-    font-size: 0.85em;
 }

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-27 13:52-0500\n"
+"POT-Creation-Date: 2026-07-27 15:16-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,48 +17,47 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/extension/asr-service.ts:164
+#: src/extension/asr-service.ts:168
 msgid "ASR binary not found. Set it in preferences."
 msgstr ""
 
-#: src/extension/asr-service.ts:176
+#: src/extension/asr-service.ts:180
 msgid ""
 "No transcription binary available for this system. Switch to GPU mode and "
 "set the binary path, or install transcribe-cli on your PATH."
 msgstr ""
 
-#: src/extension/asr-service.ts:219
+#: src/extension/asr-service.ts:223
 msgid "No model selected. Open Preferences to choose a transcription model."
 msgstr ""
 
-#: src/extension/asr-service.ts:328 src/extension/asr-service.ts:378
+#: src/extension/asr-service.ts:332 src/extension/asr-service.ts:382
 msgid "Plane ASR: transcription pasted"
 msgstr ""
 
-#: src/extension/asr-service.ts:329 src/extension/asr-service.ts:379
+#: src/extension/asr-service.ts:333 src/extension/asr-service.ts:383
 msgid "Plane ASR: transcription copied"
 msgstr ""
 
-#: src/extension/asr-service.ts:407 src/extension/indicator.ts:361
+#: src/extension/asr-service.ts:411 src/extension/indicator.ts:363
 msgid "Plane ASR is busy"
 msgstr ""
 
-#: src/extension/asr-service.ts:430
+#: src/extension/asr-service.ts:434
 msgid "Converting audio…"
 msgstr ""
 
-#: src/extension/asr-service.ts:437
+#: src/extension/asr-service.ts:441
 msgid ""
 "No audio converter found. Install ffmpeg, or use a 16 kHz mono 16-bit WAV."
 msgstr ""
 
-#: src/extension/indicator.ts:99 src/extension/indicator.ts:369
-#: src/extension/indicator.ts:389 src/extension/indicator.ts:420
-#: src/extension/indicator.ts:515
+#: src/extension/indicator.ts:99 src/extension/indicator.ts:371
+#: src/extension/indicator.ts:391 src/extension/indicator.ts:422
 msgid "Plane ASR"
 msgstr ""
 
-#: src/extension/indicator.ts:153 src/extension/indicator.ts:253
+#: src/extension/indicator.ts:153 src/extension/indicator.ts:255
 msgid "Start recording"
 msgstr ""
 
@@ -66,65 +65,65 @@ msgstr ""
 msgid "Copy text"
 msgstr ""
 
-#: src/extension/indicator.ts:170
-msgid "Open audios"
+#: src/extension/indicator.ts:171
+msgid "Copy audios path"
 msgstr ""
 
-#: src/extension/indicator.ts:178
+#: src/extension/indicator.ts:180
 msgid "Process audio file"
 msgstr ""
 
-#: src/extension/indicator.ts:188
+#: src/extension/indicator.ts:190
 msgid "Preferences"
 msgstr ""
 
-#: src/extension/indicator.ts:237
+#: src/extension/indicator.ts:239
 msgid "Plane ASR is not ready yet"
 msgstr ""
 
-#: src/extension/indicator.ts:264
+#: src/extension/indicator.ts:266
 msgid "Plane ASR: transcription failed"
 msgstr ""
 
-#: src/extension/indicator.ts:272
+#: src/extension/indicator.ts:274
 msgid "Stop recording"
 msgstr ""
 
-#: src/extension/indicator.ts:278
+#: src/extension/indicator.ts:280
 #, javascript-format
 msgid "Transcribing %s"
 msgstr ""
 
-#: src/extension/indicator.ts:279
+#: src/extension/indicator.ts:281
 msgid "Cancel transcription"
 msgstr ""
 
-#: src/extension/indicator.ts:349
+#: src/extension/indicator.ts:351
 msgid "Plane ASR: copied transcription"
 msgstr ""
 
-#: src/extension/indicator.ts:370
+#: src/extension/indicator.ts:372
 msgid "gjs runtime not found; cannot open the file picker"
 msgstr ""
 
-#: src/extension/indicator.ts:390
+#: src/extension/indicator.ts:392
 msgid "File picker helper is missing; reinstall the extension"
 msgstr ""
 
-#: src/extension/indicator.ts:402
+#: src/extension/indicator.ts:404
 msgid "Select audio file"
 msgstr ""
 
-#: src/extension/indicator.ts:403
+#: src/extension/indicator.ts:405
 msgid "Open"
 msgstr ""
 
-#: src/extension/indicator.ts:421
+#: src/extension/indicator.ts:423
 msgid "Could not open the file picker"
 msgstr ""
 
-#: src/extension/indicator.ts:516
-msgid "Could not open the audios folder"
+#: src/extension/indicator.ts:460
+msgid "Plane ASR: copied audios path"
 msgstr ""
 
 #: src/extension/recorder.ts:44

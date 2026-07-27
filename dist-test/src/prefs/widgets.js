@@ -72,6 +72,14 @@ export function entryRow(title, placeholder) {
  * `Gtk.SignalListItemFactory` que construye una etiqueta sin elipsis. Con
  * `ellipsize: NONE` el popup crece para ajustarse al ítem más ancho, así
  * que no hace falta un ancho manual.
+ *
+ * `width_chars` fija un mínimo de 4 caracteres: sin él, `wrapMode:
+ * WORD_CHAR` permite partir el texto en cualquier punto, así que cuando
+ * el subtítulo de la fila es largo y compite por espacio horizontal, el
+ * selector se encoge hasta mostrar una sola letra (ej. "C" en vez de
+ * "CPU"). El mínimo no le impide crecer a su ancho natural cuando hay
+ * espacio, ni impide que opciones más largas (ej. nombres de GPU) sigan
+ * envolviendo en varias líneas.
  */
 export function widenComboRow(row) {
     const factory = new Gtk.SignalListItemFactory();
@@ -81,6 +89,7 @@ export function widenComboRow(row) {
             ellipsize: Pango.EllipsizeMode.NONE,
             wrap: true,
             wrapMode: Pango.WrapMode.WORD_CHAR,
+            widthChars: 4,
         });
         obj.set_child(label);
     });
@@ -179,5 +188,28 @@ export function badgeLabel(text, cssClass = 'tag') {
         cssClasses: [cssClass],
         valign: Gtk.Align.CENTER,
     });
+}
+/**
+ * Una insignia en forma de ícono, usada para decorar filas de modelo con
+ * estados (recomendado, streaming, descargado) sin el ancho extra de una
+ * etiqueta de texto. El texto original queda disponible como tooltip.
+ */
+export function badgeIcon(iconName, tooltip, cssClass = 'tag') {
+    return new Gtk.Image({
+        icon_name: iconName,
+        tooltip_text: tooltip,
+        cssClasses: [cssClass],
+        valign: Gtk.Align.CENTER,
+    });
+}
+/**
+ * Registra `<extensionDir>/data/icons` como ruta de búsqueda del tema de
+ * iconos de GTK, para que los símbolos propios de la extensión (nombre
+ * terminado en `-symbolic`) se resuelvan por nombre igual que los del tema
+ * del sistema. Esto es lo que permite recolorearlos vía CSS (`color: ...`)
+ * en vez de hornear un color fijo dentro del SVG.
+ */
+export function registerIconSearchPath(display, extensionDir) {
+    Gtk.IconTheme.get_for_display(display).add_search_path(`${extensionDir}/data/icons`);
 }
 //# sourceMappingURL=widgets.js.map

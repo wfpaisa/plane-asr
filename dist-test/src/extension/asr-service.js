@@ -10,17 +10,18 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { SETTINGS_KEYS, normalizeCliMode } from '../config/settings.js';
 import { cacheDir, pruneRecordings, recordsDir } from '../config/paths.js';
 import { resolveAutoCli } from './cli-resolver.js';
 import { getBackend } from './asr-backends.js';
+import { notify } from './notify.js';
 import { Recorder } from './recorder.js';
 import { Transcriber } from './transcriber.js';
+import { findModel, pickFile, resolveModelDir, modelFilePath } from '../models/catalog.js';
 import { SAMPLE_RATE, cleanupChunks, getWavDataOffset, wavAvailableSamples, writeWavChunk, } from './audio-chunker.js';
 import { AudioConverter, NoConverterError } from './audio-converter.js';
 import { copyToClipboard, pasteAtCursor } from '../util/paste.js';
-import { dedupChunkJoin } from '../util/text-merge.js';
+import { dedupChunkJoin, finalizeTranscript, stripPlaceholders, } from '../util/text-merge.js';
 /** Estados generales del ciclo de vida, expuestos a la interfaz. */
 export var AsrState;
 (function (AsrState) {
@@ -120,14 +121,51 @@ export class AsrService {
             'transcribe-cli on your PATH.');
     }
     /**
-     * Inicia una nueva grabación tras validar que hay un binario del CLI
-     * disponible, y arranca el worker de transcripción en vivo si el
-     * troceo (chunking) está habilitado.
+     * Chequeo previo de que hay un modelo configurado antes de
+     * comprometerse a grabar: o el modelo de catálogo activo está
+     * descargado en disco, o el usuario dejó una ruta propia en
+     * `model-params`. Misma resolución que usa {@link Transcriber} al
+     * armar el flag `-m` del CLI, pero sin llegar a lanzarlo. Devuelve un
+     * string de error localizado, o null cuando hay un modelo utilizable.
+     */
+    _validateModel() {
+        const modelId = this._settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+        if (modelId && this._extensionDir) {
+            const entry = findModel(this._extensionDir, modelId);
+            if (entry) {
+                const quant = this._settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ?? '';
+                const file = pickFile(entry, quant);
+                if (file) {
+                    const modelDir = resolveModelDir(this._settings.get_string(SETTINGS_KEYS.MODEL_DIR) ??
+                        '');
+                    const path = modelFilePath(modelDir, file);
+                    if (Gio.File.new_for_path(path).query_exists(null)) {
+                        return null;
+                    }
+                }
+            }
+        }
+        // Sin modelo de catálogo activo utilizable: una ruta propia en
+        // model-params también cuenta como "hay modelo configurado".
+        const userParams = this._settings.get_string(SETTINGS_KEYS.MODEL_PARAMS) ?? '';
+        if (userParams.trim())
+            return null;
+        return _('No model selected. Open Preferences to choose a transcription model.');
+    }
+    /**
+     * Inicia una nueva grabación tras validar que hay un binario del CLI y
+     * un modelo disponibles, y arranca el worker de transcripción en vivo
+     * si el troceo (chunking) está habilitado.
      */
     async _startRecording() {
         const missing = this._validateCliBinary();
         if (missing) {
             this._setState(AsrState.Idle, { error: missing });
+            return;
+        }
+        const missingModel = this._validateModel();
+        if (missingModel) {
+            this._setState(AsrState.Idle, { error: missingModel });
             return;
         }
         const audioPath = this._newAudioPath();
@@ -207,12 +245,12 @@ export class AsrService {
             // La transcripción completa siempre se copia para que "Copiar
             // texto" y el portapapeles tengan todos los trozos unidos,
             // incluso en modo pegado.
-            const full = session.texts.join(' ').trim();
+            const full = finalizeTranscript(session.texts.join(' '));
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
             if (full)
                 copyToClipboard(full);
             this._pruneRecordings();
-            Main.notify(isPaste
+            notify(this._extensionDir, isPaste
                 ? _('Plane ASR: transcription pasted')
                 : _('Plane ASR: transcription copied'));
             this._setState(AsrState.Idle, { text: full });
@@ -251,7 +289,7 @@ export class AsrService {
                 else
                     copyToClipboard(full);
             }
-            Main.notify(isPaste
+            notify(this._extensionDir, isPaste
                 ? _('Plane ASR: transcription pasted')
                 : _('Plane ASR: transcription copied'));
             if (prune)
@@ -281,7 +319,7 @@ export class AsrService {
         // solapen. Este punto de entrada se llama directamente desde el
         // indicador, así que debe protegerse a sí mismo.
         if (this._state !== AsrState.Idle) {
-            Main.notify(_('Plane ASR is busy'));
+            notify(this._extensionDir, _('Plane ASR is busy'));
             return;
         }
         const missing = this._validateCliBinary();
@@ -301,7 +339,7 @@ export class AsrService {
         let finalPath = srcPath;
         if (getWavDataOffset(srcPath) === null) {
             const destPath = this._newImportedPath(srcPath);
-            Main.notify(_('Converting audio…'));
+            notify(this._extensionDir, _('Converting audio…'));
             try {
                 await this._converter.convert(srcPath, destPath);
             }
@@ -416,7 +454,10 @@ export class AsrService {
                     session.cancelled = true;
                     break;
                 }
-                piece = result.text.trim();
+                // Descarta marcadores de silencio ("(empty)", "[BLANK_AUDIO]",
+                // ...) que el CLI emite para trozos sin habla — típico en la
+                // cola final de la grabación — para que no se cuelen en la salida.
+                piece = stripPlaceholders(result.text);
             }
             finally {
                 cleanupChunks([outPath]);
@@ -443,20 +484,24 @@ export class AsrService {
             if (isPaste) {
                 // Un espacio inicial en cada fragmento salvo el primero
                 // evita que las palabras se junten, reflejando la unión con
-                // ' ' que se usa para el total.
-                await pasteAtCursor(session.texts.length === 0 ? emitted : ` ${emitted}`);
+                // ' ' que se usa para el total. El primer fragmento arranca en
+                // minúscula: es texto que continúa donde esté el cursor, no
+                // una frase nueva.
+                await pasteAtCursor(session.texts.length === 0
+                    ? emitted[0].toLowerCase() + emitted.slice(1)
+                    : ` ${emitted}`);
             }
             else {
                 // Portapapeles progresivo: el total en curso siempre está
                 // listo para pegar incluso antes de que la grabación se detenga.
-                copyToClipboard([...session.texts, emitted].join(' '));
+                copyToClipboard(finalizeTranscript([...session.texts, emitted].join(' ')));
             }
             session.texts.push(emitted);
             // Mantiene `last-text` sincronizado con el total en curso para
             // que "Copiar texto" siempre refleje la transcripción completa
             // desde el inicio, no solo el trozo más reciente — incluso a
             // mitad de la grabación.
-            this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, session.texts.join(' ').trim());
+            this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, finalizeTranscript(session.texts.join(' ')));
         }
     }
     /** Si las grabaciones largas deben transcribirse en vivo en trozos de N segundos. */
