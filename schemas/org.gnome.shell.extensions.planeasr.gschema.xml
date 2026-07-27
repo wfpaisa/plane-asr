@@ -110,7 +110,7 @@
 
     <!-- Output -->
     <key name="output-mode" type="s">
-      <default>'clipboard'</default>
+      <default>'paste'</default>
       <summary>Output mode</summary>
       <description>Where to send the transcribed text: 'clipboard' or 'paste'.</description>
     </key>
