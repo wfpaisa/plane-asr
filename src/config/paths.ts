@@ -1,8 +1,9 @@
 /* paths.ts
  *
- * Single source of truth for every filesystem location the extension uses
- * under the user cache directory. Keeps the on-disk layout in one place so
- * recordings, live chunks and models never drift apart.
+ * Fuente única de verdad para todas las rutas del sistema de archivos que
+ * usa la extensión bajo el directorio de caché del usuario. Mantiene la
+ * disposición en disco en un solo lugar para que grabaciones, trozos en
+ * vivo y modelos nunca se desincronicen entre sí.
  *
  * SPDX-License-Identifier: MIT OR LGPL-2.0-or-later
  */
@@ -10,40 +11,54 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-/** Top-level directory name this extension owns under the user cache dir. */
+/** Nombre del directorio de nivel superior que posee esta extensión dentro de la caché del usuario. */
 const CACHE_DIR_NAME = 'planeasr';
 
-/** Filename pattern for finalized recordings (`recording_<microseconds>.wav`). */
+/** Patrón de nombre para grabaciones finalizadas (`recording_<microsegundos>.wav`). */
 const RECORDING_RE = /^recording_\d+\.wav$/i;
 
-/** Root cache directory: `<user-cache>/planeasr`. */
+/**
+ * Directorio raíz de caché: `<caché-usuario>/planeasr`.
+ *
+ * Qué hace: construye la ruta absoluta combinando el directorio de caché
+ * del usuario (provisto por GLib) con el nombre reservado de la extensión.
+ */
 export function cacheDir(): string {
     return GLib.build_filenamev([GLib.get_user_cache_dir(), CACHE_DIR_NAME]);
 }
 
 /**
- * Directory where WAV recordings are persisted:
- * `<user-cache>/planeasr/records`.
+ * Directorio donde se persisten las grabaciones WAV:
+ * `<caché-usuario>/planeasr/records`.
  */
 export function recordsDir(): string {
     return GLib.build_filenamev([cacheDir(), 'records']);
 }
 
 /**
- * Default models directory: `<user-cache>/planeasr/models`. Honors an explicit
- * override via the `model-dir` GSetting when non empty (see {@link resolveModelDir}).
+ * Directorio de modelos por defecto: `<caché-usuario>/planeasr/models`.
+ * Se puede sobreescribir explícitamente mediante el GSetting `model-dir`
+ * cuando no está vacío (ver {@link resolveModelDir}).
  */
 export function defaultModelDir(): string {
     return GLib.build_filenamev([cacheDir(), 'models']);
 }
 
 /**
- * Prune finalized recordings under {@link recordsDir} so at most `keep` of the
- * most recent ones survive. Recordings are named `recording_<microseconds>.wav`,
- * so a lexicographic sort matches chronological order. Transient `_live*.wav`
- * chunk files are left alone (they are cleaned up by the streamer itself).
+ * Poda las grabaciones finalizadas bajo {@link recordsDir} para que como
+ * máximo sobrevivan las `keep` más recientes.
  *
- * @param keep  How many recordings to keep. `<= 0` means keep none.
+ * Para qué: evitar que el directorio de grabaciones crezca sin límite,
+ * respetando la preferencia del usuario de cuántas conservar (GSetting
+ * `keep-records`).
+ *
+ * Qué hace: enumera los archivos que cumplen el patrón de nombre de
+ * grabación, los ordena (el nombre incluye microsegundos, así que el orden
+ * lexicográfico coincide con el cronológico) y borra los más antiguos hasta
+ * dejar solo `keep`. Los archivos temporales de trozos `_live*.wav` no se
+ * tocan (el streamer los limpia por su cuenta).
+ *
+ * @param keep  Cuántas grabaciones conservar. `<= 0` significa no conservar ninguna.
  */
 export function pruneRecordings(keep: number): void {
     if (keep < 0) keep = 0;
@@ -57,7 +72,7 @@ export function pruneRecordings(keep: number): void {
             null
         );
     } catch {
-        return; // dir missing or unreadable — nothing to prune
+        return; // el directorio no existe o no se puede leer — nada que podar
     }
     const names: string[] = [];
     try {
@@ -75,7 +90,7 @@ export function pruneRecordings(keep: number): void {
         iter.close(null);
     }
     if (names.length <= keep) return;
-    // Oldest first: delete everything before the (names.length - keep) cutoff.
+    // Las más antiguas primero: borra todo antes del corte (names.length - keep).
     names.sort();
     const toDelete = names.slice(0, names.length - keep);
     for (const name of toDelete) {
@@ -83,7 +98,7 @@ export function pruneRecordings(keep: number): void {
         try {
             victim.delete(null);
         } catch {
-            // Best effort: a failed delete (e.g. locked file) is non-fatal.
+            // Mejor esfuerzo: un borrado fallido (ej. archivo bloqueado) no es fatal.
         }
     }
 }

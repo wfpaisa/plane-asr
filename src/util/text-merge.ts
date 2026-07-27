@@ -1,27 +1,28 @@
 /* text-merge.ts
  *
- * Overlap-aware stitching of consecutive chunk transcripts. When the ASR worker
- * carves overlapping windows out of a recording, the same speech is transcribed
- * twice at each seam (the tail of chunk N and the head of chunk N+1). These
- * helpers detect and remove that duplicated text so the joined output reads as
- * one continuous transcript.
+ * Costura de transcripciones consecutivas por trozos, consciente del
+ * solapamiento. Cuando el worker de ASR recorta ventanas superpuestas de una
+ * grabación, el mismo habla queda transcrito dos veces en cada empalme (la
+ * cola del trozo N y el inicio del trozo N+1). Estas funciones detectan y
+ * eliminan ese texto duplicado para que la salida unida se lea como una
+ * transcripción continua.
  *
- * Pure, no GNOME/GJS imports — safe to unit-test in plain Node.
+ * Puro, sin importaciones de GNOME/GJS — se puede probar con Node normal.
  *
  * SPDX-License-Identifier: MIT OR LGPL-2.0-or-later
  */
 
 /**
- * Normalize a token for comparison: lowercase and strip leading/trailing
- * non-alphanumeric characters (keeps interior letters, so accented characters
- * and ñ survive). Returns '' for tokens that are pure punctuation/noise, which
- * the caller filters out.
+ * Normaliza un token para poder compararlo: lo pasa a minúsculas y quita
+ * caracteres no alfanuméricos al principio y al final (conserva las letras
+ * interiores, así que las tildes y la ñ sobreviven). Devuelve '' para tokens
+ * que son puro ruido/puntuación, que quien llama filtra después.
  */
 function normalize(token: string): string {
     return token.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
 }
 
-/** Tokenize on whitespace and drop tokens that normalize to empty. */
+/** Tokeniza por espacios en blanco y descarta tokens que normalizan a vacío. */
 function tokens(text: string): string[] {
     const out: string[] = [];
     for (const raw of text.split(/\s+/)) {
@@ -32,8 +33,8 @@ function tokens(text: string): string[] {
 }
 
 /**
- * Fraction of positions where `a` and `b` (equal length) hold equal tokens.
- * Returns 0 for empty input.
+ * Fracción de posiciones en las que `a` y `b` (de igual longitud) tienen
+ * tokens iguales. Devuelve 0 si la entrada está vacía.
  */
 function matchRatio(a: string[], b: string[]): number {
     if (a.length === 0) return 0;
@@ -45,13 +46,16 @@ function matchRatio(a: string[], b: string[]): number {
 }
 
 /**
- * Decide whether the last `k` tokens of `prev` and the first `k` tokens of
- * `curr` represent the same overlapping speech, and are safe to collapse.
+ * Decide si los últimos `k` tokens de `prev` y los primeros `k` tokens de
+ * `curr` representan el mismo habla solapado, y por lo tanto es seguro
+ * colapsarlos.
  *
- * - Short windows (k < 3) must match *exactly*: a 1-2 word coincidence is too
- *   likely to be a legitimately repeated word ("y el" ... "y el").
- * - Longer windows (k >= 3) tolerate ASR variation: a ratio >= 0.7 is accepted,
- *   so a word misheard at the seam doesn't defeat the whole stitch.
+ * - Ventanas cortas (k < 3) deben coincidir *exactamente*: una coincidencia
+ *   de 1-2 palabras es demasiado probable que sea una palabra legítimamente
+ *   repetida ("y el" ... "y el").
+ * - Ventanas más largas (k >= 3) toleran variación del ASR: se acepta una
+ *   proporción >= 0.7, para que una palabra mal transcrita en el empalme no
+ *   arruine toda la costura.
  */
 function isOverlap(prevTail: string[], currHead: string[], k: number): boolean {
     if (k <= 0 || k > prevTail.length || k > currHead.length) return false;
@@ -62,13 +66,20 @@ function isOverlap(prevTail: string[], currHead: string[], k: number): boolean {
 }
 
 /**
- * Join two chunk transcripts, removing from the head of `curr` any prefix that
- * duplicates the tail of `prev` (the overlap region). `maxWords` bounds how
- * many words of head we are willing to drop — pass 0 to disable dedup entirely
- * and return `curr` verbatim (used for contiguous, non-overlapping windows).
+ * Une dos transcripciones de trozos consecutivos, quitando del inicio de
+ * `curr` cualquier prefijo que duplique la cola de `prev` (la región
+ * solapada).
  *
- * When no convincing overlap is found, `curr` is returned unchanged: duplicating
- * a real word is always preferable to deleting legitimate text.
+ * Para qué: producir una transcripción continua y sin repeticiones a partir
+ * de trozos de audio que se grabaron con solapamiento.
+ *
+ * Qué hace: `maxWords` limita cuántas palabras del inicio estamos
+ * dispuestos a descartar — pasar 0 desactiva la deduplicación por completo y
+ * devuelve `curr` tal cual (usado para ventanas contiguas sin solapamiento).
+ * Busca el solapamiento más grande posible primero (la costura más
+ * "codiciosa" y correcta). Cuando no se encuentra un solapamiento
+ * convincente, `curr` se devuelve sin cambios: duplicar una palabra real
+ * siempre es preferible a borrar texto legítimo.
  *
  * @example
  *   dedupChunkJoin('hola mundo', 'mundo cruel', 4)        // 'cruel'
@@ -84,22 +95,24 @@ export function dedupChunkJoin(
     if (!curr) return curr;
     if (maxWords <= 0 || !prev) return curr;
 
-    // Operate on the raw (original-cased, punctuation-bearing) tokens so the
-    // returned suffix preserves the transcript's formatting; only the *match*
-    // is done on normalized forms.
+    // Trabaja sobre los tokens crudos (con mayúsculas/minúsculas originales y
+    // puntuación) para que el sufijo devuelto conserve el formato de la
+    // transcripción; la *comparación* en sí se hace sobre las formas
+    // normalizadas.
     const rawCurr = curr.split(/\s+/).filter(t => t.length > 0);
     const normPrev = tokens(prev);
     const normCurr = tokens(curr);
     if (normPrev.length === 0 || normCurr.length === 0) return curr;
 
-    // Search for the largest overlap first (greediest correct stitch).
+    // Busca primero el solapamiento más grande (la costura correcta más codiciosa).
     const limit = Math.min(maxWords, normPrev.length, normCurr.length);
     for (let k = limit; k >= 1; k--) {
         if (isOverlap(normPrev, normCurr, k)) {
-            // Map the normalized overlap length back to raw tokens. Normalization
-            // only removes tokens (pure punctuation), so the raw head has at
-            // least `k` significant tokens; scan forward to drop exactly the raw
-            // tokens that normalize to the overlapping set.
+            // Traduce la longitud del solapamiento normalizado de vuelta a
+            // tokens crudos. La normalización solo elimina tokens (puntuación
+            // pura), así que el inicio crudo tiene al menos `k` tokens
+            // significativos; se avanza hasta descartar exactamente los
+            // tokens crudos que normalizan al conjunto solapado.
             let dropped = 0;
             let i = 0;
             for (; i < rawCurr.length && dropped < k; i++) {

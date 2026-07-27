@@ -1,18 +1,22 @@
 /* wav.ts
  *
- * Pure, byte-level helpers for the canonical 16 kHz mono 16-bit PCM WAV format
- * the recorder produces and the ASR CLI consumes. No GNOME/GJS imports, so the
- * header build/parse logic can be unit-tested in plain Node; the file I/O that
- * uses these lives in audio-chunker.ts.
+ * Funciones puras, a nivel de bytes, para el formato canónico WAV PCM de
+ * 16 kHz mono y 16 bits que produce el grabador y consume el CLI de ASR. Sin
+ * importaciones de GNOME/GJS, así que la lógica de construcción/parseo del
+ * encabezado se puede probar con Node normal; el I/O de archivos que usa
+ * estas funciones vive en audio-chunker.ts.
  *
  * SPDX-License-Identifier: MIT OR LGPL-2.0-or-later
  */
 
-/** Expected capture format produced by the `Recorder`. */
+/** Formato de captura esperado, producido por el `Recorder`. */
 export const SAMPLE_RATE = 16000;
 export const BYTES_PER_SAMPLE = 2;
 
-/** ASCII four-cc helper. */
+/**
+ * Convierte un código de cuatro caracteres ASCII (ej. "RIFF") en el entero
+ * de 32 bits little-endian que usan los encabezados WAV/RIFF.
+ */
 export function fourCc(code: string): number {
     return (
         code.charCodeAt(0) |
@@ -22,7 +26,17 @@ export function fourCc(code: string): number {
     );
 }
 
-/** Build a 44-byte canonical RIFF/WAVE header for a 16 kHz mono s16 stream. */
+/**
+ * Construye un encabezado RIFF/WAVE canónico de 44 bytes para un flujo mono
+ * de 16 kHz y 16 bits con signo.
+ *
+ * Para qué: permitir que el grabador escriba de entrada un archivo WAV
+ * válido (aunque el tamaño de datos aún no se conozca) para que el CLI de
+ * ASR pueda empezar a leerlo mientras la grabación sigue en curso.
+ *
+ * Qué hace: rellena cada campo del encabezado RIFF/fmt/data con los valores
+ * fijos del formato de captura y el `dataBytes` recibido.
+ */
 export function buildWavHeader(dataBytes: number): Uint8Array {
     const header = new Uint8Array(44);
     const dv = new DataView(header.buffer);
@@ -33,25 +47,33 @@ export function buildWavHeader(dataBytes: number): Uint8Array {
     dv.setUint32(4, 36 + dataBytes, true);
     dv.setUint32(8, fourCc('WAVE'), true);
     dv.setUint32(12, fourCc('fmt '), true);
-    dv.setUint32(16, 16, true); // PCM fmt chunk size
+    dv.setUint32(16, 16, true); // tamaño del chunk fmt para PCM
     dv.setUint16(20, 1, true); // audioFormat = PCM
     dv.setUint16(22, 1, true); // mono
     dv.setUint32(24, SAMPLE_RATE, true);
     dv.setUint32(28, byteRate, true);
     dv.setUint16(32, blockAlign, true);
-    dv.setUint16(34, 16, true); // bits per sample
+    dv.setUint16(34, 16, true); // bits por muestra
     dv.setUint32(36, fourCc('data'), true);
     dv.setUint32(40, dataBytes, true);
     return header;
 }
 
 /**
- * Given the first bytes of a file, return the byte offset where PCM samples
- * begin, or `null` when the header is not (yet) present or the format is not
- * the expected 16 kHz mono 16-bit PCM.
+ * Dados los primeros bytes de un archivo, devuelve el offset en bytes donde
+ * empiezan las muestras PCM, o `null` cuando el encabezado (todavía) no está
+ * presente o el formato no es el esperado (16 kHz mono, 16 bits PCM).
  *
- * The size fields written by a still-open recorder are unreliable placeholders,
- * so they are only used to advance the chunk-walking cursor, never as a length.
+ * Para qué: permitir que quien lee un WAV que aún se está grabando localice
+ * dónde empiezan los datos de audio reales, saltándose el encabezado y
+ * cualquier chunk adicional (`LIST`, `fact`, etc.).
+ *
+ * Qué hace: valida las firmas RIFF/WAVE y los campos de formato, y luego
+ * recorre la lista de chunks hasta encontrar el chunk `data`.
+ *
+ * Los campos de tamaño que escribe un grabador todavía abierto son
+ * marcadores de posición poco fiables, así que solo se usan para avanzar el
+ * cursor al recorrer chunks, nunca como una longitud real.
  */
 export function wavDataOffsetFromHeader(head: Uint8Array): number | null {
     if (head.length < 44) return null;
@@ -77,8 +99,8 @@ export function wavDataOffsetFromHeader(head: Uint8Array): number | null {
         return null;
     }
 
-    // Walk the chunk list to locate `data`; WAVs may carry `LIST`/`fact` chunks
-    // before it.
+    // Recorre la lista de chunks para localizar `data`; los WAV pueden traer
+    // chunks `LIST`/`fact` antes de él.
     let offset = 12;
     while (offset + 8 <= head.length) {
         const id = view.getUint32(offset, true);

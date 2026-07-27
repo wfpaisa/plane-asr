@@ -1,12 +1,13 @@
 /* transcriber.ts
  *
- * Runs the configured ASR CLI as a `Gio.Subprocess`, captures its stdout and
- * returns the trimmed transcription text. The active process is exposed so the
- * orchestrator can kill it on cancel.
+ * Ejecuta el CLI de ASR configurado como un `Gio.Subprocess`, captura su
+ * stdout y devuelve el texto de transcripción sin espacios sobrantes. El
+ * proceso activo se expone para que el orquestador pueda matarlo al cancelar.
  *
- * It also resolves the active model (catalog download or free-form model-params)
- * and the semantic backend features (accelerator, language, threads, prompt)
- * from GSettings, mapping them to CLI flags via the active backend.
+ * También resuelve el modelo activo (descarga del catálogo o model-params
+ * libre) y las features semánticas del backend (acelerador, idioma, hilos,
+ * prompt) a partir de GSettings, mapeándolas a banderas del CLI mediante el
+ * backend activo.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -32,22 +33,23 @@ import {
 import {resolveAutoCli} from './cli-resolver.js';
 import {ensureModelFlag, extractExtraFlags} from '../util/model-params.js';
 
-/** Resolved by `Transcriber.transcribe` when the process exits. */
+/** Resuelto por `Transcriber.transcribe` cuando el proceso termina. */
 export interface TranscribeResult {
-    /** Trimmed transcription text (may be empty). */
+    /** Texto de transcripción sin espacios sobrantes (puede estar vacío). */
     text: string;
-    /** The exit was the result of an external `force_exit()` call. */
+    /** Si la salida fue resultado de una llamada externa a `force_exit()`. */
     cancelled: boolean;
 }
 
 /**
- * Extract the transcription from a CLI run.
+ * Extrae la transcripción de una ejecución del CLI.
  *
- * Some backends (e.g. transcribe-cli) print a human-readable report where the
- * transcription sits on a `text: <...>` line surrounded by diagnostics such as
- * `audio:`, `samples:`, `detected-language:`. When that marker is present it is
- * authoritative; otherwise the raw stdout is returned verbatim, which matches
- * CLIs that emit only the transcription.
+ * Algunos backends (por ejemplo transcribe-cli) imprimen un reporte legible
+ * para humanos donde la transcripción está en una línea `text: <...>`
+ * rodeada de diagnósticos como `audio:`, `samples:`, `detected-language:`.
+ * Cuando ese marcador está presente, es la fuente autorizada; si no, se
+ * devuelve el stdout crudo tal cual, lo que coincide con CLIs que solo
+ * emiten la transcripción.
  */
 function extractTranscription(stdout: string, stderr: string): string {
     const marker = /^text:[ \t]*(.*)$/m;
@@ -58,23 +60,24 @@ function extractTranscription(stdout: string, stderr: string): string {
     return stdout.trim();
 }
 
-/** Options injected into a Transcriber at construction time. */
+/** Opciones inyectadas a un Transcriber al construirlo. */
 export interface TranscriberOptions {
-    /** Absolute path to the installed extension root (for catalog lookups). */
+    /** Ruta absoluta a la raíz de la extensión instalada (para búsquedas en el catálogo). */
     extensionDir: string | null;
 }
 
 /**
- * Wrapper around the user-configured transcription binary.
+ * Envoltorio alrededor del binario de transcripción configurado por el usuario.
  *
- * A single instance can run one transcription at a time; calling `transcribe`
- * again while busy rejects. Use `forceExit()` to cancel.
+ * Una misma instancia puede ejecutar una transcripción a la vez; llamar a
+ * `transcribe` de nuevo mientras ya hay una en curso rechaza la promesa.
+ * Usa `forceExit()` para cancelar.
  */
 export class Transcriber {
     private _settings: Gio.Settings;
     private _opts: TranscriberOptions;
     private _proc: Gio.Subprocess | null = null;
-    /** Set by `forceExit()` so the async callback can distinguish cancellation. */
+    /** Lo pone `forceExit()` para que el callback asíncrono pueda distinguir la cancelación. */
     private _wasForced = false;
 
     constructor(settings: Gio.Settings, opts: TranscriberOptions) {
@@ -83,10 +86,13 @@ export class Transcriber {
     }
 
     /**
-     * Run the ASR CLI on `audioPath` and resolve with its stdout.
+     * Ejecuta el CLI de ASR sobre `audioPath` y resuelve con su stdout.
      *
-     * The active `Gio.Subprocess` is tracked so the caller can cancel it via
-     * `forceExit()`; cancellation resolves the promise with `cancelled: true`.
+     * Qué hace: construye el argv, lanza el subproceso, y en su callback de
+     * finalización extrae la transcripción (o rechaza con el detalle de
+     * stderr si falló). El `Gio.Subprocess` activo se registra para que
+     * quien llama pueda cancelarlo vía `forceExit()`; la cancelación
+     * resuelve la promesa con `cancelled: true`.
      */
     async transcribe(audioPath: string): Promise<TranscribeResult> {
         if (this._proc) {
@@ -115,7 +121,7 @@ export class Transcriber {
             proc.communicate_utf8_async(null, null, (_self, res) => {
                 this._proc = null;
                 if (this._wasForced) {
-                    // `force_exit()` was requested before the callback fired.
+                    // Se pidió `force_exit()` antes de que se disparara el callback.
                     resolve({text: '', cancelled: true});
                     return;
                 }
@@ -123,9 +129,9 @@ export class Transcriber {
                     const [, stdout, stderr] =
                         proc.communicate_utf8_finish(res);
                     const ok = proc.get_successful();
-                    // Optional diagnostic dump: argv, exit status and both
-                    // captured streams. Gated behind the "Debug logging"
-                    // preference; read it with:
+                    // Volcado de diagnóstico opcional: argv, código de salida
+                    // y ambos flujos capturados. Depende de la preferencia
+                    // "Debug logging"; se lee con:
                     //   journalctl --user -b /usr/bin/gnome-shell | grep planeasr
                     if (
                         this._settings.get_boolean(SETTINGS_KEYS.DEBUG_LOGGING)
@@ -139,9 +145,10 @@ export class Transcriber {
                         );
                     }
                     if (!ok) {
-                        // Exit code != 0 (or signal). The CLIs write their
-                        // diagnostics to stderr, so include it verbatim — this
-                        // is what surfaces via `Main.notify` on failure.
+                        // Código de salida != 0 (o señal). Los CLI escriben
+                        // sus diagnósticos en stderr, así que se incluyen tal
+                        // cual — esto es lo que se muestra vía `Main.notify`
+                        // en caso de fallo.
                         const detail = (stderr ?? '').trim();
                         throw new Error(
                             detail ||
@@ -159,18 +166,18 @@ export class Transcriber {
         });
     }
 
-    /** Kill the running transcription subprocess, if any. */
+    /** Mata el subproceso de transcripción en curso, si lo hay. */
     forceExit(): void {
         this._wasForced = true;
         this._proc?.force_exit();
     }
 
-    // -- argv assembly ----------------------------------------------------
+    // -- ensamblado del argv ------------------------------------------------
 
     /**
-     * Assemble the BuildArgvOptions for the active backend: resolve the model
-     * path (catalog download or free-form params), build the semantic feature
-     * bundle and resolve the accelerator/device.
+     * Ensambla las BuildArgvOptions para el backend activo: resuelve la
+     * ruta del modelo (descarga del catálogo o parámetros libres), construye
+     * el conjunto de features semánticas y resuelve el acelerador/dispositivo.
      */
     private async _buildArgvOptions(
         audioPath: string
@@ -192,11 +199,13 @@ export class Transcriber {
     }
 
     /**
-     * Resolve the CLI binary path according to `cli-mode`. In 'gpu' mode the
-     * user-provided `cli-path` is used verbatim (e.g. a Vulkan/CUDA build). In
-     * 'cpu' mode the CPU-only binary bundled with the extension is preferred,
-     * falling back to a `transcribe-cli` discovered on PATH. Legacy 'auto' /
-     * 'manual' values are migrated via {@link normalizeCliMode}.
+     * Resuelve la ruta del binario del CLI según `cli-mode`.
+     *
+     * Qué hace: en modo 'gpu' usa tal cual la `cli-path` provista por el
+     * usuario (por ejemplo, una compilación Vulkan/CUDA). En modo 'cpu' se
+     * prefiere el binario solo-CPU incluido con la extensión, recurriendo a
+     * un `transcribe-cli` encontrado en el PATH. Los valores heredados
+     * 'auto'/'manual' se migran mediante {@link normalizeCliMode}.
      */
     private _resolveCliPath(): string {
         const raw = this._settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu';
@@ -212,15 +221,18 @@ export class Transcriber {
     }
 
     /**
-     * Resolve the effective model params. When a catalog model is active and
-     * its file is on disk, inject `-m <path>` and ignore the free-form
-     * `model-params` (which belongs to the "Custom model path" mode and would
-     * otherwise leak a stale path as a stray positional argument). Only extra
-     * flag tokens the user appended after a catalog model are kept.
+     * Resuelve los parámetros de modelo efectivos.
      *
-     * Without a catalog model, fall back to the free-form `model-params`: if it
-     * does not already carry a `-m`/`--model` token, the value is treated as a
-     * bare model path and `-m` is injected automatically.
+     * Qué hace: cuando hay un modelo del catálogo activo y su archivo está
+     * en disco, inyecta `-m <ruta>` e ignora el `model-params` libre (que
+     * pertenece al modo "ruta de modelo personalizada" y de otro modo
+     * filtraría una ruta obsoleta como argumento posicional suelto). Solo se
+     * conservan los tokens de bandera extra que el usuario añadió después de
+     * un modelo de catálogo.
+     *
+     * Sin un modelo de catálogo, recurre al `model-params` libre: si no trae
+     * ya un token `-m`/`--model`, el valor se trata como una ruta de modelo
+     * pelada y se le inyecta `-m` automáticamente.
      */
     private async _resolveModelParams(): Promise<string> {
         const userParams = this._settings.get_string('model-params') ?? '';
@@ -244,19 +256,20 @@ export class Transcriber {
             return ensureModelFlag(userParams);
         }
 
-        // Inject the catalog model path. The free-form `model-params` belongs
-        // to the "Custom model path" mode and is NOT appended here: doing so
-        // would leak a stale bare path (e.g. a previously-selected Qwen model)
-        // as a second positional argument and make the CLI reject the run with
-        // "multiple positional arguments". Only explicit extra flag tokens
-        // (those starting with '-') after a catalog selection are honored.
+        // Inyecta la ruta del modelo del catálogo. El `model-params` libre
+        // pertenece al modo "ruta de modelo personalizada" y NO se añade
+        // aquí: hacerlo filtraría una ruta pelada obsoleta (por ejemplo, un
+        // modelo Qwen seleccionado previamente) como un segundo argumento
+        // posicional y haría que el CLI rechace la ejecución con "multiple
+        // positional arguments". Solo se respetan los tokens de bandera
+        // extra explícitos (los que empiezan con '-') tras una selección de catálogo.
         const extraFlags = extractExtraFlags(userParams);
         return extraFlags ? `-m ${path} ${extraFlags}` : `-m ${path}`;
     }
 
     /**
-     * Build the semantic feature bundle from settings, resolving the 'auto'
-     * accelerator against the GPU detector when enabled.
+     * Construye el conjunto de features semánticas a partir de la
+     * configuración.
      */
     private async _resolveFeatures(): Promise<BackendFeatures> {
         const accelerator = (this._settings.get_string(
@@ -282,14 +295,15 @@ export class Transcriber {
     }
 
     /**
-     * Resolve the GPU device index for the active run.
+     * Resuelve el índice de dispositivo GPU para la ejecución activa.
      *
-     * The preferences dropdown lists the real devices the CLI exposes via
-     * `--list-devices`, so the stored `gpu-device` value already matches the
-     * CLI's own registry. -1 means "no device flag" (let the CLI pick device
-     * 0); any value >= 0 is forwarded as `--device N`. There is intentionally no
-     * `vulkaninfo` auto-detection: its indices do not match the CLI registry on
-     * CUDA builds.
+     * El desplegable de preferencias lista los dispositivos reales que el
+     * CLI expone vía `--list-devices`, así que el valor `gpu-device`
+     * guardado ya coincide con el registro propio del CLI. -1 significa "sin
+     * bandera de dispositivo" (deja que el CLI elija el dispositivo 0);
+     * cualquier valor >= 0 se reenvía como `--device N`. Deliberadamente no
+     * hay auto-detección vía `vulkaninfo`: sus índices no coinciden con el
+     * registro del CLI en compilaciones CUDA.
      */
     private _resolveGpuDevice(): number {
         return this._settings.get_int(SETTINGS_KEYS.GPU_DEVICE);

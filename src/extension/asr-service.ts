@@ -1,8 +1,9 @@
 /* asr-service.ts
  *
- * Orchestrates the record -> transcribe -> output pipeline and exposes a tiny
- * state machine to the UI. The `Indicator` only observes states and calls
- * `toggle()` / `cancel()`; all subprocess bookkeeping lives here.
+ * Orquesta el flujo grabar -> transcribir -> mostrar salida y expone una
+ * pequeña máquina de estados a la interfaz. El `Indicator` solo observa
+ * estados y llama a `toggle()` / `cancel()`; toda la gestión de
+ * subprocesos vive aquí.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -30,45 +31,46 @@ import {AudioConverter, NoConverterError} from './audio-converter.js';
 import {copyToClipboard, pasteAtCursor} from '../util/paste.js';
 import {dedupChunkJoin} from '../util/text-merge.js';
 
-/** Coarse lifecycle states surfaced to the UI. */
+/** Estados generales del ciclo de vida, expuestos a la interfaz. */
 export enum AsrState {
     Idle,
     Recording,
     Transcribing,
 }
 
-/** Optional context passed alongside a state change. */
+/** Contexto opcional que acompaña a un cambio de estado. */
 export interface AsrChangeContext {
-    /** Error message, when transitioning back to Idle after a failure. */
+    /** Mensaje de error, al volver a Idle tras un fallo. */
     error?: string;
-    /** Transcription text produced this cycle, when available. */
+    /** Texto de transcripción producido en este ciclo, cuando está disponible. */
     text?: string;
-    /** Progress label while transcribing several chunks, e.g. "2/5". */
+    /** Etiqueta de progreso al transcribir varios trozos, ej. "2/5". */
     progress?: string;
 }
 
 type ChangeCb = (state: AsrState, ctx?: AsrChangeContext) => void;
 
 /**
- * Mutable state of one live-transcription run. Held per recording so a cancelled
- * worker keeps its own view even after a new recording starts (the worker only
- * ever touches the object it was handed, never the service's current session).
+ * Estado mutable de una ejecución de transcripción en vivo. Se mantiene por
+ * grabación, de modo que un worker cancelado conserva su propia vista
+ * incluso después de que empiece una nueva grabación (el worker solo toca
+ * el objeto que se le entregó, nunca la sesión actual del servicio).
  */
 interface StreamSession {
-    /** Set once the recorder has stopped, so the worker drains the tail. */
+    /** Se activa una vez que el grabador se detuvo, para que el worker drene la cola. */
     ended: boolean;
-    /** Set on cancel; the worker exits without emitting more text. */
+    /** Se activa al cancelar; el worker sale sin emitir más texto. */
     cancelled: boolean;
-    /** Transcribed pieces in order, joined for the final total. */
+    /** Fragmentos transcritos en orden, unidos para formar el total final. */
     texts: string[];
-    /** Byte offset of the PCM data in the WAV, once the header is readable. */
+    /** Offset en bytes de los datos PCM dentro del WAV, una vez que el encabezado es legible. */
     dataOffset: number | null;
 }
 
 /**
- * Single owner of the {@link Recorder} and {@link Transcriber}. Drives the
- * IDLE -> RECORDING -> TRANSCRIBING -> IDLE cycle and dispatches the resulting
- * text to the clipboard or the focused widget.
+ * Dueño único del {@link Recorder} y del {@link Transcriber}. Conduce el
+ * ciclo IDLE -> RECORDING -> TRANSCRIBING -> IDLE y despacha el texto
+ * resultante al portapapeles o al widget con el foco.
  */
 export class AsrService {
     private _settings: Gio.Settings;
@@ -79,9 +81,9 @@ export class AsrService {
     private _transcriber: Transcriber;
     private _extensionDir: string | null;
     private _currentAudioPath: string | null = null;
-    /** Active live-transcription session while streaming; null otherwise. */
+    /** Sesión de transcripción en vivo activa mientras hay streaming; null en otro caso. */
     private _stream: StreamSession | null = null;
-    /** Resolves when the live worker has fully drained the recording. */
+    /** Se resuelve cuando el worker en vivo ha drenado por completo la grabación. */
     private _streamDone: Promise<void> | null = null;
 
     constructor(
@@ -95,16 +97,16 @@ export class AsrService {
         this._transcriber = new Transcriber(settings, transcriberOpts);
     }
 
-    /** Current lifecycle state. */
+    /** Estado actual del ciclo de vida. */
     get state(): AsrState {
         return this._state;
     }
 
     /**
-     * Advance the state machine:
-     * - Idle        -> start recording
-     * - Recording   -> stop and transcribe
-     * - Transcribing -> ignored (use {@link cancel})
+     * Avanza la máquina de estados:
+     * - Idle         -> empieza a grabar
+     * - Recording    -> detiene y transcribe
+     * - Transcribing -> se ignora (usar {@link cancel})
      */
     async toggle(): Promise<void> {
         switch (this._state) {
@@ -115,12 +117,12 @@ export class AsrService {
                 await this._stopAndTranscribe();
                 break;
             case AsrState.Transcribing:
-                // Intentionally a no-op; the user can cancel explicitly.
+                // No-op intencional; el usuario puede cancelar explícitamente.
                 break;
         }
     }
 
-    /** Abort whatever is running and return to Idle. */
+    /** Aborta lo que esté en curso y vuelve a Idle. */
     cancel(): void {
         if (this._stream) this._stream.cancelled = true;
         if (this._recorder.isRecording()) {
@@ -132,19 +134,21 @@ export class AsrService {
         this._setState(AsrState.Idle);
     }
 
-    /** Tear down everything on extension disable. */
+    /** Libera todo al desactivarse la extensión. */
     destroy(): void {
         this.cancel();
     }
 
-    // -- state transitions -------------------------------------------------
+    // -- transiciones de estado ----------------------------------------------
 
     /**
-     * Pre-flight check that a usable transcription binary is available before
-     * committing to a recording. Honors `cli-mode`: 'gpu' validates the
-     * user-provided `cli-path`; 'cpu' prefers the bundled binary and falls back
-     * to PATH. Legacy 'auto'/'manual' values are migrated. Returns a localized
-     * error string, or null when the binary is OK.
+     * Chequeo previo de que hay un binario de transcripción usable antes de
+     * comprometerse a grabar.
+     *
+     * Qué hace: respeta `cli-mode`: 'gpu' valida la `cli-path` provista por
+     * el usuario; 'cpu' prefiere el binario incluido y recurre al PATH. Los
+     * valores heredados 'auto'/'manual' se migran. Devuelve un string de
+     * error localizado, o null cuando el binario está bien.
      */
     private _validateCliBinary(): string | null {
         const raw = this._settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu';
@@ -160,7 +164,7 @@ export class AsrService {
             }
             return null;
         }
-        // cpu: bundled binary first, then PATH.
+        // cpu: primero el binario incluido, luego el PATH.
         const backendId =
             this._settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
             'transcribe-cli';
@@ -174,6 +178,11 @@ export class AsrService {
         );
     }
 
+    /**
+     * Inicia una nueva grabación tras validar que hay un binario del CLI
+     * disponible, y arranca el worker de transcripción en vivo si el
+     * troceo (chunking) está habilitado.
+     */
     private async _startRecording(): Promise<void> {
         const missing = this._validateCliBinary();
         if (missing) {
@@ -194,11 +203,12 @@ export class AsrService {
             return;
         }
 
-        // Kick off live transcription: while the recorder keeps appending to
-        // the WAV, a background worker carves ready N-second chunks off the tail
-        // and streams each one out (pasted or copied) so the first words land
-        // while the user is still speaking. With chunking off we fall back to a
-        // single whole-file pass on stop.
+        // Lanza la transcripción en vivo: mientras el grabador sigue
+        // añadiendo al WAV, un worker en segundo plano recorta trozos de N
+        // segundos ya listos de la cola y transmite cada uno hacia afuera
+        // (pegado o copiado) para que las primeras palabras lleguen mientras
+        // el usuario sigue hablando. Con el troceo desactivado, se recurre a
+        // una sola pasada del archivo completo al detener.
         if (this._streamingEnabled()) {
             const session: StreamSession = {
                 ended: false,
@@ -211,6 +221,11 @@ export class AsrService {
         }
     }
 
+    /**
+     * Detiene la grabación en curso y produce la transcripción final,
+     * usando la ruta de streaming en vivo si está activa, o transcribiendo
+     * el archivo completo de una sola vez.
+     */
     private async _stopAndTranscribe(): Promise<void> {
         const audioPath = this._currentAudioPath;
         this._currentAudioPath = null;
@@ -233,8 +248,9 @@ export class AsrService {
 
         const session = this._stream;
         if (session) {
-            // Live path: signal end-of-recording, let the worker transcribe the
-            // trailing partial chunk, then publish the joined total.
+            // Ruta en vivo: señala el fin de la grabación, deja que el
+            // worker transcriba el trozo parcial final, y luego publica el
+            // total unido.
             this._setState(AsrState.Transcribing);
             session.ended = true;
             try {
@@ -251,8 +267,9 @@ export class AsrService {
                 this._setState(AsrState.Idle);
                 return;
             }
-            // The full transcript is always copied so "Copy text" and the
-            // clipboard hold every chunk joined together, even in paste mode.
+            // La transcripción completa siempre se copia para que "Copiar
+            // texto" y el portapapeles tengan todos los trozos unidos,
+            // incluso en modo pegado.
             const full = session.texts.join(' ').trim();
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
             if (full) copyToClipboard(full);
@@ -266,14 +283,15 @@ export class AsrService {
             return;
         }
 
-        // Non-streaming path: transcribe the whole recording in one pass.
+        // Ruta sin streaming: transcribe la grabación completa en una sola pasada.
         await this._transcribeWhole(audioPath, isPaste);
     }
 
     /**
-     * Transcribe a whole WAV at once (chunking disabled). Recordings go through
-     * the pruning step afterwards; a user-picked file passes `prune: false` so
-     * unrelated recordings under records/ are never deleted on its account.
+     * Transcribe un WAV completo de una vez (troceo desactivado). Las
+     * grabaciones pasan por el paso de poda después; un archivo elegido por
+     * el usuario pasa `prune: false` para que las grabaciones no
+     * relacionadas bajo records/ nunca se borren por su causa.
      */
     private async _transcribeWhole(
         audioPath: string,
@@ -283,9 +301,9 @@ export class AsrService {
     }
 
     /**
-     * Shared transcription core for both the recording path and the
-     * picked-file path: run the CLI on a whole WAV, publish the result and
-     * optionally prune the records folder.
+     * Núcleo de transcripción compartido tanto por la ruta de grabación
+     * como por la de archivo elegido: ejecuta el CLI sobre un WAV completo,
+     * publica el resultado y opcionalmente poda la carpeta de grabaciones.
      */
     private async _runTranscription(
         audioPath: string,
@@ -318,19 +336,23 @@ export class AsrService {
     }
 
     /**
-     * Transcribe an existing audio file the user picked via the indicator's
-     * "Process audio file" entry. If the file is already a 16 kHz mono s16le
-     * WAV it is fed straight to the CLI; otherwise it is converted first
-     * (ffmpeg, falling back to gst-launch-1.0). When no converter is available
-     * the user is told the required format instead of failing generically.
+     * Transcribe un archivo de audio existente que el usuario eligió
+     * mediante la opción "Procesar archivo de audio" del indicador.
      *
-     * Converted files are written to records/ as `imported_*` and are NOT
-     * pruned (the prune regex only matches `recording_*.wav`).
+     * Qué hace: si el archivo ya es un WAV s16le de 16 kHz mono, se
+     * alimenta directamente al CLI; si no, se convierte primero (ffmpeg,
+     * recurriendo a gst-launch-1.0). Cuando no hay conversor disponible, se
+     * le indica al usuario el formato requerido en vez de fallar de forma genérica.
+     *
+     * Los archivos convertidos se escriben en records/ como `imported_*` y
+     * NO se podan (la expresión regular de poda solo coincide con
+     * `recording_*.wav`).
      */
     async transcribeFile(srcPath: string): Promise<void> {
-        // No concurrency guard exists elsewhere — `toggle()`'s switch is the
-        // only thing keeping transcriptions from overlapping. This entry point
-        // is called directly from the indicator, so it must self-guard.
+        // No existe ninguna otra protección de concurrencia — el switch de
+        // `toggle()` es lo único que evita que las transcripciones se
+        // solapen. Este punto de entrada se llama directamente desde el
+        // indicador, así que debe protegerse a sí mismo.
         if (this._state !== AsrState.Idle) {
             Main.notify(_('Plane ASR is busy'));
             return;
@@ -342,14 +364,16 @@ export class AsrService {
             return;
         }
 
-        // Claim the busy state up front so a concurrent toggle() (global
-        // shortcut or primary click) can't start a recording while we convert
-        // or transcribe. Conversion can take a while for large files, and
-        // cancel() aborts the converter via forceExit().
+        // Reclama el estado ocupado de entrada para que un toggle()
+        // concurrente (atajo global o clic primario) no pueda iniciar una
+        // grabación mientras convertimos o transcribimos. La conversión
+        // puede tardar un rato en archivos grandes, y cancel() aborta el
+        // conversor vía forceExit().
         this._setState(AsrState.Transcribing);
 
-        // Already in the target format? getWavDataOffset validates RIFF/WAVE,
-        // PCM, mono, 16 kHz, 16-bit — exactly what the recorder produces.
+        // ¿Ya está en el formato objetivo? getWavDataOffset valida
+        // RIFF/WAVE, PCM, mono, 16 kHz, 16 bits — exactamente lo que
+        // produce el grabador.
         let finalPath = srcPath;
         if (getWavDataOffset(srcPath) === null) {
             const destPath = this._newImportedPath(srcPath);
@@ -379,19 +403,25 @@ export class AsrService {
     }
 
     /**
-     * Live-transcription worker. Loops until the session is cancelled or the
-     * recording has ended and every sample has been transcribed. Each iteration:
-     * waits for a full N-second chunk (or, once ended, the shorter remainder),
-     * writes it to a temp WAV, transcribes it and streams the text out.
+     * Worker de transcripción en vivo.
      *
-     * Consecutive windows overlap by `overlapSeconds` so a word straddling a seam
-     * is re-transcribed and the duplicate is removed with fuzzy text matching
-     * (the ASR gives no timestamps to do it deterministically). With overlap 0
-     * the windows are contiguous and dedup is skipped, matching the legacy path.
+     * Qué hace: repite en bucle hasta que la sesión se cancela o la
+     * grabación ha terminado y cada muestra ha sido transcrita. En cada
+     * iteración: espera un trozo completo de N segundos (o, una vez
+     * terminada la grabación, el resto más corto), lo escribe en un WAV
+     * temporal, lo transcribe y transmite el texto hacia afuera.
      *
-     * Only this worker touches the transcriber while streaming, so runs never
-     * overlap. Any transcription/IO error rejects the returned promise, which
-     * `_stopAndTranscribe` surfaces to the UI.
+     * Las ventanas consecutivas se solapan en `overlapSeconds` para que una
+     * palabra a caballo entre dos trozos se retranscriba, y el duplicado se
+     * elimina con coincidencia de texto aproximada (el ASR no da marcas de
+     * tiempo para hacerlo de forma determinista). Con solapamiento 0 las
+     * ventanas son contiguas y la deduplicación se salta, igual que en la
+     * ruta antigua.
+     *
+     * Solo este worker toca el transcriptor mientras hay streaming, así que
+     * las ejecuciones nunca se solapan entre sí. Cualquier error de
+     * transcripción/E-S rechaza la promesa devuelta, que `_stopAndTranscribe`
+     * muestra en la interfaz.
      */
     private async _runStream(
         audioPath: string,
@@ -411,40 +441,43 @@ export class AsrService {
             0,
             this._settings.get_int(SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS)
         );
-        // Keep at least 1 s of fresh audio per chunk so the window keeps moving
-        // forward even for a large overlap on a short chunk.
+        // Conserva al menos 1 s de audio nuevo por trozo para que la
+        // ventana siga avanzando incluso con un solapamiento grande sobre
+        // un trozo corto.
         const overlapSamples = Math.min(
             overlapSeconds * SAMPLE_RATE,
             chunkSamples - SAMPLE_RATE
         );
         const step = chunkSamples - Math.max(0, overlapSamples);
-        // How many words of head we are willing to drop at each seam. Scales
-        // with the overlap so longer re-transcription can match longer phrases;
-        // 0 disables dedup entirely (contiguous-window path).
+        // Cuántas palabras del inicio estamos dispuestos a descartar en cada
+        // empalme. Escala con el solapamiento para que una retranscripción
+        // más larga pueda hacer coincidir frases más largas; 0 desactiva la
+        // deduplicación por completo (ruta de ventanas contiguas).
         const maxOverlapWords =
             overlapSamples > 0
                 ? Math.max(3, Math.ceil(overlapSeconds * 5 + 2))
                 : 0;
 
-        // Live chunks are written next to the recording, under records/.
+        // Los trozos en vivo se escriben junto a la grabación, bajo records/.
         const cacheDir = recordsDir();
         const base = GLib.path_get_basename(audioPath).replace(/\.wav$/i, '');
         let part = 0;
-        // Start of the current window in samples; advances by `step` each pass.
+        // Inicio de la ventana actual en muestras; avanza en `step` cada pasada.
         let cursor = 0;
-        // Highest sample offset already fed to the transcriber. `cursor` can lag
-        // behind it (overlap), so termination is tracked on the covered span.
+        // Mayor offset de muestra ya entregado al transcriptor. `cursor`
+        // puede quedar por detrás (por el solapamiento), así que la
+        // terminación se rastrea sobre el tramo cubierto.
         let covered = 0;
-        // Full (untrimmed) transcript of the previous chunk, used as the
-        // reference tail for the next seam's dedup.
+        // Transcripción completa (sin recortar) del trozo anterior, usada
+        // como referencia de cola para la deduplicación del siguiente empalme.
         let lastFull = '';
 
         while (!session.cancelled) {
-            // The recorder writes the WAV header first; wait for it to appear.
+            // El grabador escribe primero el encabezado WAV; se espera a que aparezca.
             if (session.dataOffset === null) {
                 session.dataOffset = getWavDataOffset(audioPath);
                 if (session.dataOffset === null) {
-                    if (session.ended) break; // never produced a valid header
+                    if (session.ended) break; // nunca produjo un encabezado válido
                     await this._sleep(200);
                     continue;
                 }
@@ -458,15 +491,15 @@ export class AsrService {
             let take: number;
             const need = cursor + chunkSamples;
             if (available >= need) {
-                take = chunkSamples; // a full N-second window is ready
+                take = chunkSamples; // una ventana completa de N segundos está lista
             } else if (session.ended) {
-                // Recording stopped: transcribe whatever tail hasn't been
-                // covered yet (may be shorter than a full window, or empty).
+                // La grabación se detuvo: transcribe la cola que todavía no
+                // se cubrió (puede ser más corta que una ventana completa, o vacía).
                 const tail = available - covered;
-                if (tail <= 0) break; // fully drained
+                if (tail <= 0) break; // completamente drenado
                 take = Math.min(chunkSamples, tail);
             } else {
-                await this._sleep(300); // keep waiting for more audio
+                await this._sleep(300); // sigue esperando más audio
                 continue;
             }
 
@@ -493,42 +526,46 @@ export class AsrService {
                 cleanupChunks([outPath]);
             }
 
-            // Advance past what we just read. `covered` moves to the window's
-            // end; `cursor` advances by `step`, re-reading the overlap tail.
+            // Avanza más allá de lo que se acaba de leer. `covered` se mueve
+            // al final de la ventana; `cursor` avanza en `step`, releyendo
+            // la cola de solapamiento.
             covered = cursor + take;
             cursor += step;
 
             if (!piece) {
-                lastFull = ''; // no text to anchor the next seam against
+                lastFull = ''; // no hay texto contra el cual anclar el siguiente empalme
                 continue;
             }
 
-            // Strip the overlap duplicate from this piece's head (skipped on the
-            // first chunk and whenever overlap is off). The full, untrimmed
-            // piece is what gets carried forward as the reference tail.
+            // Quita el duplicado de solapamiento del inicio de este
+            // fragmento (se salta en el primer trozo y siempre que el
+            // solapamiento esté apagado). El fragmento completo, sin
+            // recortar, es lo que se lleva adelante como cola de referencia.
             const emitted =
                 lastFull && maxOverlapWords > 0
                     ? dedupChunkJoin(lastFull, piece, maxOverlapWords)
                     : piece;
             lastFull = piece;
-            if (!emitted) continue; // whole piece was overlap
+            if (!emitted) continue; // todo el fragmento era solapamiento
 
             if (isPaste) {
-                // A leading space on every piece but the first keeps words from
-                // running together, mirroring the ' ' join used for the total.
+                // Un espacio inicial en cada fragmento salvo el primero
+                // evita que las palabras se junten, reflejando la unión con
+                // ' ' que se usa para el total.
                 await pasteAtCursor(
                     session.texts.length === 0 ? emitted : ` ${emitted}`
                 );
             } else {
-                // Progressive clipboard: the running total is always ready to
-                // paste even before the recording stops.
+                // Portapapeles progresivo: el total en curso siempre está
+                // listo para pegar incluso antes de que la grabación se detenga.
                 copyToClipboard([...session.texts, emitted].join(' '));
             }
             session.texts.push(emitted);
 
-            // Keep `last-text` in sync with the running total so "Copy text"
-            // always reflects the full transcript since the start, not just the
-            // most recent chunk — even mid-recording.
+            // Mantiene `last-text` sincronizado con el total en curso para
+            // que "Copiar texto" siempre refleje la transcripción completa
+            // desde el inicio, no solo el trozo más reciente — incluso a
+            // mitad de la grabación.
             this._settings.set_string(
                 SETTINGS_KEYS.LAST_TEXT,
                 session.texts.join(' ').trim()
@@ -536,7 +573,7 @@ export class AsrService {
         }
     }
 
-    /** Whether long recordings should be transcribed live in N-second chunks. */
+    /** Si las grabaciones largas deben transcribirse en vivo en trozos de N segundos. */
     private _streamingEnabled(): boolean {
         return (
             this._settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED) &&
@@ -544,7 +581,7 @@ export class AsrService {
         );
     }
 
-    /** Promise that resolves after `ms` via a GLib main-loop timeout. */
+    /** Promesa que resuelve tras `ms` mediante un timeout del bucle principal de GLib. */
     private _sleep(ms: number): Promise<void> {
         return new Promise(resolve => {
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
@@ -554,44 +591,50 @@ export class AsrService {
         });
     }
 
-    // -- helpers -----------------------------------------------------------
+    // -- funciones auxiliares -------------------------------------------------
 
+    /** Actualiza el estado interno y notifica a la interfaz. */
     private _setState(state: AsrState, ctx?: AsrChangeContext): void {
         this._state = state;
         this._onChange(state, ctx);
     }
 
+    /** Genera la ruta de una nueva grabación bajo records/, con timestamp en microsegundos. */
     private _newAudioPath(): string {
         const dir = recordsDir();
         GLib.mkdir_with_parents(dir, 0o755);
-        const stamp = GLib.get_real_time(); // microseconds since epoch
+        const stamp = GLib.get_real_time(); // microsegundos desde epoch
         return GLib.build_filenamev([dir, `recording_${stamp}.wav`]);
     }
 
     /**
-     * Destination path for a converted user-picked file:
-     * `records/imported_<sanitized-basename>_<microseconds>.wav`. The `imported_`
-     * prefix keeps it out of the prune regex (`^recording_\d+\.wav$`) so a file
-     * the user explicitly chose is never auto-deleted. The original extension is
-     * stripped from the basename so `.mp3`/`.m4a`/... don't leak into the name.
+     * Ruta de destino para un archivo convertido elegido por el usuario:
+     * `records/imported_<nombre-saneado>_<microsegundos>.wav`. El prefijo
+     * `imported_` lo mantiene fuera de la expresión regular de poda
+     * (`^recording_\d+\.wav$`) para que un archivo que el usuario eligió
+     * explícitamente nunca se borre automáticamente. La extensión original
+     * se quita del nombre base para que `.mp3`/`.m4a`/... no se filtren en
+     * el nombre final.
      */
     private _newImportedPath(srcPath: string): string {
         const dir = recordsDir();
         GLib.mkdir_with_parents(dir, 0o755);
         const base = GLib.path_get_basename(srcPath).replace(/\.[^.]+$/, '');
-        // Sanitize anything that is not word/dash/underscore so the filename
-        // stays portable and free of spaces the converter argv would mis-split.
+        // Sanea todo lo que no sea palabra/guion/guion bajo para que el
+        // nombre de archivo se mantenga portable y libre de espacios que el
+        // argv del conversor dividiría mal.
         const safe = base.replace(/[^\w-]+/g, '_') || 'audio';
         const stamp = GLib.get_real_time();
         return GLib.build_filenamev([dir, `imported_${safe}_${stamp}.wav`]);
     }
 
     /**
-     * One-time, idempotent migration: older versions stored WAV recordings flat
-     * in the cache root (`<cache>/planeasr/*.wav`). Move any such loose files
-     * into `<cache>/planeasr/records/` so the new layout takes effect without
-     * losing existing recordings. Safe to call repeatedly — it is a no-op once
-     * everything is already under records/.
+     * Migración única e idempotente: versiones anteriores guardaban las
+     * grabaciones WAV directamente en la raíz de la caché
+     * (`<cache>/planeasr/*.wav`). Mueve cualquiera de esos archivos sueltos
+     * a `<cache>/planeasr/records/` para que la nueva disposición tome
+     * efecto sin perder las grabaciones existentes. Seguro de llamar
+     * repetidamente — es un no-op una vez que todo ya está bajo records/.
      */
     private _migrateLooseWavs(): void {
         const root = cacheDir();
@@ -605,7 +648,7 @@ export class AsrService {
                 null
             );
         } catch {
-            return; // cache root doesn't exist yet — nothing to migrate
+            return; // la raíz de caché aún no existe — nada que migrar
         }
         try {
             GLib.mkdir_with_parents(dest, 0o755);
@@ -625,8 +668,8 @@ export class AsrService {
                     try {
                         src.move(dst, Gio.FileCopyFlags.NONE, null, null);
                     } catch {
-                        // Name collision or transient error: leave the file in
-                        // place rather than aborting the recording.
+                        // Colisión de nombre o error transitorio: deja el
+                        // archivo en su lugar en vez de abortar la grabación.
                     }
                 }
                 info = iter.next_file(null);
@@ -637,15 +680,16 @@ export class AsrService {
     }
 
     /**
-     * Trim the records folder down to the `keep-records` most recent WAVs, as
-     * configured in preferences. Called after each successful transcription so
-     * the cache does not grow unbounded.
+     * Recorta la carpeta de grabaciones hasta los `keep-records` WAV más
+     * recientes, según lo configurado en preferencias. Se llama después de
+     * cada transcripción exitosa para que la caché no crezca sin límite.
      */
     private _pruneRecordings(): void {
         const keep = this._settings.get_int(SETTINGS_KEYS.KEEP_RECORDS);
         pruneRecordings(keep);
     }
 
+    /** Extrae un mensaje legible de cualquier error capturado. */
     private _errMsg(e: unknown): string {
         return e instanceof GLib.Error ? e.message : String(e);
     }

@@ -1,8 +1,9 @@
 /* model-store.ts
  *
- * In-memory state of downloads and catalog presence, exposed as a GObject
- * singleton emitting signals so both the extension and the preferences UI can
- * observe download progress / completion without polling.
+ * Estado en memoria de las descargas y de qué modelos están presentes en el
+ * catálogo, expuesto como un singleton GObject que emite señales para que
+ * tanto la extensión como la interfaz de preferencias puedan observar el
+ * progreso/finalización de descargas sin necesidad de sondeo (polling).
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -12,18 +13,25 @@ import GObject from 'gi://GObject';
 
 import type {ModelFile} from './catalog.js';
 
-/** Per-model download progress payload. */
+/** Payload de progreso de descarga para un modelo. */
 export interface DownloadProgress {
     modelId: string;
-    /** Bytes downloaded so far (includes any resumed prefix). */
+    /** Bytes descargados hasta ahora (incluye cualquier prefijo reanudado). */
     downloaded: number;
-    /** Total expected bytes (0 if unknown). */
+    /** Bytes totales esperados (0 si se desconoce). */
     total: number;
-    /** 0..1 fraction, or -1 when total is unknown. */
+    /** Fracción 0..1, o -1 cuando el total se desconoce. */
     fraction: number;
 }
 
-/** Singleton download-state store. */
+/**
+ * Almacén singleton del estado de descargas.
+ *
+ * Para qué: centralizar el estado de qué modelos se están descargando y
+ * emitir señales GObject (`download-started`, `download-progress`, etc.)
+ * para que cualquier widget interesado (extensión o preferencias) se
+ * actualice reactivamente en vez de tener que consultar el estado a mano.
+ */
 export const ModelStore = GObject.registerClass(
     {
         Signals: {
@@ -51,22 +59,25 @@ export const ModelStore = GObject.registerClass(
         },
     },
     class ModelStoreClass extends GObject.Object {
-        /** modelId -> active download descriptor. */
+        /** modelId -> descriptor de descarga activa. */
         private _active = new Map<string, ActiveDownload>();
 
+        /** Devuelve la descarga activa de un modelo, o null si no hay ninguna en curso. */
         getActiveDownload(modelId: string): ActiveDownload | null {
             return this._active.get(modelId) ?? null;
         }
 
+        /** Indica si el modelo dado se está descargando actualmente. */
         isDownloading(modelId: string): boolean {
             return this._active.has(modelId);
         }
 
-        /** Currently downloading model ids. */
+        /** Ids de los modelos que se están descargando actualmente. */
         get activeIds(): string[] {
             return [...this._active.keys()];
         }
 
+        /** Registra el inicio de una descarga y emite la señal `download-started`. */
         markStarted(
             modelId: string,
             file: ModelFile,
@@ -76,41 +87,51 @@ export const ModelStore = GObject.registerClass(
             this.emit('download-started', modelId);
         }
 
+        /** Calcula la fracción descargada y emite `download-progress`. */
         markProgress(modelId: string, downloaded: number, total: number): void {
             const fraction = total > 0 ? downloaded / total : -1;
             this.emit('download-progress', modelId, fraction);
         }
 
+        /** Marca la descarga como completa, la retira del mapa activo y emite `download-complete`. */
         markComplete(modelId: string): void {
             this._active.delete(modelId);
             this.emit('download-complete', modelId);
         }
 
+        /** Marca la descarga como fallida, la retira del mapa activo y emite `download-failed` con el motivo. */
         markFailed(modelId: string, message: string): void {
             this._active.delete(modelId);
             this.emit('download-failed', modelId, message);
         }
 
+        /** Marca la descarga como cancelada, la retira del mapa activo y emite `download-cancelled`. */
         markCancelled(modelId: string): void {
             this._active.delete(modelId);
             this.emit('download-cancelled', modelId);
         }
 
+        /** Emite `model-deleted` cuando el usuario borra un modelo ya descargado. */
         markDeleted(modelId: string): void {
             this.emit('model-deleted', modelId);
         }
     }
 );
 
-/** Tracked in-flight download. */
+/** Descarga en curso que se está siguiendo. */
 export interface ActiveDownload {
     file: ModelFile;
     cancellable: Gio.Cancellable;
 }
 
-/** Process-wide singleton. Lazily created on first access. */
+/**
+ * Singleton a nivel de proceso, creado de forma perezosa en el primer
+ * acceso para que la extensión y las preferencias compartan la misma
+ * instancia dentro del mismo proceso GJS.
+ */
 let _instance: InstanceType<typeof ModelStore> | null = null;
 
+/** Devuelve la instancia única del store, creándola en la primera llamada. */
 export function getModelStore(): InstanceType<typeof ModelStore> {
     if (!_instance) _instance = new ModelStore();
     return _instance;

@@ -1,9 +1,9 @@
 /* models-page.ts
  *
- * The "Models" preferences page: a searchable, filterable browser over the
- * bundled catalog with one-click download (libsoup), quantization selection,
- * progress bars, cancellation and delete. Models already on disk are marked
- * downloaded.
+ * La página de preferencias "Modelos": un explorador buscable y filtrable
+ * sobre el catálogo incluido, con descarga de un clic (libsoup), selección
+ * de cuantización, barras de progreso, cancelación y borrado. Los modelos
+ * ya presentes en disco se marcan como descargados.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -30,17 +30,17 @@ import {getModelStore} from '../models/model-store.js';
 import {getModelDownloader} from '../models/model-downloader.js';
 import {badgeLabel, entryRow} from './widgets.js';
 
-/** Context handed to the page builder. */
+/** Contexto entregado al constructor de la página. */
 export interface ModelsPageContext {
     extensionDir: string | null;
     settings: Gio.Settings;
-    /** Toast overlay of the prefs window, for status notifications. */
+    /** Overlay de notificaciones (toast) de la ventana de preferencias. */
     toast: (title: string) => void;
 }
 
 const QUANT_ORDER = ['Q4_K_M', 'Q5_K_M', 'Q6_K', 'Q8_0', 'F16', 'F32'];
 
-/** Build the Models preferences page. */
+/** Construye la página de preferencias "Modelos". */
 export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     const page = new Adw.PreferencesPage({
         title: _('Models'),
@@ -49,15 +49,16 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
 
     const catalog = ctx.extensionDir ? loadModelCatalog(ctx.extensionDir) : [];
 
-    // -- Model selection group (radio: catalog vs custom path) ----------
+    // -- Grupo de selección de modelo (radio: catálogo vs ruta personalizada) --
     const selectionGroup = new Adw.PreferencesGroup({
         title: _('Model selection'),
         description: _('Choose between a catalog model or a custom model path'),
     });
     page.add(selectionGroup);
 
-    // Radio buttons for selection mode (Gtk.CheckButton grouped via set_group)
-    // Custom path is listed FIRST; catalog model is below it.
+    // Botones de radio para el modo de selección (Gtk.CheckButton agrupados
+    // vía set_group). La ruta personalizada se lista PRIMERO; el modelo de
+    // catálogo va debajo.
     const customRadio = new Adw.ActionRow({
         title: _('Custom model path'),
         activatable: false,
@@ -81,14 +82,14 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     selectionGroup.add(customRadio);
     selectionGroup.add(catalogRadio);
 
-    // Custom path entry row (shown when custom mode is active)
+    // Fila de entrada de ruta personalizada (visible cuando el modo custom está activo)
     const modelParamsRow = entryRow(
         _('Model path'),
         'e.g. /home/user/models/parakeet-tdt-0.6b-v2-Q8_0.gguf'
     );
     selectionGroup.add(modelParamsRow.row);
 
-    // Active model info row (shown when catalog mode is active)
+    // Fila de información del modelo activo (visible cuando el modo catálogo está activo)
     const activeModelLabel = new Gtk.Label({
         xalign: 0,
         cssClasses: ['caption'],
@@ -108,7 +109,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     activeModelInfoRow.set_child(activeModelBox);
     selectionGroup.add(activeModelInfoRow);
 
-    // Helper to refresh active model display
+    // Auxiliar para refrescar la visualización del modelo activo
     const refreshActiveModel = () => {
         const id = ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
         if (id && ctx.extensionDir) {
@@ -132,11 +133,11 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     };
     refreshActiveModel();
 
-    // Collect all widgets that belong to the catalog browser so we can
-    // show/hide them as a unit when the catalog radio is toggled.
+    // Reúne todos los widgets que pertenecen al explorador de catálogo, para
+    // poder mostrarlos/ocultarlos como unidad cuando se alterna el radio de catálogo.
     const catalogWidgets: Gtk.Widget[] = [activeModelInfoRow];
 
-    // Toggle visibility based on radio selection
+    // Alterna la visibilidad según la selección del radio
     const syncSelectionMode = () => {
         const useCatalog = catalogRadioButton.get_active();
         modelParamsRow.row.visible = !useCatalog;
@@ -147,19 +148,20 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
 
     catalogRadioButton.connect('toggled', () => {
         if (!catalogRadioButton.get_active()) {
-            // Switching to custom: clear catalog model selection
+            // Al cambiar a custom: limpia la selección de modelo de catálogo
             ctx.settings.set_string(SETTINGS_KEYS.ACTIVE_MODEL_ID, '');
         }
-        // When switching to catalog: keep existing active model (if any),
-        // just refresh the display.
+        // Al cambiar a catálogo: conserva el modelo activo existente (si lo
+        // hay), solo refresca la visualización.
         syncSelectionMode();
         refreshActiveModel();
     });
 
-    // Initial: set radio based on current settings. Invoked AFTER every
-    // catalog widget (search/list groups) has been pushed into catalogWidgets,
-    // otherwise the first syncSelectionMode() call runs before those groups
-    // exist and the whole catalog stays visible regardless of the mode.
+    // Inicial: fija el radio según la configuración actual. Se invoca
+    // DESPUÉS de que cada widget de catálogo (grupos de búsqueda/lista) se
+    // haya añadido a catalogWidgets; si no, la primera llamada a
+    // syncSelectionMode() correría antes de que esos grupos existan y todo
+    // el catálogo quedaría visible sin importar el modo.
     const initSelectionMode = () => {
         const modelId =
             ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
@@ -175,10 +177,10 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
         syncSelectionMode();
     };
 
-    // Listen for changes to active model to refresh display
+    // Escucha cambios en el modelo activo para refrescar la visualización
     ctx.settings.connect(`changed::${SETTINGS_KEYS.ACTIVE_MODEL_ID}`, () => {
         refreshActiveModel();
-        // If a catalog model was selected, ensure catalog radio is active
+        // Si se seleccionó un modelo de catálogo, asegura que el radio de catálogo esté activo
         const modelId =
             ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
         if (modelId && !catalogRadioButton.get_active()) {
@@ -187,7 +189,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
         }
     });
 
-    // Bind the custom path entry to the setting
+    // Vincula la entrada de ruta personalizada al setting
     ctx.settings.bind(
         SETTINGS_KEYS.MODEL_PARAMS,
         modelParamsRow.entry,
@@ -195,7 +197,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
         Gio.SettingsBindFlags.DEFAULT
     );
 
-    // -- Search + filters (catalog section) ------------------------------
+    // -- Búsqueda + filtros (sección de catálogo) -----------------------
     const filterGroup = new Adw.PreferencesGroup({
         title: _('Browse models'),
         description: _(
@@ -223,16 +225,16 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     filterRow.set_child(filterBox);
     filterGroup.add(filterRow);
 
-    // -- Model list (catalog section) ------------------------------------
+    // -- Lista de modelos (sección de catálogo) --------------------------
     const listGroup = new Adw.PreferencesGroup();
     page.add(listGroup);
     catalogWidgets.push(listGroup);
 
-    // Now that every catalog widget is registered, apply the initial
-    // selection mode so the right group is visible on first render.
+    // Ahora que cada widget de catálogo está registrado, aplica el modo de
+    // selección inicial para que el grupo correcto sea visible en el primer render.
     initSelectionMode();
 
-    // Track each entry's UI so we can refresh on download signals.
+    // Rastrea la interfaz de cada entrada para poder refrescarla ante señales de descarga.
     const rows = new Map<string, ModelRowState>();
 
     const refreshDownloaded = () => {
@@ -265,10 +267,11 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     }
     applyFilter();
 
-    // Reflect which catalog model (if any) is the active transcription model.
-    // Called once at build time and again whenever active-model-id changes —
-    // including when "Use" is clicked, when the active model is deleted, or
-    // when the user switches back to a custom model path (id cleared).
+    // Refleja qué modelo de catálogo (si lo hay) es el modelo activo de
+    // transcripción. Se llama una vez al construir y de nuevo cada vez que
+    // active-model-id cambia — incluido cuando se hace clic en "Usar",
+    // cuando se borra el modelo activo, o cuando el usuario vuelve a una
+    // ruta de modelo personalizada (id limpiado).
     const syncActiveModel = () => {
         const activeId =
             ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
@@ -284,7 +287,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
 
     search.connect('search-changed', applyFilter);
 
-    // React to download signals from the shared ModelStore.
+    // Reacciona a las señales de descarga del ModelStore compartido.
     const store = getModelStore();
     const onProgress = (_obj: unknown, modelId: string, fraction: number) => {
         rows.get(modelId)?.updateProgress(fraction);
@@ -310,9 +313,9 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
             r.updatePresence(false);
             r.refreshPath();
         }
-        // If the deleted model was the active one, clear the selection so the
-        // extension falls back to the custom model path instead of a missing
-        // file.
+        // Si el modelo borrado era el activo, limpia la selección para que
+        // la extensión recurra a la ruta de modelo personalizada en vez de
+        // a un archivo faltante.
         if (
             ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) === modelId
         ) {
@@ -326,7 +329,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     store.connect('download-cancelled', onCancelled);
     store.connect('model-deleted', onDeleted);
 
-    // -- Storage (always visible at the bottom) --------------------------
+    // -- Almacenamiento (siempre visible al final) -----------------------
     const customGroup = new Adw.PreferencesGroup({
         title: _('Storage'),
         description: _(
@@ -384,7 +387,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     return page;
 }
 
-/** Per-model row UI handles kept for live updates. */
+/** Referencias de interfaz por fila de modelo, mantenidas para actualizaciones en vivo. */
 interface ModelRowState {
     row: Adw.PreferencesRow;
     quantCombo: Gtk.DropDown;
@@ -396,24 +399,24 @@ interface ModelRowState {
     pathLabel: Gtk.Label;
     entry: ModelEntry;
     ctx: ModelsPageContext;
-    /** Cached selection at click time so the action handlers see the live value. */
+    /** Selección en caché al momento del clic, para que los handlers vean el valor vigente. */
     selectedFile: () => ModelFile | null;
     updateProgress: (fraction: number) => void;
     updatePresence: (downloaded: boolean) => void;
-    /** Mark/unmark this row as the active transcription model. */
+    /** Marca/desmarca esta fila como el modelo activo de transcripción. */
     updateActive: (active: boolean) => void;
-    /** Refresh the on-disk path line (shown only when the model is present). */
+    /** Refresca la línea de ruta en disco (solo se muestra cuando el modelo está presente). */
     refreshPath: () => void;
 }
 
-/** Build one expandable row for a catalog entry.
+/** Construye una fila expandible para una entrada del catálogo.
  *
- * Uses a custom vertical Gtk.Box instead of piling suffixes onto an
- * Adw.ActionRow: too many horizontal suffixes starve the title of width and
- * the model name ends up wrapped one character per line. A self-contained
- * box gives full control over the layout:
- *   line 1: name (expands)  · badges
- *   line 2: quant · size · action button  (right aligned)
+ * Usa un Gtk.Box vertical propio en vez de amontonar sufijos sobre un
+ * Adw.ActionRow: demasiados sufijos horizontales le quitan ancho al título
+ * y el nombre del modelo termina envuelto un carácter por línea. Un box
+ * autocontenido da control total sobre el diseño:
+ *   línea 1: nombre (se expande) · insignias
+ *   línea 2: cuantización · tamaño · botón de acción (alineado a la derecha)
  */
 function buildModelRow(
     entry: ModelEntry,

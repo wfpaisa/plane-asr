@@ -1,8 +1,9 @@
 /* paste.ts
  *
- * "Auto-paste" helper: writes `text` into the clipboard and simulates Ctrl+V
- * through a Clutter virtual keyboard so the text lands wherever the keyboard
- * focus is. The previous clipboard contents are restored shortly after.
+ * Ayudante de "auto-pegado": escribe `text` en el portapapeles y simula
+ * Ctrl+V mediante un teclado virtual de Clutter, para que el texto caiga
+ * donde sea que esté el foco del teclado. El contenido previo del
+ * portapapeles se restaura poco después.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -11,17 +12,27 @@ import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 
-/** Delay (ms) between sending Ctrl+V and restoring the previous clipboard. */
+/** Retraso (ms) entre enviar Ctrl+V y restaurar el portapapeles anterior. */
 const RESTORE_DELAY_MS = 300;
 
 /**
- * Paste `text` at the current cursor position by temporarily hijacking the
- * clipboard and synthesizing a Ctrl+V keypress with a virtual keyboard.
+ * Pega `text` en la posición actual del cursor, tomando temporalmente el
+ * control del portapapeles y sintetizando una pulsación Ctrl+V con un
+ * teclado virtual.
  *
- * Resolves only after the previous clipboard contents have been restored, so a
- * caller pasting several chunks in sequence can `await` each one without the
- * Ctrl+V injections or clipboard writes overlapping. No-op (resolves
- * immediately) when `text` is empty.
+ * Para qué: permitir que la extensión inserte el texto transcrito
+ * directamente donde el usuario está escribiendo, sin que tenga que pegarlo
+ * a mano.
+ *
+ * Qué hace: guarda el contenido actual del portapapeles, lo reemplaza por
+ * `text`, envía Ctrl+V mediante un dispositivo de entrada virtual, y luego
+ * de un retraso restaura el contenido original del portapapeles.
+ *
+ * Solo resuelve la promesa después de restaurar el portapapeles previo, de
+ * modo que quien llama pueda pegar varios fragmentos en secuencia haciendo
+ * `await` de cada uno sin que las inyecciones de Ctrl+V o las escrituras al
+ * portapapeles se solapen entre sí. Es un no-op (resuelve de inmediato)
+ * cuando `text` está vacío.
  */
 export function pasteAtCursor(text: string): Promise<void> {
     if (!text) return Promise.resolve();
@@ -36,7 +47,7 @@ export function pasteAtCursor(text: string): Promise<void> {
                 Clutter.InputDeviceType.KEYBOARD_DEVICE
             );
 
-            // notify_keyval expects microseconds; get_current_event_time() is ms.
+            // notify_keyval espera microsegundos; get_current_event_time() da ms.
             const timeUs = Clutter.get_current_event_time() * 1000;
 
             keyboard.notify_keyval(
@@ -60,8 +71,9 @@ export function pasteAtCursor(text: string): Promise<void> {
                 Clutter.KeyState.RELEASED
             );
 
-            // Restore whatever the user had copied before we overwrote it, then
-            // resolve so sequential pastes don't race each other.
+            // Restaura lo que el usuario tenía copiado antes de sobrescribirlo,
+            // y luego resuelve para que los pegados secuenciales no compitan
+            // entre sí.
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, RESTORE_DELAY_MS, () => {
                 if (previousText) {
                     cb.set_text(St.ClipboardType.CLIPBOARD, previousText);
@@ -73,7 +85,15 @@ export function pasteAtCursor(text: string): Promise<void> {
     });
 }
 
-/** Copy `text` into the system clipboard. No-op when empty. */
+/**
+ * Copia `text` al portapapeles del sistema.
+ *
+ * Para qué: dejar el texto transcrito disponible para que el usuario lo
+ * pegue manualmente cuando no se use el auto-pegado.
+ *
+ * Qué hace: escribe directamente en el portapapeles; no hace nada si
+ * `text` está vacío.
+ */
 export function copyToClipboard(text: string): void {
     if (!text) return;
     St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text);

@@ -1,6 +1,6 @@
 /* indicator.ts
  *
- * Panel indicator for the Plane ASR extension.
+ * Indicador de panel para la extensión Plane ASR.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,63 +34,65 @@ import {SETTINGS_KEYS} from '../config/settings.js';
 import {recordsDir} from '../config/paths.js';
 import {AsrState, type AsrChangeContext} from './asr-service.js';
 
-/** CSS class toggled on the button while recording. */
+/** Clase CSS que se activa/desactiva en el botón mientras se graba. */
 const RECORDING_STYLE_CLASS = 'planeasr-recording';
 
-/** Opacity the button eases down to at the dim end of each blink phase. */
+/** Opacidad hasta la que se atenúa el botón en el extremo tenue de cada fase de parpadeo. */
 const BLINK_DIM_OPACITY = 90;
-/** Duration (ms) of each fade phase; the full dim-bright cycle takes 2x this. */
+/** Duración (ms) de cada fase de desvanecimiento; el ciclo completo tenue-brillante tarda 2x esto. */
 const BLINK_PHASE_MS = 1000;
 
 /**
- * Minimal shape the indicator needs from its owning service. The real
- * {@link AsrService} is assigned at runtime; this interface keeps the indicator
- * decoupled and testable.
+ * Forma mínima que el indicador necesita de su servicio propietario. El
+ * {@link AsrService} real se asigna en tiempo de ejecución; esta interfaz
+ * mantiene al indicador desacoplado y fácil de probar.
  */
 export interface AsrServiceLike {
     toggle(): Promise<void>;
     cancel(): void;
-    /** Transcribe an existing audio file picked by the user. */
+    /** Transcribe un archivo de audio existente elegido por el usuario. */
     transcribeFile(path: string): Promise<void>;
     readonly state: AsrState;
 }
 
 /**
- * Panel button that exposes Plane ASR controls to the user.
+ * Botón de panel que expone los controles de Plane ASR al usuario.
  *
- * Click behavior (GNOME 50+ opens the menu through a Clutter.ClickGesture that
- * calls `menu.toggle()` on *any* button, so we wrap `toggle` to distinguish the
- * button that triggered the gesture — same approach as color-picker@tuberry):
+ * Comportamiento del clic (GNOME 50+ abre el menú a través de un
+ * Clutter.ClickGesture que llama a `menu.toggle()` para *cualquier* botón,
+ * así que envolvemos `toggle` para distinguir el botón que disparó el
+ * gesto — el mismo enfoque que usa color-picker@tuberry):
  *
- * - Left click (primary)  -> toggle record/transcribe (or cancel).
- * - Right click (and any  -> open the context menu.
- *   other activation)
+ * - Clic izquierdo (primario) -> alterna grabar/transcribir (o cancela).
+ * - Clic derecho (y cualquier -> abre el menú contextual.
+ *   otra activación)
  *
- * Visual states are driven by {@link onStateChanged}, called by the
- * {@link AsrService} on every transition.
+ * Los estados visuales los conduce {@link onStateChanged}, llamado por el
+ * {@link AsrService} en cada transición.
  */
 export const Indicator = GObject.registerClass(
     class Indicator extends PanelMenu.Button {
-        // Set by the extension right after construction (see index.ts).
+        // Lo asigna la extensión justo después de construirse (ver index.ts).
         extension!: Extension;
-        /** Owning service; assigned by the extension after construction. */
+        /** Servicio propietario; lo asigna la extensión después de construirse. */
         service!: AsrServiceLike;
-        /** GSettings instance owned by the extension. */
+        /** Instancia de GSettings propiedad de la extensión. */
         settings!: Gio.Settings;
 
         private _icon!: St.Icon;
-        /** Icon shown while idle (data/icons/no-sound-symbolic.svg). */
+        /** Icono mostrado en reposo (data/icons/no-sound-symbolic.svg). */
         private _noSoundIcon!: Gio.Icon;
-        /** Icon shown while recording (data/icons/sound-symbolic.svg). */
+        /** Icono mostrado mientras se graba (data/icons/sound-symbolic.svg). */
         private _soundIcon!: Gio.Icon;
         private _recordItem!: PopupMenu.PopupMenuItem;
         private _copyItem!: PopupMenu.PopupMenuItem;
         private _openAudioItem!: PopupMenu.PopupMenuItem;
         private _processFileItem!: PopupMenu.PopupMenuItem;
         private _settingsHandlers: number[] = [];
-        /** Guards the recursive ease loop in {@link _pulseBlink}; see {@link _startBlink}. */
+        /** Protege el bucle recursivo de easing en {@link _pulseBlink}; ver {@link _startBlink}. */
         private _blinking = false;
 
+        /** Constructor de GObject: crea el icono y arma el menú del panel. */
         _init() {
             super._init(0.0, _('Plane ASR'));
 
@@ -104,10 +106,12 @@ export const Indicator = GObject.registerClass(
         }
 
         /**
-         * Wire up GSettings and render the initial state. Must be called by the
-         * extension right after construction (and after {@link service} is
-         * assigned), since {@link _init} cannot take extra args without
-         * breaking the `PanelMenu.Button` `_init` signature contract.
+         * Conecta GSettings y renderiza el estado inicial.
+         *
+         * Debe llamarlo la extensión justo después de construirse (y
+         * después de que se asigne {@link service}), ya que {@link _init}
+         * no puede recibir argumentos adicionales sin romper el contrato de
+         * firma de `_init` de `PanelMenu.Button`.
          */
         bind(settings: Gio.Settings) {
             this.settings = settings;
@@ -131,6 +135,7 @@ export const Indicator = GObject.registerClass(
             this.onStateChanged(AsrState.Idle);
         }
 
+        /** Construye los ítems del menú emergente (grabar, copiar, abrir audios, procesar archivo, preferencias). */
         _buildMenu() {
             const menu = this.menu as PopupMenu.PopupMenu;
 
@@ -179,9 +184,10 @@ export const Indicator = GObject.registerClass(
         }
 
         /**
-         * Wrap `menu.toggle` so the primary (left) mouse button skips the menu
-         * and toggles ASR instead. The gesture has already committed to
-         * COMPLETED by the time `toggle` runs, so we can read its button.
+         * Envuelve `menu.toggle` para que el botón primario (izquierdo) del
+         * mouse se salte el menú y en su lugar alterne el ASR. El gesto ya
+         * está en estado COMPLETED para cuando `toggle` se ejecuta, así que
+         * podemos leer su botón.
          */
         _overrideToggle() {
             const menu = this.menu as PopupMenu.PopupMenu;
@@ -200,6 +206,7 @@ export const Indicator = GObject.registerClass(
             };
         }
 
+        /** Suscribe los cambios de GSettings relevantes para la interfaz del indicador. */
         _connectSettings() {
             const h1 = this.settings.connect(
                 `changed::${SETTINGS_KEYS.LAST_TEXT}`,
@@ -208,6 +215,7 @@ export const Indicator = GObject.registerClass(
             this._settingsHandlers.push(h1);
         }
 
+        /** Maneja el clic primario: cancela si está transcribiendo, si no alterna grabar/detener. */
         _onPrimaryClick() {
             switch (this.service?.state) {
                 case AsrState.Transcribing:
@@ -221,7 +229,7 @@ export const Indicator = GObject.registerClass(
             }
         }
 
-        /** Called by {@link AsrService} on every state transition. */
+        /** Llamado por {@link AsrService} en cada transición de estado. */
         onStateChanged(state: AsrState, ctx?: AsrChangeContext): void {
             this.remove_style_class_name(RECORDING_STYLE_CLASS);
             this._stopBlink();
@@ -231,10 +239,11 @@ export const Indicator = GObject.registerClass(
                     this._icon.gicon = this._noSoundIcon;
                     this._recordItem.label.text = _('Start recording');
                     if (ctx?.error) {
-                        // The notification body is where GNOME renders the full
-                        // text (the title is truncated); log it to the journal
-                        // too so long CLI diagnostics survive verbatim and can
-                        // be inspected with
+                        // El cuerpo de la notificación es donde GNOME
+                        // renderiza el texto completo (el título se trunca);
+                        // también se registra en el journal para que los
+                        // diagnósticos largos del CLI sobrevivan tal cual y
+                        // se puedan inspeccionar con:
                         //   journalctl --user -b /usr/bin/gnome-shell | grep planeasr
                         console.warn(`[planeasr] ${ctx.error}`);
                         Main.notify(
@@ -260,26 +269,28 @@ export const Indicator = GObject.registerClass(
             this._refreshMenuSensitivity();
         }
 
+        /** Actualiza qué ítems del menú están habilitados según el estado actual. */
         _refreshMenuSensitivity() {
             const lastText =
                 this.settings.get_string(SETTINGS_KEYS.LAST_TEXT) ?? '';
             this._copyItem.sensitive = lastText.length > 0;
-            // "Open audios" opens the records folder on demand (creating it if
-            // missing), so it is always available.
+            // "Abrir audios" abre la carpeta de grabaciones bajo demanda
+            // (creándola si falta), así que siempre está disponible.
             this._openAudioItem.sensitive = true;
-            // "Process audio file" kicks off a transcription run, so it is only
-            // enabled while idle — it must not race an in-flight recording or
-            // conversion (the service guards too, but disabling here avoids the
-            // pointless spawn).
+            // "Procesar archivo de audio" inicia una transcripción, así que
+            // solo se habilita en reposo — no debe competir con una
+            // grabación o conversión en curso (el servicio también se
+            // protege, pero deshabilitarlo aquí evita el lanzamiento inútil).
             this._processFileItem.sensitive =
                 this.service?.state === AsrState.Idle;
         }
 
         /**
-         * Start a slow opacity "breathing" loop on the button so the red
-         * recording state is unmistakable at a glance. St's CSS engine has no
-         * `@keyframes`, so the blink is driven here via chained Clutter
-         * transitions instead of the stylesheet.
+         * Inicia un bucle lento de "respiración" de opacidad en el botón
+         * para que el estado rojo de grabación sea inconfundible de un
+         * vistazo. El motor CSS de St no tiene `@keyframes`, así que el
+         * parpadeo se conduce aquí mediante transiciones encadenadas de
+         * Clutter en vez de la hoja de estilos.
          */
         _startBlink() {
             if (this._blinking) return;
@@ -287,7 +298,7 @@ export const Indicator = GObject.registerClass(
             this._pulseBlink(true);
         }
 
-        /** Stop the blink loop and snap the button back to full opacity. */
+        /** Detiene el bucle de parpadeo y devuelve el botón a opacidad completa de golpe. */
         _stopBlink() {
             if (!this._blinking) return;
             this._blinking = false;
@@ -295,7 +306,7 @@ export const Indicator = GObject.registerClass(
             this.opacity = 255;
         }
 
-        /** One fade phase of the blink loop; re-arms itself until stopped. */
+        /** Una fase de desvanecimiento del bucle de parpadeo; se rearma sola hasta que se detiene. */
         _pulseBlink(dim: boolean) {
             if (!this._blinking) return;
             this.ease({
@@ -306,6 +317,7 @@ export const Indicator = GObject.registerClass(
             });
         }
 
+        /** Copia el último texto transcrito al portapapeles y notifica al usuario. */
         _copyLastText() {
             const text =
                 this.settings.get_string(SETTINGS_KEYS.LAST_TEXT) ?? '';
@@ -318,10 +330,11 @@ export const Indicator = GObject.registerClass(
         }
 
         /**
-         * Open a native file picker (an out-of-process Gtk.FileDialog, since GTK
-         * dialogs can't run inside the gnome-shell St/Clutter process) and feed
-         * the chosen path to {@link AsrServiceLike.transcribeFile}. Silent on
-         * cancel; any spawn failure is logged and notified.
+         * Abre un selector de archivos nativo (un Gtk.FileDialog fuera del
+         * proceso, ya que los diálogos GTK no pueden correr dentro del
+         * proceso St/Clutter de gnome-shell) y le pasa la ruta elegida a
+         * {@link AsrServiceLike.transcribeFile}. Silencioso al cancelar;
+         * cualquier fallo al lanzar el proceso se registra y se notifica.
          */
         _pickAndTranscribe(): Promise<void> {
             if (this.service?.state !== AsrState.Idle) {
@@ -337,9 +350,9 @@ export const Indicator = GObject.registerClass(
                 );
                 return Promise.resolve();
             }
-            // The picker ships at <extdir>/src/extension/file-picker.js
-            // (compiled from src/extension/file-picker.ts; the build preserves
-            // the src/ layout under the extension root).
+            // El selector se distribuye en <extdir>/src/extension/file-picker.js
+            // (compilado desde src/extension/file-picker.ts; el build
+            // preserva la disposición de src/ bajo la raíz de la extensión).
             const pickerPath = GLib.build_filenamev([
                 this.extension.path,
                 'src',
@@ -357,9 +370,9 @@ export const Indicator = GObject.registerClass(
                 return Promise.resolve();
             }
 
-            // The picker is i18n-agnostic (it can't reach the shell's gettext
-            // domain), so the translated title/accept-label are passed on the
-            // command line as ARGV[0]/ARGV[1].
+            // El selector es agnóstico de i18n (no puede acceder al dominio
+            // gettext del shell), así que el título/etiqueta traducidos se
+            // pasan por línea de comandos como ARGV[0]/ARGV[1].
             const argv = [
                 gjs,
                 '-m',
@@ -400,7 +413,7 @@ export const Indicator = GObject.registerClass(
                         resolve();
                         return;
                     }
-                    // Empty stdout = user cancelled / dismissed the dialog.
+                    // stdout vacío = el usuario canceló / cerró el diálogo.
                     if (stdout) {
                         void this.service?.transcribeFile(stdout);
                     }
@@ -409,22 +422,25 @@ export const Indicator = GObject.registerClass(
             });
         }
 
+        /** Abre la carpeta de grabaciones en el gestor de archivos predeterminado. */
         _openAudios() {
             const dir = recordsDir();
-            // Ensure the folder exists so the file manager actually shows it.
+            // Asegura que la carpeta exista para que el gestor de archivos
+            // realmente la muestre.
             GLib.mkdir_with_parents(dir, 0o755);
             const [uriOk, uri] = GLib.filename_to_uri(dir, null);
             if (!uriOk || !uri) {
                 console.warn(`[planeasr] could not build URI for ${dir}`);
                 return;
             }
-            // Inside GNOME Shell we need a real AppLaunchContext. Gdk is a GTK
-            // client library and is NOT initialized in the compositor process
-            // (`Gdk.Display.get_default()` returns null there), so a Gdk-based
-            // context is always null and the launch fails on Wayland with
-            // "Operation not supported". The shell exposes its own context via
-            // `global.create_app_launch_context(timestamp, workspace)` — the
-            // canonical way to launch apps from an extension.
+            // Dentro de GNOME Shell necesitamos un AppLaunchContext real.
+            // Gdk es una biblioteca cliente de GTK y NO está inicializada en
+            // el proceso del compositor (`Gdk.Display.get_default()`
+            // devuelve null ahí), así que un contexto basado en Gdk siempre
+            // es null y el lanzamiento falla en Wayland con "Operation not
+            // supported". El shell expone su propio contexto vía
+            // `global.create_app_launch_context(timestamp, workspace)` — la
+            // forma canónica de lanzar aplicaciones desde una extensión.
             let launchContext: Gio.AppLaunchContext | null = null;
             try {
                 launchContext = global.create_app_launch_context(0, -1);
@@ -458,9 +474,10 @@ export const Indicator = GObject.registerClass(
         }
 
         /**
-         * Last-resort fallback: spawn `xdg-open` directly. Only used when the
-         * proper AppInfo launch path threw (e.g. no default handler for
-         * `inode/directory`). Fire-and-forget.
+         * Respaldo de último recurso: lanza `xdg-open` directamente. Solo se
+         * usa cuando la ruta apropiada de lanzamiento con AppInfo falló
+         * (por ejemplo, sin manejador por defecto para `inode/directory`).
+         * Se dispara sin esperar el resultado.
          */
         _openAudiosFallback(uri: string) {
             try {
@@ -477,10 +494,12 @@ export const Indicator = GObject.registerClass(
             }
         }
 
+        /** Extrae un mensaje legible de cualquier error capturado. */
         _errMsg(e: unknown): string {
             return e instanceof GLib.Error ? e.message : String(e);
         }
 
+        /** Limpia el parpadeo y desconecta los handlers de settings al destruirse. */
         destroy() {
             this._stopBlink();
             this._settingsHandlers.forEach(h => this.settings.disconnect(h));

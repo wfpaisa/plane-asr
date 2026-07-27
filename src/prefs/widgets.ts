@@ -1,8 +1,9 @@
 /* widgets.ts
  *
- * Reusable Adwaita/GTK4 row builders shared across the preferences pages.
- * Extracted so the main prefs file and the models page can compose the same
- * controls without duplicating markup.
+ * Constructores de filas Adwaita/GTK4 reutilizables, compartidos entre las
+ * páginas de preferencias. Se extrajeron para que el archivo principal de
+ * preferencias y la página de modelos compongan los mismos controles sin
+ * duplicar marcado.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -16,8 +17,9 @@ import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 /**
- * Build a full-width row with the label stacked above a Gtk.Entry, so the
- * whole placeholder hint stays visible (a side-by-side entry would clip it).
+ * Construye una fila de ancho completo con la etiqueta apilada encima de un
+ * Gtk.Entry, para que toda la pista del placeholder quede visible (una
+ * entrada lado a lado la recortaría).
  */
 export function entryRow(
     title: string,
@@ -49,16 +51,17 @@ export function entryRow(
 }
 
 /**
- * Make an `Adw.ComboRow` show its full (un-ellipsized) labels in both the
- * collapsed button and the popup, so long option names (e.g.
- * "GPU 5070 Ti · 16GB") are never cut off.
+ * Hace que un `Adw.ComboRow` muestre sus etiquetas completas (sin elipsis)
+ * tanto en el botón colapsado como en el popup, para que nombres de opción
+ * largos (ej. "GPU 5070 Ti · 16GB") nunca se corten.
  *
- * libadwaita's default factories wrap the selected value in a label with
- * `ellipsize: END`, which truncates long text. We replace both factories
- * (`factory` for the closed row, `list_factory` for the popup, both available
- * since libadwaita 1.4) with a `Gtk.SignalListItemFactory` that builds a
- * non-ellipsizing label. With `ellipsize: NONE` the popup grows to fit the
- * widest item, so no manual width is needed.
+ * Las fábricas por defecto de libadwaita envuelven el valor seleccionado en
+ * una etiqueta con `ellipsize: END`, que trunca el texto largo. Aquí se
+ * reemplazan ambas fábricas (`factory` para la fila cerrada, `list_factory`
+ * para el popup, ambas disponibles desde libadwaita 1.4) por una
+ * `Gtk.SignalListItemFactory` que construye una etiqueta sin elipsis. Con
+ * `ellipsize: NONE` el popup crece para ajustarse al ítem más ancho, así
+ * que no hace falta un ancho manual.
  */
 export function widenComboRow(row: Adw.ComboRow): void {
     const factory = new Gtk.SignalListItemFactory();
@@ -82,8 +85,9 @@ export function widenComboRow(row: Adw.ComboRow): void {
 }
 
 /**
- * Show a modal dialog that captures the next key combination and reports it as
- * a GTK accelerator string (empty string means "disable"). Esc cancels.
+ * Muestra un diálogo modal que captura la siguiente combinación de teclas y
+ * la reporta como un string acelerador de GTK (un string vacío significa
+ * "deshabilitar"). Esc cancela.
  */
 export function captureShortcut(
     parent: Adw.PreferencesWindow,
@@ -128,7 +132,7 @@ export function captureShortcut(
     dialog.present();
 }
 
-/** Row that displays the current toggle shortcut and lets the user record one. */
+/** Fila que muestra el atajo actual y le permite al usuario grabar uno nuevo. */
 export function shortcutRow(
     settings: Gio.Settings,
     key: string,
@@ -176,7 +180,7 @@ export function shortcutRow(
     return row;
 }
 
-/** A pill-shaped badge label used to decorate model rows. */
+/** Una etiqueta insignia en forma de píldora, usada para decorar filas de modelo. */
 export function badgeLabel(text: string, cssClass = 'tag'): Gtk.Label {
     return new Gtk.Label({
         label: text,

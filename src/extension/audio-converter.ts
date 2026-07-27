@@ -1,15 +1,16 @@
 /* audio-converter.ts
  *
- * Converts an arbitrary audio file into the 16 kHz mono s16le PCM WAV the ASR
- * backend expects, mirroring what the {@link Recorder} captures live. Used by
- * `AsrService.transcribeFile` for user-picked files that are not already in the
- * target format (see {@link getWavDataOffset} for the validation).
+ * Convierte un archivo de audio arbitrario al WAV PCM s16le de 16 kHz mono
+ * que espera el backend de ASR, replicando lo que captura en vivo el
+ * {@link Recorder}. Lo usa `AsrService.transcribeFile` para archivos
+ * elegidos por el usuario que no están ya en el formato objetivo (ver
+ * {@link getWavDataOffset} para la validación).
  *
- * Probes `ffmpeg` first (best format coverage) and falls back to
- * `gst-launch-1.0`, which ships with GNOME Shell and is virtually always
- * present. When neither is on PATH, {@link convert} rejects with
- * {@link NoConverterError} so the caller can surface a clear "format required"
- * warning instead of a generic failure.
+ * Primero prueba `ffmpeg` (mejor cobertura de formatos) y recurre a
+ * `gst-launch-1.0`, que viene con GNOME Shell y está prácticamente siempre
+ * presente. Cuando ninguno está en el PATH, {@link convert} rechaza con
+ * {@link NoConverterError} para que quien llama pueda mostrar una
+ * advertencia clara de "formato requerido" en vez de un fallo genérico.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -17,7 +18,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-/** Resolved when no conversion backend is available on PATH. */
+/** Se lanza cuando no hay ningún backend de conversión disponible en el PATH. */
 export class NoConverterError extends Error {
     constructor(
         message = 'No audio converter (ffmpeg or gst-launch-1.0) found in PATH'
@@ -27,7 +28,7 @@ export class NoConverterError extends Error {
     }
 }
 
-/** Resolve the first available converter binary, or null when none is present. */
+/** Resuelve el primer binario conversor disponible, o null si no hay ninguno. */
 function resolveConverterBin(): string | null {
     return (
         GLib.find_program_in_path('ffmpeg') ??
@@ -37,13 +38,15 @@ function resolveConverterBin(): string | null {
 }
 
 /**
- * Build the converter argv for the given binary.
+ * Construye el argv del conversor para el binario dado.
  *
- * - `ffmpeg`: `-y` overwrites the destination, `-loglevel error` keeps stderr
- *   to genuine diagnostics, then the canonical resample/mixdown flags.
- * - `gst-launch-1.0`: a decodebin pipeline that resamples to 16 kHz, mixes to
- *   mono, formats to S16LE and wraps in a WAV container. `decodebin` auto-
- *   selects the demuxer/decoder from installed GStreamer plugins.
+ * - `ffmpeg`: `-y` sobreescribe el destino, `-loglevel error` deja stderr
+ *   solo con diagnósticos genuinos, y luego van las banderas canónicas de
+ *   remuestreo/mezcla a mono.
+ * - `gst-launch-1.0`: un pipeline con decodebin que remuestrea a 16 kHz,
+ *   mezcla a mono, formatea a S16LE y envuelve en un contenedor WAV.
+ *   `decodebin` selecciona automáticamente el demuxer/decodificador entre
+ *   los plugins de GStreamer instalados.
  */
 function buildArgv(bin: string, srcPath: string, destPath: string): string[] {
     if (bin.endsWith('ffmpeg')) {
@@ -63,7 +66,7 @@ function buildArgv(bin: string, srcPath: string, destPath: string): string[] {
             destPath,
         ];
     }
-    // gst-launch-1.0 pipeline (bin === 'gst-launch-1.0').
+    // Pipeline de gst-launch-1.0 (bin === 'gst-launch-1.0').
     return [
         bin,
         'filesrc',
@@ -85,20 +88,23 @@ function buildArgv(bin: string, srcPath: string, destPath: string): string[] {
 }
 
 /**
- * One-shot audio converter. A single instance runs one conversion at a time;
- * `convert` rejects if called while busy. Use {@link forceExit} to cancel.
+ * Conversor de audio de un solo uso. Una misma instancia ejecuta una
+ * conversión a la vez; `convert` rechaza si se llama mientras ya hay una en
+ * curso. Usa {@link forceExit} para cancelar.
  *
- * Mirrors the lifecycle of {@link Transcriber} so the orchestrator can stop a
- * conversion in flight alongside a recording/transcription.
+ * Replica el ciclo de vida de {@link Transcriber} para que el orquestador
+ * pueda detener una conversión en curso junto con una grabación/transcripción.
  */
 export class AudioConverter {
     private _proc: Gio.Subprocess | null = null;
 
     /**
-     * Convert `srcPath` to a 16 kHz mono s16le WAV at `destPath`. Resolves on
-     * success; rejects with {@link NoConverterError} when no backend is on PATH
-     * (so the caller can show the format-required warning), or with the
-     * converter's stderr on any other failure.
+     * Convierte `srcPath` a un WAV s16le de 16 kHz mono en `destPath`.
+     *
+     * Qué hace: resuelve la promesa al terminar con éxito; rechaza con
+     * {@link NoConverterError} cuando no hay ningún backend en el PATH (así
+     * quien llama puede mostrar la advertencia de formato requerido), o con
+     * el stderr del conversor ante cualquier otro fallo.
      */
     convert(srcPath: string, destPath: string): Promise<void> {
         if (this._proc) {
@@ -126,9 +132,9 @@ export class AudioConverter {
                 try {
                     const [, , stderr] = proc.communicate_utf8_finish(res);
                     if (!proc.get_successful()) {
-                        // The converter writes its diagnostics to stderr, so
-                        // surface them verbatim — this is what the user sees via
-                        // Main.notify on failure.
+                        // El conversor escribe sus diagnósticos en stderr, así
+                        // que se muestran tal cual — esto es lo que el usuario
+                        // ve vía Main.notify en caso de fallo.
                         const detail = (stderr ?? '').trim();
                         throw new Error(
                             detail ||
@@ -143,7 +149,7 @@ export class AudioConverter {
         });
     }
 
-    /** Kill the running conversion subprocess, if any. */
+    /** Mata el subproceso de conversión en curso, si lo hay. */
     forceExit(): void {
         this._proc?.force_exit();
     }

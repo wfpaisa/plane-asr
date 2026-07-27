@@ -1,62 +1,67 @@
 /* asr-backends.ts
  *
- * Abstraction over the local ASR CLI. The preset knows how to build the
- * `argv` for a `Gio.Subprocess` from the user's settings (binary path, model
- * params, realtime flag and the target WAV path).
+ * Abstracción sobre el CLI de ASR local. El preset sabe cómo construir el
+ * `argv` para un `Gio.Subprocess` a partir de la configuración del usuario
+ * (ruta del binario, parámetros del modelo, bandera de tiempo real y la
+ * ruta del WAV objetivo).
  *
- * Beyond raw model params, the backend also translates a semantic
- * {@link BackendFeatures} bundle (accelerator, language, threads, prompt)
- * into the exact CLI flags of its binary, keeping the flag details of
- * transcribe-cli contained here instead of leaking into callers.
+ * Más allá de los parámetros crudos del modelo, el backend también
+ * traduce un conjunto semántico {@link BackendFeatures} (acelerador,
+ * idioma, hilos, prompt) a las banderas CLI exactas de su binario,
+ * manteniendo los detalles de banderas de transcribe-cli contenidos aquí
+ * en vez de filtrarse a quienes lo llaman.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 import type {Accelerator} from '../config/settings.js';
 
-/** Input bundle used to assemble the argv. */
+/** Conjunto de entrada usado para ensamblar el argv. */
 export interface BuildArgvOptions {
-    /** Absolute path to the configured CLI binary. */
+    /** Ruta absoluta al binario del CLI configurado. */
     cliPath: string;
-    /** Raw, possibly quoted, model/extra parameters string. */
+    /** String crudo (posiblemente con comillas) de parámetros del modelo/extra. */
     modelParams: string;
-    /** Whether the realtime flag should be appended. */
+    /** Si se debe añadir la bandera de tiempo real. */
     realtime: boolean;
     /**
-     * Optional extra flags the user wants appended to every invocation, after
-     * the model params and feature args, before the audio path. '' = none.
+     * Banderas extra opcionales que el usuario quiere añadir a cada
+     * invocación, después de los parámetros del modelo y los argumentos de
+     * features, antes de la ruta de audio. '' = ninguna.
      */
     extraFlags: string;
-    /** Path of the WAV file to transcribe. */
+    /** Ruta del archivo WAV a transcribir. */
     audioPath: string;
     /**
-     * Optional semantic features (accelerator, language, ...). When omitted the
-     * preset behaves exactly as before and only emits model params + audio.
+     * Features semánticas opcionales (acelerador, idioma, ...). Si se
+     * omiten, el preset se comporta exactamente como antes y solo emite
+     * parámetros del modelo + audio.
      */
     features?: BackendFeatures;
 }
 
 /**
- * Semantic, CLI-agnostic transcription knobs. The backend maps these to its
- * own flag names. Fields left at their default (0 / '' / false) are omitted so
- * the CLI uses its built-in default.
+ * Ajustes de transcripción semánticos, independientes del CLI concreto. El
+ * backend los mapea a sus propios nombres de bandera. Los campos que
+ * quedan en su valor por defecto (0 / '' / false) se omiten para que el
+ * CLI use el suyo propio.
  */
 export interface BackendFeatures {
-    /** Compute backend selection. */
+    /** Selección de backend de cómputo. */
     accelerator: Accelerator;
-    /** GPU device index; -1 = auto. */
+    /** Índice del dispositivo GPU; -1 = auto. */
     gpuDevice: number;
-    /** Spoken language: 'auto' or an ISO 639-1 code. */
+    /** Idioma hablado: 'auto' o un código ISO 639-1. */
     language: string;
-    /** Translate the transcription to English when supported. */
+    /** Traducir la transcripción al inglés cuando el modelo lo soporte. */
     translate: boolean;
-    /** CPU threads; 0 = auto (don't emit). */
+    /** Hilos de CPU; 0 = auto (no se emite). */
     threads: number;
-    /** Initial prompt / custom vocabulary text; '' = none. */
+    /** Prompt inicial / vocabulario personalizado; '' = ninguno. */
     initialPrompt: string;
 }
 
-/** Feature set with everything neutralized (used as a default). */
+/** Conjunto de features con todo neutralizado (usado como valor por defecto). */
 export const NEUTRAL_FEATURES: BackendFeatures = {
     accelerator: 'auto',
     gpuDevice: -1,
@@ -66,40 +71,41 @@ export const NEUTRAL_FEATURES: BackendFeatures = {
     initialPrompt: '',
 };
 
-/** Per-backend capability flags, so the UI can show/hide controls. */
+/** Banderas de capacidad por backend, para que la interfaz muestre/oculte controles. */
 export interface BackendCapabilities {
-    /** Whether the backend understands the accelerator/device flags. */
+    /** Si el backend entiende las banderas de acelerador/dispositivo. */
     accelerator: boolean;
-    /** Whether the backend honors the language flag. */
+    /** Si el backend respeta la bandera de idioma. */
     language: boolean;
-    /** Whether the backend honors the threads flag. */
+    /** Si el backend respeta la bandera de hilos. */
     threads: boolean;
-    /** Whether the backend honors an initial-prompt flag. */
+    /** Si el backend respeta una bandera de prompt inicial. */
     initialPrompt: boolean;
 }
 
-/** A pluggable transcription backend. */
+/** Un backend de transcripción conectable (plugin). */
 export interface AsrBackend {
-    /** Stable id stored in GSettings (`asr-backend`). */
+    /** Id estable guardado en GSettings (`asr-backend`). */
     id: string;
-    /** Human label shown in the preferences combo. */
+    /** Etiqueta legible mostrada en el combo de preferencias. */
     label: string;
-    /** Default binary name, used as the Entry placeholder in prefs. */
+    /** Nombre de binario por defecto, usado como placeholder del campo en preferencias. */
     defaultCliName: string;
-    /** Whether appending `--stream-chunk-ms 500` makes sense for this CLI. */
+    /** Si tiene sentido añadir `--stream-chunk-ms 500` para este CLI. */
     supportsRealtime: boolean;
-    /** Which semantic features this backend understands. */
+    /** Qué features semánticas entiende este backend. */
     capabilities: BackendCapabilities;
-    /** Build the argv for `Gio.Subprocess`. */
+    /** Construye el argv para `Gio.Subprocess`. */
     buildArgv(opts: BuildArgvOptions): string[];
 }
 
-/** Realtime flag inserted (when supported) before the audio argument. */
+/** Bandera de tiempo real insertada (cuando se soporta) antes del argumento de audio. */
 const REALTIME_ARGS = ['--stream-chunk-ms', '500'];
 
 /**
- * Registered ASR preset. Kept as an array (with a single entry) so the
- * `getBackend` lookup and the `ASR_BACKENDS[0]` fallback keep working.
+ * Preset de ASR registrado. Se mantiene como un arreglo (con una sola
+ * entrada) para que la búsqueda de `getBackend` y el respaldo
+ * `ASR_BACKENDS[0]` sigan funcionando.
  */
 export const ASR_BACKENDS: AsrBackend[] = [
     {
@@ -126,18 +132,19 @@ export const ASR_BACKENDS: AsrBackend[] = [
 
 const FALLBACK_BACKEND = ASR_BACKENDS[0];
 
-/** Look up a backend by id, falling back to the first one if unknown. */
+/** Busca un backend por id, recurriendo al primero si es desconocido. */
 export function getBackend(id: string): AsrBackend {
     return ASR_BACKENDS.find(b => b.id === id) ?? FALLBACK_BACKEND;
 }
 
 /**
- * Translate semantic features into transcribe-cli flags.
+ * Traduce las features semánticas a banderas de transcribe-cli.
  *
- * transcribe-cli uses `--backend {auto,cpu,vulkan,...}` + `--device N`
- * (registry index, 0 = auto). Note: there is NO `-ngl`/n-gpu-layers flag;
- * offload is automatic once a GPU backend is chosen. Short-flag `-t` means
- * translate, so threads must use the long `--threads` form.
+ * transcribe-cli usa `--backend {auto,cpu,vulkan,...}` + `--device N`
+ * (índice de registro, 0 = auto). Nota: NO existe una bandera
+ * `-ngl`/n-gpu-layers; el offload es automático una vez elegido un backend
+ * GPU. La bandera corta `-t` significa "translate", así que los hilos deben
+ * usar la forma larga `--threads`.
  */
 function transcribeCliFeatureArgs(features?: BackendFeatures): string[] {
     if (!features) return [];
@@ -155,7 +162,7 @@ function transcribeCliFeatureArgs(features?: BackendFeatures): string[] {
             break;
         case 'auto':
         default:
-            // 'auto' is the CLI default; emit nothing.
+            // 'auto' es el valor por defecto del CLI; no se emite nada.
             break;
     }
 
@@ -175,11 +182,11 @@ function transcribeCliFeatureArgs(features?: BackendFeatures): string[] {
 }
 
 /**
- * Tokenize a shell-like argument string.
+ * Tokeniza un string de argumentos al estilo de una shell.
  *
- * Splits on whitespace while honoring single quotes, double quotes and
- * backslash escapes, so paths or model names that contain spaces survive
- * intact. Empty input yields an empty array.
+ * Divide por espacios en blanco respetando comillas simples, comillas
+ * dobles y escapes con barra invertida, para que rutas o nombres de modelo
+ * con espacios sobrevivan intactos. Una entrada vacía produce un arreglo vacío.
  */
 export function parseArgs(input: string): string[] {
     const tokens: string[] = [];

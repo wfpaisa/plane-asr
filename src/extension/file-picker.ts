@@ -1,24 +1,26 @@
 /* file-picker.ts
  *
- * Standalone out-of-process Gtk file picker.
+ * Selector de archivos GTK independiente, ejecutado fuera del proceso
+ * principal.
  *
- * GNOME Shell's UI runs on St/Clutter, which has no native file chooser. GTK's
- * `Gtk.FileDialog` only works inside a Gtk-based process, so when the user
- * wants to transcribe an existing audio file the indicator spawns this script
- * via `gjs -m` (see `Indicator._pickAndTranscribe`), reads the chosen path off
- * its stdout, and feeds it to `AsrService.transcribeFile`.
+ * La interfaz de GNOME Shell corre sobre St/Clutter, que no tiene un
+ * selector de archivos nativo. El `Gtk.FileDialog` de GTK solo funciona
+ * dentro de un proceso basado en Gtk, así que cuando el usuario quiere
+ * transcribir un archivo de audio existente, el indicador lanza este script
+ * vía `gjs -m` (ver `Indicator._pickAndTranscribe`), lee la ruta elegida
+ * desde su stdout, y se la pasa a `AsrService.transcribeFile`.
  *
- * This is a *leaf* script: it does NOT import anything from `src/` and has no
- * access to the running gnome-shell process (no gettext domain, no settings,
- * no indicator). All translatable strings are produced by the caller and passed
- * on the command line:
- *   ARGV[0] = dialog title
- *   ARGV[1] = accept-button label
+ * Este es un script *hoja*: NO importa nada de `src/` y no tiene acceso al
+ * proceso gnome-shell en ejecución (sin dominio gettext, sin settings, sin
+ * indicador). Todos los strings traducibles los produce quien lo invoca y
+ * se pasan por línea de comandos:
+ *   ARGV[0] = título del diálogo
+ *   ARGV[1] = etiqueta del botón de aceptar
  *
- * Exit codes:
- *   0  → file chosen; its absolute path is printed to stdout
- *   1  → user cancelled / dismissed the dialog (no output)
- *   2  → unexpected error; a diagnostic is written to stderr
+ * Códigos de salida:
+ *   0  → archivo elegido; su ruta absoluta se imprime a stdout
+ *   1  → el usuario canceló / cerró el diálogo (sin salida)
+ *   2  → error inesperado; se escribe un diagnóstico a stderr
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -29,12 +31,12 @@ import Gtk from 'gi://Gtk';
 
 import system from 'system';
 
-/** Build the audio filter: every common container, plus a glob fallback. */
+/** Construye el filtro de audio: todos los contenedores comunes, más un respaldo por patrón glob. */
 function buildAudioFilter(): Gtk.FileFilter {
     const filter = new Gtk.FileFilter();
     filter.name = 'Audio';
-    // `add_mime_type` does not accept wildcards, so name the common ones
-    // explicitly; the patterns below catch anything we missed by extension.
+    // `add_mime_type` no acepta comodines, así que se nombran explícitamente
+    // los comunes; los patrones de abajo capturan lo que se nos escape por extensión.
     for (const mime of [
         'audio/wav',
         'audio/x-wav',
@@ -69,18 +71,28 @@ function buildAudioFilter(): Gtk.FileFilter {
     return filter;
 }
 
+/**
+ * Punto de entrada del script.
+ *
+ * Qué hace: inicializa GTK, abre el diálogo de selección de archivo con el
+ * filtro de audio, y según el resultado imprime la ruta elegida a stdout o
+ * sale con el código correspondiente (ver la tabla de códigos de salida
+ * arriba).
+ */
 function main(): void {
-    // Initialize GTK so the dialog has a working display connection even when
-    // invoked from a non-interactive D-Bus activation context.
+    // Inicializa GTK para que el diálogo tenga una conexión de pantalla
+    // funcional incluso cuando se invoca desde un contexto de activación
+    // D-Bus no interactivo.
     Gtk.init();
 
     const title = ARGV[0] ?? 'Select audio file';
     const acceptLabel = ARGV[1] ?? 'Open';
 
     const loop = new GLib.MainLoop(null, false);
-    // Exit code surfaced after the loop drains. 0 = picked, 1 = cancelled,
-    // 2 = error. Defaults to 2 so any unexpected early return is treated as
-    // a failure rather than silently succeeding with empty stdout.
+    // Código de salida que se expone tras vaciar el loop. 0 = elegido,
+    // 1 = cancelado, 2 = error. Por defecto es 2 para que cualquier retorno
+    // temprano inesperado se trate como un fallo en vez de tener éxito
+    // silenciosamente con stdout vacío.
     let exitCode = 2;
 
     const filters = new Gio.ListStore();
@@ -100,9 +112,10 @@ function main(): void {
             try {
                 file = dialog.open_finish(res);
             } catch (e) {
-                // Gtk.DialogError.DISMISSED is the documented "user cancelled"
-                // path — exit silently (code 1) so the caller can tell it apart
-                // from a real failure (code 2). Anything else is logged.
+                // Gtk.DialogError.DISMISSED es la ruta documentada de
+                // "el usuario canceló" — sale silenciosamente (código 1)
+                // para que quien llama pueda distinguirlo de un fallo real
+                // (código 2). Cualquier otra cosa se registra.
                 const err = e as GLib.Error;
                 if (
                     err?.matches?.(Gtk.DialogError, Gtk.DialogError.DISMISSED)

@@ -1,19 +1,20 @@
 /* cli-resolver.ts
  *
- * Resolves the transcription CLI binary according to the active `cli-mode`:
- *   - 'cpu' → prefer the CPU-only `transcribe-cli` bundled with the extension
- *             (x86_64), falling back to a `transcribe-cli` discovered on PATH.
- *             Zero configuration required. This is what {@link resolveAutoCli}
- *             below implements.
- *   - 'gpu' → use the absolute path the user set in `cli-path` (e.g. a
- *             personally compiled Vulkan/CUDA build); resolved by the caller,
- *             not here.
+ * Resuelve el binario del CLI de transcripción según el `cli-mode` activo:
+ *   - 'cpu' → prefiere el `transcribe-cli` solo-CPU incluido con la
+ *             extensión (x86_64), recurriendo a un `transcribe-cli`
+ *             encontrado en el PATH. No requiere configuración. Esto es lo
+ *             que implementa {@link resolveAutoCli} más abajo.
+ *   - 'gpu' → usa la ruta absoluta que el usuario definió en `cli-path`
+ *             (por ejemplo, una compilación propia con Vulkan/CUDA);
+ *             quien llama la resuelve, no este módulo.
  *
- * This mirrors the `cli-mode` GSetting documented in
- * src/config/settings.ts (legacy 'auto'/'manual' values migrate to
- * 'cpu'/'gpu'). The functions are pure (no subprocess) so they are cheap to
- * call from both the service pre-flight gate and the transcriber argv builder,
- * as well as from the preferences UI for status display.
+ * Esto refleja el GSetting `cli-mode` documentado en src/config/settings.ts
+ * (los valores heredados 'auto'/'manual' migran a 'cpu'/'gpu'). Las
+ * funciones son puras (sin subproceso), así que son baratas de llamar tanto
+ * desde el chequeo previo del servicio como desde el constructor de argv
+ * del transcriptor, y también desde la interfaz de preferencias para
+ * mostrar el estado.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -21,20 +22,20 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-/** Path components, below the extension root, of the bundled CLI binary. */
+/** Componentes de ruta, bajo la raíz de la extensión, del binario del CLI incluido. */
 const BUNDLED_SUBPATH = ['bin', 'transcribe-cli'];
 
-/** Outcome of an auto-mode binary lookup, for both runtime and UI display. */
+/** Resultado de una búsqueda de binario en modo automático, para runtime e interfaz. */
 export interface ResolvedCli {
-    /** Absolute path to the binary to invoke, or '' when nothing usable. */
+    /** Ruta absoluta al binario a invocar, o '' cuando no hay nada usable. */
     path: string;
-    /** Where the path came from, for diagnostics and UI hints. */
+    /** De dónde vino la ruta, para diagnóstico y pistas en la interfaz. */
     source: 'bundled' | 'path' | 'none';
 }
 
 /**
- * Absolute path of the CLI bundled with the extension:
- * `${extensionDir}/bin/transcribe-cli`. Returns '' when no extension dir.
+ * Ruta absoluta del CLI incluido con la extensión:
+ * `${extensionDir}/bin/transcribe-cli`. Devuelve '' cuando no hay directorio de extensión.
  */
 export function bundledCliPath(extensionDir: string | null): string {
     if (!extensionDir) return '';
@@ -42,8 +43,9 @@ export function bundledCliPath(extensionDir: string | null): string {
 }
 
 /**
- * Whether the bundled binary exists and is executable. False when there is no
- * bundled binary for the running architecture (e.g. non-x86_64 hosts).
+ * Indica si el binario incluido existe y es ejecutable. Es falso cuando no
+ * hay binario incluido para la arquitectura en ejecución (ej. hosts que no
+ * son x86_64).
  */
 export function bundledCliAvailable(extensionDir: string | null): boolean {
     const p = bundledCliPath(extensionDir);
@@ -58,21 +60,24 @@ export function bundledCliAvailable(extensionDir: string | null): boolean {
         );
         return info.get_attribute_boolean('access::can-execute');
     } catch {
-        // Permission error or similar — treat as unavailable so the caller
-        // falls back / reports a clear message rather than crashing.
+        // Error de permisos o similar — se trata como no disponible para que
+        // quien llama recurra al respaldo / reporte un mensaje claro en vez
+        // de fallar.
         return false;
     }
 }
 
-/** Look a CLI up by name on PATH. Returns null if not found. */
+/** Busca un CLI por nombre en el PATH. Devuelve null si no se encuentra. */
 export function findCliInPath(name: string): string | null {
     return GLib.find_program_in_path(name) ?? null;
 }
 
 /**
- * Resolve the binary for auto mode: bundled binary first, then PATH. Never
- * throws; returns `source: 'none'` when nothing usable is available so the
- * caller can surface a clear error.
+ * Resuelve el binario para el modo automático: primero el binario incluido,
+ * luego el PATH.
+ *
+ * Qué hace: nunca lanza excepción; devuelve `source: 'none'` cuando no hay
+ * nada usable disponible, para que quien llama pueda mostrar un error claro.
  */
 export function resolveAutoCli(
     extensionDir: string | null,

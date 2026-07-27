@@ -1,8 +1,9 @@
 /* catalog.ts
  *
- * Types and loader for the bundled offline model catalog
- * (data/model-catalog.json). Shared by the extension runtime and the
- * preferences UI so both see the same model list without a network call.
+ * Tipos y cargador para el catálogo de modelos incluido sin conexión
+ * (data/model-catalog.json). Lo comparten el runtime de la extensión y la
+ * interfaz de preferencias, para que ambos vean la misma lista de modelos
+ * sin necesidad de una llamada de red.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -12,27 +13,28 @@ import GLib from 'gi://GLib';
 
 import {defaultModelDir} from '../config/paths.js';
 
-/** One downloadable file (a single quantization) of a model. */
+/** Un archivo descargable (una cuantización concreta) de un modelo. */
 export interface ModelFile {
     filename: string;
-    /** Quantization label, e.g. 'Q8_0', 'F16'. */
+    /** Etiqueta de cuantización, ej. 'Q8_0', 'F16'. */
     quant: string;
     size_bytes: number;
     /**
-     * Content hash from the HuggingFace tree API (`oid`). Its length determines
-     * the algorithm: 40 hex chars => SHA-1 (Xet storage), 64 => SHA-256 (LFS).
-     * The downloader picks the matching checksum type at verification time.
+     * Hash de contenido proveniente de la API de árbol de HuggingFace
+     * (`oid`). Su longitud determina el algoritmo: 40 caracteres hex =>
+     * SHA-1 (almacenamiento Xet), 64 => SHA-256 (LFS). El descargador elige
+     * el tipo de checksum correspondiente al verificar el archivo.
      */
     sha256: string;
 }
 
-/** A catalog entry describing a model and its downloadable files. */
+/** Una entrada del catálogo que describe un modelo y sus archivos descargables. */
 export interface ModelEntry {
     id: string;
     name: string;
-    /** HuggingFace repo, e.g. 'handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf'. */
+    /** Repositorio de HuggingFace, ej. 'handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf'. */
     repo: string;
-    /** Backend preset this model targets; always 'transcribe-cli' (transcribe.cpp). */
+    /** Preset de backend al que apunta este modelo; siempre 'transcribe-cli' (transcribe.cpp). */
     backend: string;
     architecture: string;
     parameters: string;
@@ -49,7 +51,7 @@ export interface ModelEntry {
     files: ModelFile[];
 }
 
-/** Shape of data/model-catalog.json. */
+/** Forma del archivo data/model-catalog.json. */
 export interface ModelCatalog {
     catalog_version: number;
     updated: string;
@@ -61,11 +63,20 @@ const CATALOG_REL_PATH = 'data/model-catalog.json';
 let _cache: ModelEntry[] | null = null;
 
 /**
- * Load (and memoize) the bundled catalog.
+ * Carga (y memoiza) el catálogo incluido con la extensión.
  *
- * @param extensionDir Absolute path to the installed extension root (the
- * directory that contains the compiled extension.js / data/). When omitted the
- * loader cannot find the file and returns an empty list.
+ * Para qué: dar acceso a la lista de modelos disponibles sin depender de
+ * red, leyendo el JSON empaquetado junto al código de la extensión.
+ *
+ * Qué hace: si ya hay un resultado en caché lo devuelve directamente; si
+ * no, localiza `data/model-catalog.json` dentro de `extensionDir`, lo lee y
+ * lo parsea, guardando el arreglo de modelos en caché para llamadas futuras.
+ * Ante cualquier error (archivo ausente o JSON inválido) registra una
+ * advertencia y devuelve una lista vacía.
+ *
+ * @param extensionDir Ruta absoluta a la raíz de la extensión instalada (el
+ * directorio que contiene extension.js compilado / data/). Si se omite, el
+ * cargador no puede encontrar el archivo y devuelve una lista vacía.
  */
 export function loadModelCatalog(extensionDir: string | null): ModelEntry[] {
     if (_cache) return _cache;
@@ -91,7 +102,7 @@ export function loadModelCatalog(extensionDir: string | null): ModelEntry[] {
     return _cache;
 }
 
-/** Find a catalog entry by id, or null. */
+/** Busca una entrada del catálogo por id, o devuelve null. */
 export function findModel(
     extensionDir: string | null,
     id: string
@@ -99,7 +110,17 @@ export function findModel(
     return loadModelCatalog(extensionDir).find(m => m.id === id) ?? null;
 }
 
-/** Pick the file for a quant, falling back to the model default then the first. */
+/**
+ * Elige el archivo correspondiente a una cuantización dada.
+ *
+ * Para qué: resolver qué archivo concreto descargar/usar cuando el usuario
+ * pide una cuantización específica, con un recurso razonable cuando no la
+ * especifica o no existe.
+ *
+ * Qué hace: busca coincidencia exacta con `quant`; si no la hay, recurre a
+ * la cuantización por defecto del modelo (`default_quant`); si tampoco
+ * existe, toma el primer archivo de la lista.
+ */
 export function pickFile(
     entry: ModelEntry,
     quant: string | null
@@ -112,27 +133,40 @@ export function pickFile(
     return def ?? entry.files[0] ?? null;
 }
 
-// `defaultModelDir` is re-exported from ../config/paths.ts so every subsystem
-// agrees on the cache layout.
+// `defaultModelDir` se reexporta desde ../config/paths.ts para que todos los
+// subsistemas coincidan en la disposición de la caché.
 export {defaultModelDir};
 
-/** Resolve the configured models directory, honoring an explicit override. */
+/**
+ * Resuelve el directorio de modelos configurado, respetando una anulación
+ * explícita.
+ *
+ * Qué hace: si el GSetting `model-dir` trae un valor no vacío, lo usa tal
+ * cual; si está vacío, cae en {@link defaultModelDir}.
+ */
 export function resolveModelDir(settingValue: string): string {
     const trimmed = (settingValue ?? '').trim();
     return trimmed.length > 0 ? trimmed : defaultModelDir();
 }
 
-/** Full path where a given model file would live once downloaded. */
+/** Ruta completa donde viviría un archivo de modelo dado, una vez descargado. */
 export function modelFilePath(modelDir: string, file: ModelFile): string {
     return GLib.build_filenamev([modelDir, file.filename]);
 }
 
 /**
- * Scan a directory for already-downloaded catalog models.
+ * Escanea un directorio en busca de modelos del catálogo ya descargados.
  *
- * Returns a map of catalog model id -> the quant that is present on disk. A
- * model is considered downloaded when one of its files exists in the directory
- * and its size matches the catalog entry.
+ * Para qué: permitir que la interfaz de preferencias muestre qué modelos ya
+ * están disponibles localmente sin tener que registrar cada descarga por
+ * separado (por ejemplo, tras una instalación manual del archivo).
+ *
+ * Qué hace: enumera los archivos `.gguf`/`.bin` del directorio, y para cada
+ * entrada del catálogo comprueba si alguno de sus archivos está presente
+ * con un tamaño que coincida (con tolerancia de 1 KiB). Devuelve un mapa de
+ * id de modelo del catálogo -> cuantización presente en disco. Un modelo se
+ * considera descargado cuando uno de sus archivos existe en el directorio y
+ * su tamaño coincide con la entrada del catálogo.
  */
 export function scanDownloaded(
     extensionDir: string | null,
@@ -149,7 +183,7 @@ export function scanDownloaded(
             Gio.FileQueryInfoFlags.NONE,
             null
         );
-        // Build a lookup of present files keyed by filename.
+        // Construye una tabla de archivos presentes, indexada por nombre.
         const present = new Map<string, number>();
         let info: Gio.FileInfo | null;
         while ((info = enumerator.next_file(null)) !== null) {
@@ -164,7 +198,7 @@ export function scanDownloaded(
                 const size = present.get(f.filename);
                 if (
                     size !== undefined &&
-                    Math.abs(size - f.size_bytes) < 1024 // tolerate 1 KiB slack
+                    Math.abs(size - f.size_bytes) < 1024 // tolera un margen de 1 KiB
                 ) {
                     result.set(entry.id, f.quant);
                     break;
@@ -179,7 +213,7 @@ export function scanDownloaded(
     return result;
 }
 
-/** Human-readable size label, e.g. "751 MB" or "1.65 GB". */
+/** Etiqueta de tamaño legible para humanos, ej. "751 MB" o "1.65 GB". */
 export function formatSize(bytes: number): string {
     if (bytes >= 1024 * 1024 * 1024) {
         return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;

@@ -1,28 +1,36 @@
 /* device-parse.ts
  *
- * Pure parser for the textual output of `<cli> --list-devices`. No GNOME/GJS
- * imports, so it can be unit-tested in plain Node; the subprocess that produces
- * the text lives in extension/device-lister.ts.
+ * Parser puro para la salida textual de `<cli> --list-devices`. No importa
+ * nada de GNOME/GJS, así que puede probarse con Node normal; el subproceso
+ * que genera ese texto vive en extension/device-lister.ts.
  *
  * SPDX-License-Identifier: MIT OR LGPL-2.0-or-later
  */
 
-/** A compute device as reported by the CLI's `--list-devices`. */
+/** Un dispositivo de cómputo tal como lo reporta `--list-devices` del CLI. */
 export interface DeviceInfo {
-    /** Registry index the CLI uses for `--device N` (0-based). */
+    /** Índice de registro que usa el CLI para `--device N` (empieza en 0). */
     index: number;
-    /** Human-readable device name. */
+    /** Nombre del dispositivo, legible para humanos. */
     name: string;
-    /** Backend kind string emitted by the CLI (cuda, vulkan, cpu, ...). */
+    /** Tipo de backend que emite el CLI (cuda, vulkan, cpu, ...). */
     kind: string;
-    /** Total memory label as printed by the CLI (e.g. "15.51 GiB"), or ''. */
+    /** Etiqueta de memoria total tal como la imprime el CLI (ej. "15.51 GiB"), o ''. */
     vramLabel: string;
 }
 
 /**
- * Parse the textual output of `<cli> --list-devices`.
+ * Parsea la salida textual de `<cli> --list-devices`.
  *
- * Expected layout (transcribe.cpp):
+ * Para qué: convertir el texto plano que imprime el CLI en una lista de
+ * objetos `DeviceInfo` que el resto de la extensión pueda usar (por ejemplo
+ * para poblar el selector de dispositivo en las preferencias).
+ *
+ * Qué hace: recorre el texto línea por línea, detecta encabezados de
+ * dispositivo (`[N] Nombre`) y sus líneas de detalle (`kind=...`,
+ * `memory: ... total`), y arma un `DeviceInfo` por cada bloque encontrado.
+ *
+ * Formato esperado (transcribe.cpp):
  * ```
  * 3 compute device(s):
  *   [0] NVIDIA GeForce RTX 5070 Ti
@@ -30,8 +38,9 @@ export interface DeviceInfo {
  *       memory: 15.51 GiB total, 15.22 GiB free
  *   [1] ...
  * ```
- * Lines that don't match a device header or its detail lines (e.g. the
- * `[info] ggml_cuda_init: ...` logs CUDA emits on startup) are ignored.
+ * Las líneas que no coinciden con un encabezado de dispositivo ni con sus
+ * líneas de detalle (por ejemplo los logs `[info] ggml_cuda_init: ...` que
+ * emite CUDA al iniciar) se ignoran.
  */
 export function parseListDevices(text: string): DeviceInfo[] {
     const out: DeviceInfo[] = [];
@@ -48,7 +57,7 @@ export function parseListDevices(text: string): DeviceInfo[] {
         const line = raw.trim();
         if (!line) continue;
 
-        // Device header: "[0] Name".
+        // Encabezado de dispositivo: "[0] Nombre".
         const header = line.match(/^\[(\d+)\]\s*(.+)$/);
         if (header) {
             flush();
@@ -62,13 +71,13 @@ export function parseListDevices(text: string): DeviceInfo[] {
         }
         if (!current) continue;
 
-        // Detail line: "name=CUDA0  kind=cuda  type=gpu  id=...".
+        // Línea de detalle: "name=CUDA0  kind=cuda  type=gpu  id=...".
         const kind = line.match(/\bkind=(\S+)/);
         if (kind) {
             current.kind = kind[1];
             continue;
         }
-        // Memory line: "memory: 15.51 GiB total, 15.22 GiB free".
+        // Línea de memoria: "memory: 15.51 GiB total, 15.22 GiB free".
         const mem = line.match(/memory:\s*([0-9.]+\s*\S+)\s*total/i);
         if (mem) {
             current.vramLabel = mem[1].trim();
@@ -76,6 +85,6 @@ export function parseListDevices(text: string): DeviceInfo[] {
     }
     flush();
 
-    // Drop entries without a name (defensive: malformed blocks).
+    // Descarta entradas sin nombre (defensivo: bloques malformados).
     return out.filter(d => d.name.length > 0);
 }

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-26 22:03-0500\n"
+"POT-Creation-Date: 2026-07-26 22:26-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,117 +17,117 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/extension/asr-service.ts:159
+#: src/extension/asr-service.ts:163
 msgid "ASR binary not found. Set it in preferences."
 msgstr ""
 
-#: src/extension/asr-service.ts:171
+#: src/extension/asr-service.ts:175
 msgid ""
 "No transcription binary available for this system. Switch to GPU mode and "
 "set the binary path, or install transcribe-cli on your PATH."
 msgstr ""
 
-#: src/extension/asr-service.ts:262 src/extension/asr-service.ts:310
+#: src/extension/asr-service.ts:279 src/extension/asr-service.ts:328
 msgid "Plane ASR: transcription pasted"
 msgstr ""
 
-#: src/extension/asr-service.ts:263 src/extension/asr-service.ts:311
+#: src/extension/asr-service.ts:280 src/extension/asr-service.ts:329
 msgid "Plane ASR: transcription copied"
 msgstr ""
 
-#: src/extension/asr-service.ts:335 src/extension/indicator.ts:328
+#: src/extension/asr-service.ts:357 src/extension/indicator.ts:341
 msgid "Plane ASR is busy"
 msgstr ""
 
-#: src/extension/asr-service.ts:356
+#: src/extension/asr-service.ts:380
 msgid "Converting audio…"
 msgstr ""
 
-#: src/extension/asr-service.ts:363
+#: src/extension/asr-service.ts:387
 msgid ""
 "No audio converter found. Install ffmpeg, or use a 16 kHz mono 16-bit WAV."
 msgstr ""
 
-#: src/extension/indicator.ts:95 src/extension/indicator.ts:335
-#: src/extension/indicator.ts:354 src/extension/indicator.ts:384
-#: src/extension/indicator.ts:474
+#: src/extension/indicator.ts:97 src/extension/indicator.ts:348
+#: src/extension/indicator.ts:367 src/extension/indicator.ts:397
+#: src/extension/indicator.ts:491
 msgid "Plane ASR"
 msgstr ""
 
-#: src/extension/indicator.ts:138 src/extension/indicator.ts:232
+#: src/extension/indicator.ts:143 src/extension/indicator.ts:240
 msgid "Start recording"
 msgstr ""
 
-#: src/extension/indicator.ts:148
+#: src/extension/indicator.ts:153
 msgid "Copy text"
 msgstr ""
 
-#: src/extension/indicator.ts:155
+#: src/extension/indicator.ts:160
 msgid "Open audios"
 msgstr ""
 
-#: src/extension/indicator.ts:163
+#: src/extension/indicator.ts:168
 msgid "Process audio file"
 msgstr ""
 
-#: src/extension/indicator.ts:173
+#: src/extension/indicator.ts:178
 msgid "Preferences"
 msgstr ""
 
-#: src/extension/indicator.ts:217
+#: src/extension/indicator.ts:225
 msgid "Plane ASR is not ready yet"
 msgstr ""
 
-#: src/extension/indicator.ts:241
+#: src/extension/indicator.ts:250
 msgid "Plane ASR: transcription failed"
 msgstr ""
 
-#: src/extension/indicator.ts:249
+#: src/extension/indicator.ts:258
 msgid "Stop recording"
 msgstr ""
 
-#: src/extension/indicator.ts:255
+#: src/extension/indicator.ts:264
 #, javascript-format
 msgid "Transcribing %s"
 msgstr ""
 
-#: src/extension/indicator.ts:256
+#: src/extension/indicator.ts:265
 msgid "Cancel transcription"
 msgstr ""
 
-#: src/extension/indicator.ts:317
+#: src/extension/indicator.ts:329
 msgid "Plane ASR: copied transcription"
 msgstr ""
 
-#: src/extension/indicator.ts:336
+#: src/extension/indicator.ts:349
 msgid "gjs runtime not found; cannot open the file picker"
 msgstr ""
 
-#: src/extension/indicator.ts:355
+#: src/extension/indicator.ts:368
 msgid "File picker helper is missing; reinstall the extension"
 msgstr ""
 
-#: src/extension/indicator.ts:367
+#: src/extension/indicator.ts:380
 msgid "Select audio file"
 msgstr ""
 
-#: src/extension/indicator.ts:368
+#: src/extension/indicator.ts:381
 msgid "Open"
 msgstr ""
 
-#: src/extension/indicator.ts:385
+#: src/extension/indicator.ts:398
 msgid "Could not open the file picker"
 msgstr ""
 
-#: src/extension/indicator.ts:475
+#: src/extension/indicator.ts:492
 msgid "Could not open the audios folder"
 msgstr ""
 
-#: src/extension/recorder.ts:40
+#: src/extension/recorder.ts:44
 msgid "A recording is already in progress"
 msgstr ""
 
-#: src/extension/recorder.ts:111
+#: src/extension/recorder.ts:117
 msgid "Neither pw-record nor parecord was found in PATH"
 msgstr ""
 
@@ -177,7 +177,7 @@ msgid ""
 "are kept on disk."
 msgstr ""
 
-#: src/prefs/index.ts:221 src/prefs/models-page.ts:552
+#: src/prefs/index.ts:221 src/prefs/models-page.ts:555
 msgid "Cancel"
 msgstr ""
 
@@ -491,151 +491,151 @@ msgstr ""
 msgid "Choose between a catalog model or a custom model path"
 msgstr ""
 
-#: src/prefs/models-page.ts:62
+#: src/prefs/models-page.ts:63
 msgid "Custom model path"
 msgstr ""
 
-#: src/prefs/models-page.ts:72
+#: src/prefs/models-page.ts:73
 msgid "Catalog model"
 msgstr ""
 
-#: src/prefs/models-page.ts:86
+#: src/prefs/models-page.ts:87
 msgid "Model path"
 msgstr ""
 
-#: src/prefs/models-page.ts:130
+#: src/prefs/models-page.ts:131
 msgid ""
 "No catalog model selected — browse below and click \"Use\" to select one."
 msgstr ""
 
-#: src/prefs/models-page.ts:200
+#: src/prefs/models-page.ts:202
 msgid "Browse models"
 msgstr ""
 
-#: src/prefs/models-page.ts:202
+#: src/prefs/models-page.ts:204
 msgid ""
 "Download GGUF models from HuggingFace. They are verified with SHA-256 and "
 "stored locally."
 msgstr ""
 
-#: src/prefs/models-page.ts:210
+#: src/prefs/models-page.ts:212
 msgid "Search by name or language…"
 msgstr ""
 
-#: src/prefs/models-page.ts:298
+#: src/prefs/models-page.ts:301
 #, javascript-format
 msgid "Model downloaded: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:302
+#: src/prefs/models-page.ts:305
 #, javascript-format
 msgid "Download failed: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:321
+#: src/prefs/models-page.ts:324
 #, javascript-format
 msgid "Model deleted: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:331
+#: src/prefs/models-page.ts:334
 msgid "Storage"
 msgstr ""
 
-#: src/prefs/models-page.ts:333
+#: src/prefs/models-page.ts:336
 msgid ""
 "Directory where downloaded models are stored. You can also drop "
 "any .gguf/.bin file here and point to it with a custom path."
 msgstr ""
 
-#: src/prefs/models-page.ts:348
+#: src/prefs/models-page.ts:351
 msgid "Open folder"
 msgstr ""
 
-#: src/prefs/models-page.ts:372
+#: src/prefs/models-page.ts:375
 msgid "Models directory"
 msgstr ""
 
-#: src/prefs/models-page.ts:449 src/prefs/models-page.ts:638
+#: src/prefs/models-page.ts:452 src/prefs/models-page.ts:641
 msgid "Download"
 msgstr ""
 
-#: src/prefs/models-page.ts:457
+#: src/prefs/models-page.ts:460
 #, javascript-format
 msgid "Active model: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:489
+#: src/prefs/models-page.ts:492
 msgid "Recommended"
 msgstr ""
 
-#: src/prefs/models-page.ts:490
+#: src/prefs/models-page.ts:493
 msgid "Streaming"
 msgstr ""
 
-#: src/prefs/models-page.ts:495
+#: src/prefs/models-page.ts:498
 msgid "Downloaded"
 msgstr ""
 
-#: src/prefs/models-page.ts:501 src/prefs/models-page.ts:635
-#: src/prefs/models-page.ts:653
+#: src/prefs/models-page.ts:504 src/prefs/models-page.ts:638
+#: src/prefs/models-page.ts:656
 msgid "Active"
 msgstr ""
 
-#: src/prefs/models-page.ts:537
+#: src/prefs/models-page.ts:540
 msgid "Delete downloaded file"
 msgstr ""
 
-#: src/prefs/models-page.ts:549
+#: src/prefs/models-page.ts:552
 msgid "Delete model file?"
 msgstr ""
 
-#: src/prefs/models-page.ts:550
+#: src/prefs/models-page.ts:553
 #, javascript-format
 msgid "This will remove \"%s\" from disk."
 msgstr ""
 
-#: src/prefs/models-page.ts:553
+#: src/prefs/models-page.ts:556
 msgid "Delete"
 msgstr ""
 
-#: src/prefs/models-page.ts:617
+#: src/prefs/models-page.ts:620
 #, javascript-format
 msgid "Path: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:635 src/prefs/models-page.ts:657
+#: src/prefs/models-page.ts:638 src/prefs/models-page.ts:660
 msgid "Use"
 msgstr ""
 
-#: src/prefs/models-page.ts:689
+#: src/prefs/models-page.ts:692
 #, javascript-format
 msgid "%d languages"
 msgstr ""
 
-#: src/prefs/widgets.ts:101
+#: src/prefs/widgets.ts:105
 msgid "Press the desired combination"
 msgstr ""
 
-#: src/prefs/widgets.ts:102
+#: src/prefs/widgets.ts:106
 msgid "Esc to cancel · Backspace to disable"
 msgstr ""
 
-#: src/prefs/widgets.ts:138
+#: src/prefs/widgets.ts:142
 msgid "Toggle recording shortcut"
 msgstr ""
 
-#: src/prefs/widgets.ts:139
+#: src/prefs/widgets.ts:143
 msgid "Click Set and press the keys you want to use"
 msgstr ""
 
-#: src/prefs/widgets.ts:143
+#: src/prefs/widgets.ts:147
 msgid "Disabled"
 msgstr ""
 
-#: src/prefs/widgets.ts:147
+#: src/prefs/widgets.ts:151
 msgid "Set"
 msgstr ""
 
-#: src/prefs/widgets.ts:153
+#: src/prefs/widgets.ts:157
 msgid "Disable shortcut"
 msgstr ""

@@ -1,18 +1,21 @@
 /* model-downloader.ts
  *
- * Streaming model downloader backed by libsoup 3.0. Downloads GGUF files from
- * HuggingFace with resume support (HTTP Range), incremental SHA-256
- * verification, cancellation and throttled progress reporting.
+ * Descargador de modelos por streaming, apoyado en libsoup 3.0. Descarga
+ * archivos GGUF desde HuggingFace con soporte de reanudación (HTTP Range),
+ * verificación incremental de SHA-256, cancelación y reporte de progreso
+ * con limitación de frecuencia.
  *
- * The download never loads the whole file in memory: bytes flow network ->
- * 1 MiB buffer -> output file -> checksum, so it works for multi-GB models.
+ * La descarga nunca carga el archivo completo en memoria: los bytes fluyen
+ * red -> buffer de 1 MiB -> archivo de salida -> checksum, así que funciona
+ * incluso con modelos de varios GB.
  *
- * NOTE on async style: GJS async GI methods require a C-style callback and do
- * NOT honour promise overloads or `Gio._promisify` reliably in all runtimes
- * (the prototype patch can be silently dropped for native methods). Every
- * async operation here is wrapped in a hand-rolled Promise that invokes the
- * method with its native callback signature, which is the only form guaranteed
- * to work.
+ * NOTA sobre el estilo async: los métodos async de GJS/GI requieren un
+ * callback de estilo C y NO respetan de forma confiable los overloads con
+ * promesas ni `Gio._promisify` en todos los runtimes (el parche del
+ * prototipo puede perderse silenciosamente para métodos nativos). Por eso
+ * cada operación asíncrona aquí se envuelve en una Promise hecha a mano que
+ * invoca el método con su firma de callback nativa, que es la única forma
+ * garantizada de funcionar.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -24,27 +27,28 @@ import Soup from 'gi://Soup';
 import type {ModelEntry, ModelFile} from './catalog.js';
 import {getModelStore} from './model-store.js';
 
-/** HuggingFace resolve URL for a single file in a repo. */
+/** URL de resolución de HuggingFace para un archivo concreto de un repo. */
 export function hfResolveUrl(repo: string, filename: string): string {
     return `https://huggingface.co/${repo}/resolve/main/${filename}`;
 }
 
-/** 1 MiB streaming buffer — small enough for low memory, big enough for throughput. */
+/** Buffer de streaming de 1 MiB — suficientemente pequeño para poca memoria, suficientemente grande para buen rendimiento. */
 const CHUNK_SIZE = 1024 * 1024;
-/** Minimum interval between progress emissions (ms). */
+/** Intervalo mínimo entre emisiones de progreso (ms). */
 const PROGRESS_THROTTLE_MS = 250;
 
-/** Outcome of a download attempt. */
+/** Resultado de un intento de descarga. */
 export type DownloadOutcome =
     {ok: true} | {ok: false; cancelled: boolean; error: string};
 
 // =============================================================================
-// Promise wrappers for GJS async methods (native callback signature).
-// Each calls the method with its required `(source, result) => ...` callback and
-// resolves/rejects from it. This is the ONLY async form GJS reliably supports.
+// Envoltorios en Promise para los métodos async de GJS (firma de callback
+// nativa). Cada uno llama al método con su callback requerido
+// `(source, result) => ...` y resuelve/rechaza desde ahí. Esta es la ÚNICA
+// forma async que GJS soporta de manera confiable.
 // =============================================================================
 
-/** Wrap a Gio async file-stream opener in a Promise. */
+/** Envuelve en una Promise el abridor async de flujo de archivo (para escritura). */
 function fileReplaceAsync(
     file: Gio.File,
     etag: string | null,
@@ -71,7 +75,7 @@ function fileReplaceAsync(
     });
 }
 
-/** Append-to async wrapper (resume path opens the existing partial for append). */
+/** Envoltorio async de "append" (la ruta de reanudación abre el parcial existente para añadir al final). */
 function fileAppendToAsync(
     file: Gio.File,
     flags: Gio.FileCreateFlags,
@@ -89,7 +93,7 @@ function fileAppendToAsync(
     });
 }
 
-/** query_info_async wrapper. */
+/** Envoltorio de query_info_async. */
 function fileQueryInfoAsync(
     file: Gio.File,
     attributes: string,
@@ -114,7 +118,7 @@ function fileQueryInfoAsync(
     });
 }
 
-/** read_async wrapper (opens a FileInputStream). */
+/** Envoltorio de read_async (abre un FileInputStream). */
 function fileReadAsync(
     file: Gio.File,
     ioPriority: number,
@@ -131,7 +135,7 @@ function fileReadAsync(
     });
 }
 
-/** set_display_name_async wrapper. */
+/** Envoltorio de set_display_name_async. */
 function fileSetDisplayNameAsync(
     file: Gio.File,
     displayName: string,
@@ -154,7 +158,7 @@ function fileSetDisplayNameAsync(
     });
 }
 
-/** delete_async wrapper. */
+/** Envoltorio de delete_async. */
 function fileDeleteAsync(
     file: Gio.File,
     ioPriority: number,
@@ -171,7 +175,7 @@ function fileDeleteAsync(
     });
 }
 
-/** InputStream.read_bytes_async wrapper. */
+/** Envoltorio de InputStream.read_bytes_async. */
 function streamReadBytesAsync(
     stream: Gio.InputStream,
     count: number,
@@ -189,7 +193,7 @@ function streamReadBytesAsync(
     });
 }
 
-/** OutputStream.write_bytes_async wrapper. */
+/** Envoltorio de OutputStream.write_bytes_async. */
 function streamWriteBytesAsync(
     stream: Gio.OutputStream,
     bytes: GLib.Bytes,
@@ -212,7 +216,7 @@ function streamWriteBytesAsync(
     });
 }
 
-/** OutputStream/InputStream.close_async wrapper. */
+/** Envoltorio de OutputStream/InputStream.close_async. */
 function streamCloseAsync(
     stream: Gio.InputStream | Gio.OutputStream,
     ioPriority: number,
@@ -229,7 +233,7 @@ function streamCloseAsync(
     });
 }
 
-/** Soup.Session.send_async wrapper (returns the body InputStream). */
+/** Envoltorio de Soup.Session.send_async (devuelve el InputStream del cuerpo). */
 function soupSendAsync(
     session: Soup.Session,
     msg: Soup.Message,
@@ -252,8 +256,9 @@ function soupSendAsync(
 // =============================================================================
 
 /**
- * HuggingFace model downloader. Owns a long-lived `Soup.Session` shared across
- * downloads. Safe to keep as a singleton.
+ * Descargador de modelos de HuggingFace. Mantiene una `Soup.Session` de
+ * larga duración compartida entre descargas. Es seguro mantenerlo como
+ * singleton.
  */
 export class ModelDownloader {
     private _session: Soup.Session;
@@ -261,19 +266,28 @@ export class ModelDownloader {
     constructor() {
         this._session = new Soup.Session({
             user_agent: 'plane-asr',
-            // No socket timeout: large models can stall briefly on slow links.
+            // Sin timeout de socket: los modelos grandes pueden atascarse
+            // brevemente en conexiones lentas.
             timeout: 0,
         });
     }
 
     /**
-     * Download (or resume) `file` of `entry` into `modelDir`.
+     * Descarga (o reanuda) `file` de `entry` hacia `modelDir`.
      *
-     * Resolves once the file is on disk and its SHA-256 matches the catalog.
-     * Cancellation resolves with `{ok:false, cancelled:true}`. On a hash
-     * mismatch the partial file is deleted so the next attempt starts clean.
+     * Para qué: obtener el archivo de modelo de forma confiable incluso con
+     * conexiones inestables, verificando su integridad antes de darlo por
+     * bueno.
      *
-     * Progress + state are published through the global {@link ModelStore}.
+     * Qué hace: descarga el archivo a un `.part` temporal (reanudando si ya
+     * existe uno parcial), calcula su SHA-256/SHA-1 y lo compara contra el
+     * catálogo, y solo si coincide renombra el `.part` al nombre final.
+     * Resuelve una vez que el archivo está en disco y su hash coincide con
+     * el catálogo. La cancelación resuelve con `{ok:false, cancelled:true}`.
+     * Si el hash no coincide, se borra el archivo parcial para que el
+     * siguiente intento empiece limpio.
+     *
+     * El progreso y el estado se publican a través del {@link ModelStore} global.
      */
     async download(
         entry: ModelEntry,
@@ -289,9 +303,9 @@ export class ModelDownloader {
 
         try {
             await this._downloadToFile(entry, file, partPath, cancellable);
-            // Verify the content hash against the catalog oid before promoting
-            // the file. The algorithm is chosen from the oid length (SHA-1 for
-            // Xet 40-hex, SHA-256 for LFS 64-hex).
+            // Verifica el hash de contenido contra el oid del catálogo antes de
+            // promover el archivo. El algoritmo se elige según la longitud del
+            // oid (SHA-1 para Xet de 40 hex, SHA-256 para LFS de 64 hex).
             const actual = await hashOfFile(
                 partPath,
                 checksumTypeFor(file.sha256),
@@ -310,7 +324,7 @@ export class ModelDownloader {
         } catch (e) {
             const cancelled = isErrorCancelled(e);
             if (cancelled) {
-                // Keep the .part so the next attempt resumes.
+                // Conserva el .part para que el próximo intento reanude.
                 store.markCancelled(entry.id);
                 return {ok: false, cancelled: true, error: errMessage(e)};
             }
@@ -319,12 +333,12 @@ export class ModelDownloader {
         }
     }
 
-    /** Cancel an in-flight download by model id (no-op if none active). */
+    /** Cancela una descarga en curso por id de modelo (no-op si ninguna está activa). */
     cancel(modelId: string): void {
         getModelStore().getActiveDownload(modelId)?.cancellable.cancel();
     }
 
-    /** Delete a downloaded model file (final path only; leaves no .part). */
+    /** Borra un archivo de modelo ya descargado (solo la ruta final; no deja `.part`). */
     async delete(
         entry: ModelEntry,
         file: ModelFile,
@@ -334,13 +348,15 @@ export class ModelDownloader {
         getModelStore().markDeleted(entry.id);
     }
 
-    // -- internals --------------------------------------------------------
+    // -- internos -----------------------------------------------------------
 
     /**
-     * Stream `file` into `partPath`, resuming from an existing `.part` when
-     * present. Resumes by sending an HTTP `Range:` header; if the server
-     * ignores it (full 200 re-send), the partial is discarded and the download
-     * restarts from byte 0.
+     * Transmite `file` por streaming hacia `partPath`, reanudando desde un
+     * `.part` existente cuando lo hay.
+     *
+     * Qué hace: reanuda enviando una cabecera HTTP `Range:`; si el servidor
+     * la ignora (reenvía todo con un 200 en vez de 206), el parcial se
+     * descarta y la descarga reinicia desde el byte 0.
      */
     private async _downloadToFile(
         entry: ModelEntry,
@@ -351,7 +367,7 @@ export class ModelDownloader {
         const url = hfResolveUrl(entry.repo, file.filename);
         const msg = Soup.Message.new('GET', url);
 
-        // Probe the existing partial to compute a resume offset.
+        // Sondea el parcial existente para calcular un offset de reanudación.
         let resumeOffset = 0;
         const partFile = Gio.File.new_for_path(partPath);
         if (partFile.query_exists(null)) {
@@ -365,14 +381,15 @@ export class ModelDownloader {
                 );
                 resumeOffset = info.get_size();
             } catch {
-                resumeOffset = 0; // ignore probe failure, restart fresh
+                resumeOffset = 0; // ignora el fallo del sondeo, reinicia desde cero
             }
         }
 
-        // The checksum must cover the whole file, so when resuming we hash the
-        // already-on-disk prefix first, then continue with the new tail. The
-        // algorithm matches the catalog oid length (SHA-1 for Xet, SHA-256 for
-        // LFS) so the final digest compares equal to file.sha256.
+        // El checksum debe cubrir el archivo completo, así que al reanudar
+        // primero se hashea el prefijo que ya está en disco y luego se
+        // continúa con la cola nueva. El algoritmo coincide con la longitud
+        // del oid del catálogo (SHA-1 para Xet, SHA-256 para LFS) para que
+        // el digest final se compare igual a file.sha256.
         const checksum = new GLib.Checksum(checksumTypeFor(file.sha256));
         let received = 0;
         let outStream: Gio.FileOutputStream;
@@ -398,7 +415,7 @@ export class ModelDownloader {
             );
         }
 
-        // Send the request and get the body stream (Soup follows redirects).
+        // Envía la petición y obtiene el flujo del cuerpo (Soup sigue redirecciones).
         const inputStream = await soupSendAsync(
             this._session,
             msg,
@@ -406,8 +423,8 @@ export class ModelDownloader {
             cancellable
         );
 
-        // If we asked for a range but the server ignored it (200 instead of
-        // 206), restart cleanly so we don't append a second copy of the prefix.
+        // Si pedimos un rango pero el servidor lo ignoró (200 en vez de 206),
+        // reinicia limpiamente para no añadir una segunda copia del prefijo.
         const status = msg.get_status();
         if (resumeOffset > 0 && status !== Soup.Status.PARTIAL_CONTENT) {
             await streamCloseAsync(
@@ -450,15 +467,15 @@ export class ModelDownloader {
         }
 
         await streamCloseAsync(outStream, GLib.PRIORITY_DEFAULT, cancellable);
-        // Final progress emission so the UI shows 100%.
+        // Emisión final de progreso para que la interfaz muestre 100%.
         getModelStore().markProgress(entry.id, total, total);
     }
 }
 
 /**
- * Derive the total expected bytes from the response. For a 206 the
- * `Content-Range` carries `bytes start-end/total`; for a 200 we fall back to
- * the catalog size plus any resumed prefix.
+ * Deriva el total de bytes esperado a partir de la respuesta. Para un 206,
+ * `Content-Range` trae `bytes start-end/total`; para un 200 se recurre al
+ * tamaño del catálogo más cualquier prefijo reanudado.
  */
 function resolveTotal(
     msg: Soup.Message,
@@ -476,12 +493,13 @@ function resolveTotal(
 }
 
 /**
- * Pick the checksum algorithm from the catalog hash length.
+ * Elige el algoritmo de checksum según la longitud del hash del catálogo.
  *
- * HuggingFace exposes the file oid via its tree API: 40 hex chars means the
- * file lives in Xet storage and the oid is SHA-1; 64 hex chars means classic
- * Git-LFS with a SHA-256 oid. Computing the wrong algorithm guarantees a
- * mismatch, so the type is chosen per-file.
+ * HuggingFace expone el oid del archivo mediante su API de árbol: 40
+ * caracteres hex significa que el archivo vive en almacenamiento Xet y el
+ * oid es SHA-1; 64 caracteres hex significa Git-LFS clásico con un oid
+ * SHA-256. Calcular con el algoritmo equivocado garantiza una discrepancia,
+ * así que el tipo se elige por archivo.
  */
 function checksumTypeFor(hash: string): GLib.ChecksumType {
     return hash.length === 40
@@ -489,7 +507,7 @@ function checksumTypeFor(hash: string): GLib.ChecksumType {
         : GLib.ChecksumType.SHA256;
 }
 
-/** Compute the content hash of a whole file by streaming (low memory). */
+/** Calcula el hash de contenido de un archivo completo por streaming (bajo consumo de memoria). */
 async function hashOfFile(
     path: string,
     type: GLib.ChecksumType,
@@ -517,7 +535,7 @@ async function hashOfFile(
     return checksum.get_string();
 }
 
-/** Feed the first `offset` bytes of `path` into `checksum` (resume path). */
+/** Alimenta los primeros `offset` bytes de `path` a `checksum` (ruta de reanudación). */
 async function hashPrefix(
     checksum: GLib.Checksum,
     path: string,
@@ -547,11 +565,12 @@ async function hashPrefix(
     await streamCloseAsync(stream, GLib.PRIORITY_DEFAULT, null).catch(() => {});
 }
 
-/** Atomic rename via Gio.File.set_display_name, falling back to a sync move. */
+/** Renombrado atómico vía Gio.File.set_display_name, con reserva de mover de forma síncrona. */
 async function renameAtomic(from: string, to: string): Promise<void> {
     const fromFile = Gio.File.new_for_path(from);
-    // set_display_name is atomic on the same filesystem (the .part lives in
-    // the same dir as the destination), which is the common case here.
+    // set_display_name es atómico dentro del mismo sistema de archivos (el
+    // .part vive en el mismo directorio que el destino), que es el caso
+    // común aquí.
     try {
         await fileSetDisplayNameAsync(
             fromFile,
@@ -561,8 +580,9 @@ async function renameAtomic(from: string, to: string): Promise<void> {
         );
         return;
     } catch {
-        // Cross-filesystem fallback: Gio.File.move is synchronous and accepts
-        // a progress callback (null here). Rare path, so blocking is fine.
+        // Reserva entre sistemas de archivos: Gio.File.move es síncrono y
+        // acepta un callback de progreso (null aquí). Es una ruta poco
+        // frecuente, así que bloquear está bien.
         await safeDelete(to);
         fromFile.move(
             Gio.File.new_for_path(to),
@@ -573,7 +593,7 @@ async function renameAtomic(from: string, to: string): Promise<void> {
     }
 }
 
-/** Best-effort delete; never rejects. */
+/** Borrado en modo "mejor esfuerzo"; nunca rechaza la promesa. */
 async function safeDelete(path: string): Promise<void> {
     try {
         const file = Gio.File.new_for_path(path);
@@ -581,10 +601,11 @@ async function safeDelete(path: string): Promise<void> {
             await fileDeleteAsync(file, GLib.PRIORITY_DEFAULT, null);
         }
     } catch {
-        // ignore — partial cleanup is best-effort
+        // ignora — la limpieza parcial es solo mejor esfuerzo
     }
 }
 
+/** Indica si el error capturado corresponde a una cancelación del Cancellable. */
 function isErrorCancelled(e: unknown): boolean {
     if (e instanceof GLib.Error) {
         return e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED);
@@ -592,11 +613,12 @@ function isErrorCancelled(e: unknown): boolean {
     return false;
 }
 
+/** Extrae un mensaje legible de cualquier error capturado. */
 function errMessage(e: unknown): string {
     return e instanceof GLib.Error ? e.message : String(e);
 }
 
-/** Process-wide singleton (the Soup.Session is expensive to create). */
+/** Singleton a nivel de proceso (crear una Soup.Session es costoso). */
 let _downloader: ModelDownloader | null = null;
 export function getModelDownloader(): ModelDownloader {
     if (!_downloader) _downloader = new ModelDownloader();

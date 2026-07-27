@@ -1,105 +1,112 @@
 /* settings.ts
  *
- * Centralized GSettings keys and defaults for the Plane ASR extension.
- * Keeps magic strings in one place so the schema, extension and prefs stay
- * in sync.
+ * Claves y valores por defecto de GSettings, centralizados, para la
+ * extensión Plane ASR. Mantiene los strings "mágicos" en un solo lugar para
+ * que el esquema, la extensión y las preferencias no se desincronicen.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-/** Keys defined in schemas/org.gnome.shell.extensions.planeasr.gschema.xml. */
+/** Claves definidas en schemas/org.gnome.shell.extensions.planeasr.gschema.xml. */
 export const SETTINGS_KEYS = {
-    /** Id of the active ASR backend preset (string). */
+    /** Id del preset de backend ASR activo (string). */
     ASR_BACKEND: 'asr-backend',
-    /** How the CLI binary is resolved: 'cpu' (bundled/PATH) or 'gpu' (string). */
+    /** Cómo se resuelve el binario del CLI: 'cpu' (incluido/PATH) o 'gpu' (string). */
     CLI_MODE: 'cli-mode',
-    /** Absolute path to the transcription CLI binary (string). */
+    /** Ruta absoluta al binario del CLI de transcripción (string). */
     CLI_PATH: 'cli-path',
-    /** Extra CLI args: model path, language, etc. (string). */
+    /** Argumentos extra del CLI: ruta del modelo, idioma, etc. (string). */
     MODEL_PARAMS: 'model-params',
-    /** Whether to append --stream-chunk-ms 500 for realtime ASR (boolean). */
+    /** Si se debe añadir --stream-chunk-ms 500 para ASR en tiempo real (boolean). */
     REALTIME_MODE: 'realtime-mode',
-    /** Optional extra flags appended to every transcription command (string). */
+    /** Banderas extra opcionales añadidas a cada comando de transcripción (string). */
     EXTRA_CLI_FLAGS: 'extra-cli-flags',
 
-    /** Id of the active catalog model; '' means use the free-form model-params (string). */
+    /** Id del modelo de catálogo activo; '' significa usar el model-params libre (string). */
     ACTIVE_MODEL_ID: 'active-model-id',
-    /** Directory where downloaded models live; '' = ~/.cache/planeasr/models (string). */
+    /** Directorio donde viven los modelos descargados; '' = ~/.cache/planeasr/models (string). */
     MODEL_DIR: 'model-dir',
-    /** Preferred quantization when a model offers several (string, e.g. 'Q8_0'). */
+    /** Cuantización preferida cuando un modelo ofrece varias (string, ej. 'Q8_0'). */
     QUANT_PREFERENCE: 'quant-preference',
 
-    /** Compute accelerator: 'auto', 'cpu' or 'vulkan' (string). */
+    /** Acelerador de cómputo: 'auto', 'cpu' o 'vulkan' (string). */
     ACCELERATOR: 'accelerator',
-    /** GPU device index; -1 = auto (int). */
+    /** Índice del dispositivo GPU; -1 = auto (int). */
     GPU_DEVICE: 'gpu-device',
 
-    /** Spoken language: 'auto' or an ISO 639-1 code (string). */
+    /** Idioma hablado: 'auto' o un código ISO 639-1 (string). */
     SELECTED_LANGUAGE: 'selected-language',
-    /** Translate the transcription to English when supported (boolean). */
+    /** Traducir la transcripción al inglés cuando el modelo lo soporte (boolean). */
     TRANSLATE_TO_ENGLISH: 'translate-to-english',
-    /** CPU threads to use; 0 = auto / all cores (int). */
+    /** Hilos de CPU a usar; 0 = auto / todos los núcleos (int). */
     CPU_THREADS: 'cpu-threads',
-    /** Custom vocabulary / initial-prompt text (string). */
+    /** Vocabulario personalizado / texto de initial-prompt (string). */
     INITIAL_PROMPT: 'initial-prompt',
 
-    /** Whether to split long recordings into chunks before transcription (boolean). */
+    /** Si se deben dividir grabaciones largas en trozos antes de transcribir (boolean). */
     CHUNK_ENABLED: 'chunk-enabled',
-    /** Chunk length in seconds when `chunk-enabled` is true (int). */
+    /** Duración de cada trozo en segundos cuando `chunk-enabled` está activo (int). */
     CHUNK_SECONDS: 'chunk-seconds',
-    /** Seconds of audio re-transcribed between consecutive chunks (int, 0 = off). */
+    /** Segundos de audio re-transcritos entre trozos consecutivos (int, 0 = desactivado). */
     CHUNK_OVERLAP_SECONDS: 'chunk-overlap-seconds',
 
-    /** Where to send transcribed text: 'clipboard' or 'paste' (string). */
+    /** A dónde enviar el texto transcrito: 'clipboard' o 'paste' (string). */
     OUTPUT_MODE: 'output-mode',
 
     /**
-     * How many of the most recent recordings to keep under records/. Older
-     * WAVs are pruned after each run. 0 keeps none (delete right after
-     * transcription); keep a high value to disable pruning.
+     * Cuántas de las grabaciones más recientes conservar bajo records/. Los
+     * WAV más antiguos se podan después de cada ejecución. 0 no conserva
+     * ninguna (borra justo después de transcribir); un valor alto desactiva
+     * la poda.
      */
     KEEP_RECORDS: 'keep-records',
 
-    /** Last successful transcription text (string). */
+    /** Último texto transcrito con éxito (string). */
     LAST_TEXT: 'last-text',
 
-    /** Global keybinding that toggles recording (string array). */
+    /** Atajo de teclado global que alterna la grabación (arreglo de strings). */
     TOGGLE_RECORD_SHORTCUT: 'toggle-record-shortcut',
 
-    /** Whether to log ASR diagnostics to the system journal (boolean). */
+    /** Si se deben registrar diagnósticos de ASR en el journal del sistema (boolean). */
     DEBUG_LOGGING: 'debug-logging',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];
 
-/** Allowed values for the `output-mode` key. */
+/** Valores permitidos para la clave `output-mode`. */
 export type OutputMode = 'clipboard' | 'paste';
 
-/** Allowed values for the `accelerator` key. */
+/** Valores permitidos para la clave `accelerator`. */
 export type Accelerator = 'auto' | 'cpu' | 'vulkan';
 
 /**
- * Allowed values for the `cli-mode` key.
+ * Valores permitidos para la clave `cli-mode`.
  *
- * - `cpu`: use the CPU-only `transcribe-cli` bundled with the extension
- *   (x86_64), falling back to one found on PATH.
- * - `gpu`: use the absolute path the user set in `cli-path` (e.g. a
- *   personally compiled Vulkan/CUDA build). Selecting this in the UI also
- *   forces the Vulkan accelerator.
+ * - `cpu`: usa el `transcribe-cli` solo-CPU incluido con la extensión
+ *   (x86_64), recurriendo a uno encontrado en el PATH si falta.
+ * - `gpu`: usa la ruta absoluta que el usuario definió en `cli-path` (por
+ *   ejemplo, una compilación propia con Vulkan/CUDA). Elegir esta opción en
+ *   la interfaz también fuerza el acelerador Vulkan.
  *
- * Legacy values `auto` and `manual` are migrated to `cpu` and `gpu`
- * respectively by {@link normalizeCliMode}.
+ * Los valores heredados `auto` y `manual` se migran a `cpu` y `gpu`
+ * respectivamente mediante {@link normalizeCliMode}.
  */
 export type CliMode = 'cpu' | 'gpu';
 
 /**
- * Normalize a raw `cli-mode` GSetting value to the current enum, migrating
- * the legacy `auto`/`manual` choices. Anything unrecognized defaults to `cpu`.
+ * Normaliza un valor crudo del GSetting `cli-mode` al enum actual, migrando
+ * las opciones heredadas `auto`/`manual`.
+ *
+ * Para qué: mantener compatibilidad con configuraciones guardadas por
+ * versiones anteriores de la extensión sin tener que migrar el esquema.
+ *
+ * Qué hace: mapea `gpu`/`manual` a `'gpu'`; cualquier otro valor,
+ * reconocido o no, cae en `'cpu'` por defecto.
  */
 export function normalizeCliMode(value: string | undefined | null): CliMode {
     if (value === 'gpu' || value === 'manual') return 'gpu';
     return 'cpu';
 }
 
-/** Allowed values for the `quant-preference` key. */
+/** Valores permitidos para la clave `quant-preference`. */
 export type Quant = 'Q4_K_M' | 'Q5_K_M' | 'Q6_K' | 'Q8_0' | 'F16' | 'F32';

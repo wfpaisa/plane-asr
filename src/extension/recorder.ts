@@ -1,9 +1,10 @@
 /* recorder.ts
  *
- * WAV recorder built on top of PipeWire (`pw-record`) or PulseAudio
- * (`parecord`), whichever is on PATH. Both are launched with the exact format
- * the ASR CLIs expect (16 kHz, mono, signed 16-bit little-endian), so no
- * `ffmpeg` conversion step is needed.
+ * Grabador de WAV construido sobre PipeWire (`pw-record`) o PulseAudio
+ * (`parecord`), lo que esté disponible en el PATH. Ambos se lanzan con el
+ * formato exacto que esperan los CLI de ASR (16 kHz, mono, entero de 16
+ * bits con signo, little-endian), así que no hace falta ningún paso de
+ * conversión con `ffmpeg`.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -13,27 +14,30 @@ import GLib from 'gi://GLib';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-/** SIGINT, used to ask pw-record/parecord to close the WAV cleanly. */
+/** SIGINT, usado para pedirle a pw-record/parecord que cierre el WAV limpiamente. */
 const SIGINT = 2;
 
 /**
- * Capture audio to a WAV file using the first available backend.
+ * Captura audio a un archivo WAV usando el primer backend disponible.
  *
- * The recorder owns a single `Gio.Subprocess` at a time; `start()` throws if
- * called while already recording, and `stop()` resolves once the underlying
- * process has terminated.
+ * El grabador posee un único `Gio.Subprocess` a la vez; `start()` lanza una
+ * excepción si se llama mientras ya está grabando, y `stop()` resuelve la
+ * promesa una vez que el proceso subyacente ha terminado.
  */
 export class Recorder {
     private _proc: Gio.Subprocess | null = null;
 
-    /** True while a capture process is running. */
+    /** Verdadero mientras un proceso de captura está en ejecución. */
     isRecording(): boolean {
         return this._proc !== null;
     }
 
     /**
-     * Start capturing to `outputPath`. Throws if no backend is available or if
-     * a recording is already in progress.
+     * Empieza a capturar hacia `outputPath`.
+     *
+     * Qué hace: construye el comando del backend disponible y lo lanza como
+     * subproceso. Lanza una excepción si no hay ningún backend disponible o
+     * si ya hay una grabación en curso.
      */
     start(outputPath: string): void {
         if (this._proc) {
@@ -50,31 +54,33 @@ export class Recorder {
     }
 
     /**
-     * Stop the current recording and resolve once the WAV has been finalized.
-     * Safe to call when idle (resolves immediately).
+     * Detiene la grabación actual y resuelve la promesa una vez que el WAV
+     * se ha finalizado. Seguro de llamar en reposo (resuelve de inmediato).
      */
     stop(): Promise<void> {
         const proc = this._proc;
         this._proc = null;
         if (!proc) return Promise.resolve();
 
-        // SIGINT lets pw-record/parecord flush and close the WAV header.
+        // SIGINT permite que pw-record/parecord vuelquen el buffer y cierren
+        // el encabezado del WAV.
         try {
             proc.send_signal(SIGINT);
         } catch {
-            // If signaling fails we still want to await termination.
+            // Si la señal falla, igual queremos esperar la terminación.
         }
 
         return new Promise(resolve => {
             proc.wait_async(null, (_self, res) => {
                 try {
-                    // We deliberately SIGINT the recorder to finalize the WAV,
-                    // so a non-zero exit (or death by our own signal) is the
-                    // expected outcome — `wait_finish` only reaps the process
-                    // without validating its status, unlike `wait_check_*`.
+                    // Enviamos SIGINT al grabador deliberadamente para
+                    // finalizar el WAV, así que una salida distinta de cero
+                    // (o la muerte por nuestra propia señal) es el resultado
+                    // esperado — `wait_finish` solo recoge el proceso sin
+                    // validar su estado, a diferencia de `wait_check_*`.
                     proc.wait_finish(res);
                 } catch (e) {
-                    // Only genuine wait failures (e.g. cancellation) land here.
+                    // Aquí solo llegan fallos genuinos de espera (ej. cancelación).
                     logError(e as object);
                 }
                 resolve();
@@ -82,7 +88,7 @@ export class Recorder {
         });
     }
 
-    /** Build the backend-specific argv for the given output path. */
+    /** Construye el argv específico del backend para la ruta de salida dada. */
     private _buildArgv(outputPath: string): string[] {
         if (GLib.find_program_in_path('pw-record')) {
             return [

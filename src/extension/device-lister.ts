@@ -1,10 +1,11 @@
 /* device-lister.ts
  *
- * Lists the compute devices a transcription CLI exposes via its
- * `--list-devices` flag. The indices reported here are the *same* ones
- * `--device N` (transcribe-cli) interprets, so the prefs dropdown can present
- * the user with the exact device a selection maps to — including CUDA builds
- * where the CLI's internal registry order differs from `vulkaninfo`.
+ * Lista los dispositivos de cómputo que expone un CLI de transcripción
+ * mediante su bandera `--list-devices`. Los índices reportados aquí son
+ * *los mismos* que interpreta `--device N` (transcribe-cli), así que el
+ * desplegable de preferencias puede mostrarle al usuario exactamente a qué
+ * dispositivo corresponde una selección — incluidas las compilaciones CUDA
+ * donde el orden interno del registro del CLI difiere del de `vulkaninfo`.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -16,9 +17,12 @@ import {parseListDevices, type DeviceInfo} from '../util/device-parse.js';
 export {parseListDevices, type DeviceInfo};
 
 /**
- * Run `<cliPath> --list-devices` and return the parsed devices. Returns an
- * empty array when the binary is missing, exits non-zero, or prints nothing
- * usable — callers fall back to a single "Auto" entry.
+ * Ejecuta `<cliPath> --list-devices` y devuelve los dispositivos parseados.
+ *
+ * Qué hace: lanza el subproceso, captura su stdout y lo pasa por
+ * {@link parseListDevices}. Devuelve un arreglo vacío cuando el binario
+ * falta, sale con código distinto de cero, o no imprime nada usable —
+ * quien llama recurre entonces a una única entrada "Auto".
  */
 export async function listDevices(cliPath: string): Promise<DeviceInfo[]> {
     if (!cliPath) return [];
@@ -28,8 +32,8 @@ export async function listDevices(cliPath: string): Promise<DeviceInfo[]> {
 }
 
 /**
- * Run `argv` and capture stdout as a string. Returns null when the binary is
- * missing or exits non-zero.
+ * Ejecuta `argv` y captura su stdout como string. Devuelve null cuando el
+ * binario falta o sale con código distinto de cero.
  */
 async function runCapture(argv: string[]): Promise<string | null> {
     try {
