@@ -91,11 +91,6 @@ export function loadModelCatalog(extensionDir: string | null): ModelEntry[] {
     return _cache;
 }
 
-/** Forget the cached catalog (used by tests / forced refresh). */
-export function resetCatalogCache(): void {
-    _cache = null;
-}
-
 /** Find a catalog entry by id, or null. */
 export function findModel(
     extensionDir: string | null,

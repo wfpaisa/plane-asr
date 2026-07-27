@@ -31,7 +31,6 @@ import {
     type BuildArgvOptions,
 } from './asr-backends.js';
 import {resolveAutoCli} from './cli-resolver.js';
-import type {GpuDetector} from './gpu-detector.js';
 
 /** Resolved by `Transcriber.transcribe` when the process exits. */
 export interface TranscribeResult {
@@ -115,8 +114,6 @@ function extractExtraFlags(params: string): string {
 export interface TranscriberOptions {
     /** Absolute path to the installed extension root (for catalog lookups). */
     extensionDir: string | null;
-    /** Vulkan GPU detector used to resolve the 'auto' accelerator. */
-    gpuDetector: GpuDetector | null;
 }
 
 /**
@@ -135,11 +132,6 @@ export class Transcriber {
     constructor(settings: Gio.Settings, opts: TranscriberOptions) {
         this._settings = settings;
         this._opts = opts;
-    }
-
-    /** True while a transcription subprocess is running. */
-    isRunning(): boolean {
-        return this._proc !== null;
     }
 
     /**
@@ -327,7 +319,7 @@ export class Transcriber {
         );
         const threads = this._settings.get_int(SETTINGS_KEYS.CPU_THREADS);
 
-        const gpuDevice = await this._resolveGpuDevice();
+        const gpuDevice = this._resolveGpuDevice();
         return {
             accelerator,
             gpuDevice,
@@ -344,14 +336,14 @@ export class Transcriber {
     /**
      * Resolve the GPU device index for the active run.
      *
-     * The preferences dropdown now lists the real devices the CLI exposes via
+     * The preferences dropdown lists the real devices the CLI exposes via
      * `--list-devices`, so the stored `gpu-device` value already matches the
      * CLI's own registry. -1 means "no device flag" (let the CLI pick device
-     * 0); any value >= 0 is forwarded as `--device N`. The previous Vulkan
-     * auto-detection path is intentionally dropped: it used `vulkaninfo`
-     * indices that do not match the CLI registry on CUDA builds.
+     * 0); any value >= 0 is forwarded as `--device N`. There is intentionally no
+     * `vulkaninfo` auto-detection: its indices do not match the CLI registry on
+     * CUDA builds.
      */
-    private async _resolveGpuDevice(): Promise<number> {
+    private _resolveGpuDevice(): number {
         return this._settings.get_int(SETTINGS_KEYS.GPU_DEVICE);
     }
 }

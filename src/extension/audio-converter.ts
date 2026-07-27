@@ -94,11 +94,6 @@ function buildArgv(bin: string, srcPath: string, destPath: string): string[] {
 export class AudioConverter {
     private _proc: Gio.Subprocess | null = null;
 
-    /** True while a conversion subprocess is running. */
-    isRunning(): boolean {
-        return this._proc !== null;
-    }
-
     /**
      * Convert `srcPath` to a 16 kHz mono s16le WAV at `destPath`. Resolves on
      * success; rejects with {@link NoConverterError} when no backend is on PATH

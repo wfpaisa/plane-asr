@@ -1,11 +1,10 @@
 /* device-lister.ts
  *
  * Lists the compute devices a transcription CLI exposes via its
- * `--list-devices` flag. Unlike the Vulkan-based `GpuDetector`, the indices
- * reported here are the *same* ones `--device N` (transcribe-cli) interprets,
- * so the prefs dropdown can present the user with the exact device a selection
- * maps to — including CUDA builds where the CLI's internal registry order
- * differs from `vulkaninfo`.
+ * `--list-devices` flag. The indices reported here are the *same* ones
+ * `--device N` (transcribe-cli) interprets, so the prefs dropdown can present
+ * the user with the exact device a selection maps to — including CUDA builds
+ * where the CLI's internal registry order differs from `vulkaninfo`.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -99,7 +98,7 @@ export async function listDevices(cliPath: string): Promise<DeviceInfo[]> {
 
 /**
  * Run `argv` and capture stdout as a string. Returns null when the binary is
- * missing or exits non-zero. Mirrors the capture helper in `gpu-detector.ts`.
+ * missing or exits non-zero.
  */
 async function runCapture(argv: string[]): Promise<string | null> {
     try {

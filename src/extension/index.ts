@@ -27,14 +27,12 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {SETTINGS_KEYS} from '../config/settings.js';
 import {AsrService} from './asr-service.js';
-import {GpuDetector} from './gpu-detector.js';
 import {Indicator} from './indicator.js';
 
 export default class PlaneAsrExtension extends Extension {
     _indicator?: InstanceType<typeof Indicator>;
     _settings?: Gio.Settings;
     _service?: AsrService;
-    _gpuDetector?: GpuDetector;
 
     constructor(metadata: ConstructorParameters<typeof Extension>[0]) {
         super(metadata);
@@ -51,11 +49,10 @@ export default class PlaneAsrExtension extends Extension {
         this._indicator = new Indicator();
         this._indicator.extension = this;
 
-        this._gpuDetector = new GpuDetector();
         this._service = new AsrService(
             this._settings,
             (state, ctx) => this._indicator?.onStateChanged(state, ctx),
-            {extensionDir: this.path, gpuDetector: this._gpuDetector}
+            {extensionDir: this.path}
         );
         this._indicator.service = this._service;
         this._indicator.bind(this._settings);
@@ -83,7 +80,6 @@ export default class PlaneAsrExtension extends Extension {
 
         this._indicator?.destroy();
         this._indicator = undefined;
-        this._gpuDetector = undefined;
         this._settings = undefined;
     }
 }

@@ -399,12 +399,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         perfGroup.add(accelRow);
         widenComboRow(accelRow);
 
-        const autoDetectRow = new Adw.SwitchRow({
-            title: _('Auto-detect GPU'),
-            subtitle: _('Probe for a Vulkan GPU when accelerator is Auto'),
-        });
-        perfGroup.add(autoDetectRow);
-
         // GPU device dropdown: populated from the configured CLI's
         // `--list-devices` output, so the index a selection maps to matches
         // what `--device N` actually interprets (vital for CUDA builds, whose
@@ -691,14 +685,12 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             //    leave the accelerator on 'auto' so transcribe-cli picks the
             //    first available GPU regardless of vendor.
             //  - CPU mode uses the bundled/PATH CPU-only binary, which has no
-            //    GPU support, so force CPU and disable GPU probing (otherwise a
-            //    stale accelerator makes the CLI fail).
+            //    GPU support, so force CPU (otherwise a stale accelerator makes
+            //    the CLI fail).
             if (modeId === 'gpu') {
                 settings.set_string(SETTINGS_KEYS.ACCELERATOR, 'auto');
-                settings.set_boolean(SETTINGS_KEYS.AUTO_DETECT_GPU, true);
             } else {
                 settings.set_string(SETTINGS_KEYS.ACCELERATOR, 'cpu');
-                settings.set_boolean(SETTINGS_KEYS.AUTO_DETECT_GPU, false);
             }
         });
         settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncCliMode);
@@ -773,12 +765,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         // CPU mode locks the accelerator to 'cpu' and disables the combo.
         settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncAccel);
 
-        settings.bind(
-            SETTINGS_KEYS.AUTO_DETECT_GPU,
-            autoDetectRow,
-            'active',
-            Gio.SettingsBindFlags.DEFAULT
-        );
         settings.bind(
             SETTINGS_KEYS.CPU_THREADS,
             threadsRow,

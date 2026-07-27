@@ -33,8 +33,6 @@ export const SETTINGS_KEYS = {
     ACCELERATOR: 'accelerator',
     /** GPU device index; -1 = auto (int). */
     GPU_DEVICE: 'gpu-device',
-    /** Whether to auto-detect a Vulkan GPU at runtime (boolean). */
-    AUTO_DETECT_GPU: 'auto-detect-gpu',
 
     /** Spoken language: 'auto' or an ISO 639-1 code (string). */
     SELECTED_LANGUAGE: 'selected-language',

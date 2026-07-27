@@ -70,11 +70,6 @@
       <summary>GPU device index</summary>
       <description>Index of the GPU device to use. -1 means auto-detect.</description>
     </key>
-    <key name="auto-detect-gpu" type="b">
-      <default>true</default>
-      <summary>Auto-detect GPU</summary>
-      <description>Probe for a Vulkan GPU at runtime and use it when 'accelerator' is 'auto'.</description>
-    </key>
 
     <!-- ASR parameters -->
     <key name="selected-language" type="s">
