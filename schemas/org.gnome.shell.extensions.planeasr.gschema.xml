@@ -29,7 +29,7 @@
     <key name="realtime-mode" type="b">
       <default>false</default>
       <summary>Realtime mode</summary>
-      <description>Transcribe live while recording, streaming each chunk as it is ready. With paste output the text is typed at the cursor as you speak; with clipboard output the full text is copied once at the end. Language is forced to auto-detection in this mode (streaming models advertise BCP-47 language codes that the short ISO codes from the picker do not match). Turning this on absorbs and forces the 'chunk-enabled' live chunking.</description>
+      <description>When recording stops, the whole take is processed in a single pass driven by the CLI streaming API (--stream-chunk-ms), and the transcript is delivered progressively as the model produces it. With paste output the text is typed at the cursor sequentially; with clipboard output the full text is copied once when processing finishes. Language is forced to auto-detection in this mode (streaming models advertise BCP-47 language codes that the short ISO codes from the picker do not match). Enabling this disables the Long recordings / live chunking options.</description>
     </key>
     <key name="extra-cli-flags" type="s">
       <default>''</default>

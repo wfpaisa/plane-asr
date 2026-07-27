@@ -31,6 +31,13 @@ export interface BuildArgvOptions {
     /** Ruta del archivo WAV a transcribir. */
     audioPath: string;
     /**
+     * Si se define (> 0), añade `--stream-chunk-ms N` para conducir la API
+     * de streaming del CLI sobre el archivo completo, emitiendo parciales
+     * incrementales por stdout. Lo usa el modo en tiempo real para pegar la
+     * transcripción a medida que la librería la va produciendo.
+     */
+    streamChunkMs?: number;
+    /**
      * Features semánticas opcionales (acelerador, idioma, ...). Si se
      * omiten, el preset se comporta exactamente como antes y solo emite
      * parámetros del modelo + audio.
@@ -121,6 +128,9 @@ export const ASR_BACKENDS: AsrBackend[] = [
             opts.cliPath,
             ...transcribeCliFeatureArgs(opts.features),
             ...parseArgs(opts.modelParams),
+            ...(opts.streamChunkMs && opts.streamChunkMs > 0
+                ? ['--stream-chunk-ms', String(opts.streamChunkMs)]
+                : []),
             ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],

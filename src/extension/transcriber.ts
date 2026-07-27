@@ -13,6 +13,7 @@
  */
 
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 
 import {
     SETTINGS_KEYS,
@@ -172,6 +173,224 @@ export class Transcriber {
         this._proc?.force_exit();
     }
 
+    /**
+     * Transcribe `audioPath` en una sola pasada usando la API de streaming
+     * del CLI (`--stream-chunk-ms`), entregando el texto de forma progresiva
+     * a medida que la librería lo va emitiendo.
+     *
+     * Qué hace: lanza el CLI con salida forzada a line-buffering (`stdbuf
+     * -oL`, cuando está disponible) para que sus líneas `partial="..."`
+     * lleguen una a una en vez de bufferizarse hasta el final. Un lector
+     * consume stdout continuamente y guarda el último acumulado; un
+     * "surtidor" paralelo llama a `onCommit` con solo el fragmento nuevo
+     * (los parciales del CLI son append puro), fusionando los intermedios
+     * para que un pegado lento no se atrase con cada parcial. Resuelve con
+     * el texto final (línea `text:`) una vez que el proceso termina.
+     *
+     * El `Gio.Subprocess` activo se registra para que `forceExit()` pueda
+     * cancelarlo; la cancelación resuelve con `cancelled: true`.
+     */
+    async transcribeStreaming(
+        audioPath: string,
+        streamChunkMs: number,
+        onCommit: (delta: string) => Promise<void>
+    ): Promise<TranscribeResult> {
+        if (this._proc) {
+            throw new Error('Transcription already running');
+        }
+
+        const opts = await this._buildArgvOptions(audioPath, streamChunkMs);
+        const backendArgv = getBackend(
+            this._settings.get_string('asr-backend') ?? 'transcribe-cli'
+        ).buildArgv(opts);
+
+        if (!backendArgv[0]) {
+            throw new Error('No CLI binary configured');
+        }
+
+        // `stdbuf -oL` fuerza line-buffering en el stdout del CLI para que sus
+        // parciales lleguen a medida que se producen; sin él, stdio bufferiza
+        // por bloques hacia un pipe y todo el texto llegaría de golpe al
+        // final (el pegado dejaría de ser progresivo). Si no está en el PATH,
+        // se sigue sin él y el pegado simplemente ocurre al terminar.
+        const argv = GLib.find_program_in_path('stdbuf')
+            ? ['stdbuf', '-oL', ...backendArgv]
+            : backendArgv;
+
+        this._wasForced = false;
+        const proc = new Gio.Subprocess({
+            argv,
+            flags:
+                Gio.SubprocessFlags.STDOUT_PIPE |
+                Gio.SubprocessFlags.STDERR_PIPE,
+        });
+        proc.init(null);
+        this._proc = proc;
+
+        const stdout = new Gio.DataInputStream({
+            base_stream: proc.get_stdout_pipe()!,
+        });
+
+        // stderr se drena en paralelo desde ya: transcribe-cli vuelca sus
+        // logs `[info]` (carga del modelo, dispositivos) por stderr y, si no
+        // se consume durante la ejecución, el buffer del pipe (~64 KB) puede
+        // llenarse y bloquear al hijo mientras nosotros seguimos leyendo
+        // stdout — un deadlock. El texto acumulado solo se usa como detalle
+        // de error si el proceso falla.
+        const stderrPromise = this._drainUtf8(proc.get_stderr_pipe());
+
+        // Estado compartido entre el lector y el surtidor.
+        let latest = ''; // último texto acumulado visto en un parcial
+        let finalText = ''; // línea `text:` autoritativa ('' = aún no vista)
+        let readerDone = false;
+
+        const partialRe = /partial="(.*)"/;
+        const textRe = /^text:[ \t]*(.*)$/;
+
+        // Lector: drena stdout tan rápido como llega, actualizando `latest`.
+        const reader = (async () => {
+            for (;;) {
+                let line: string | null;
+                try {
+                    line = await this._readLine(stdout);
+                } catch {
+                    break;
+                }
+                if (line === null) break; // EOF
+                const pm = line.match(partialRe);
+                if (pm) {
+                    latest = pm[1];
+                    continue;
+                }
+                const tm = line.match(textRe);
+                if (tm) finalText = tm[1].trim();
+            }
+            readerDone = true;
+        })();
+
+        // Surtidor: emite el delta acumulado (fusionando intermedios). Como
+        // los parciales del CLI son append puro, `latest` siempre extiende lo
+        // ya emitido; el guard de prefijo evita retroceder ante un
+        // improbable reajuste.
+        let committed = '';
+        while (
+            !this._wasForced &&
+            (!readerDone || latest.length > committed.length)
+        ) {
+            if (latest.length > committed.length && latest.startsWith(committed)) {
+                const delta = latest.slice(committed.length);
+                committed = latest;
+                await onCommit(delta);
+            } else if (!readerDone) {
+                await this._sleep(50);
+            } else {
+                break;
+            }
+        }
+        await reader;
+
+        // Sufijo final: la línea `text:` puede añadir puntuación/mayúsculas
+        // que el último parcial aún no tenía (p. ej. el punto final). Se pega
+        // lo que falte para converger con el texto autoritativo.
+        if (
+            !this._wasForced &&
+            finalText &&
+            finalText.startsWith(committed) &&
+            finalText.length > committed.length
+        ) {
+            await onCommit(finalText.slice(committed.length));
+            committed = finalText;
+        }
+
+        // Espera la terminación del proceso y valida el estado de salida.
+        await this._waitAsync(proc);
+        this._proc = null;
+
+        if (this._wasForced) {
+            return {text: '', cancelled: true};
+        }
+        if (!proc.get_successful()) {
+            const detail = (await stderrPromise).trim();
+            if (this._settings.get_boolean(SETTINGS_KEYS.DEBUG_LOGGING)) {
+                console.warn(
+                    `[planeasr] streaming argv=${JSON.stringify(argv)} ` +
+                        `exit=${proc.get_exit_status()} stderr=${JSON.stringify(detail)}`
+                );
+            }
+            throw new Error(
+                detail ||
+                    `Child process exited with code ${proc.get_exit_status()}`
+            );
+        }
+        return {text: (finalText || latest).trim(), cancelled: false};
+    }
+
+    /** Promesa de una línea de stdout (null en EOF). */
+    private _readLine(stream: Gio.DataInputStream): Promise<string | null> {
+        return new Promise((resolve, reject) => {
+            stream.read_line_async(
+                GLib.PRIORITY_DEFAULT,
+                null,
+                (s, res) => {
+                    try {
+                        const [line] = s!.read_line_finish_utf8(res);
+                        resolve(line);
+                    } catch (e) {
+                        reject(e as object);
+                    }
+                }
+            );
+        });
+    }
+
+    /** Espera (sin validar el estado) a que el subproceso termine. */
+    private _waitAsync(proc: Gio.Subprocess): Promise<void> {
+        return new Promise(resolve => {
+            proc.wait_async(null, (_self, res) => {
+                try {
+                    proc.wait_finish(res);
+                } catch {
+                    // La cancelación por force_exit() cae aquí; no es un fallo.
+                }
+                resolve();
+            });
+        });
+    }
+
+    /** Lee por completo un flujo de entrada como texto UTF-8. */
+    private _drainUtf8(stream: Gio.InputStream | null): Promise<string> {
+        if (!stream) return Promise.resolve('');
+        return new Promise(resolve => {
+            const mem = Gio.MemoryOutputStream.new_resizable();
+            mem.splice_async(
+                stream,
+                Gio.OutputStreamSpliceFlags.CLOSE_SOURCE |
+                    Gio.OutputStreamSpliceFlags.CLOSE_TARGET,
+                GLib.PRIORITY_DEFAULT,
+                null,
+                (m, res) => {
+                    try {
+                        m!.splice_finish(res);
+                        const bytes = mem.steal_as_bytes();
+                        resolve(new TextDecoder().decode(bytes.toArray()));
+                    } catch {
+                        resolve('');
+                    }
+                }
+            );
+        });
+    }
+
+    /** Promesa que resuelve tras `ms` mediante un timeout del bucle de GLib. */
+    private _sleep(ms: number): Promise<void> {
+        return new Promise(resolve => {
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+                resolve();
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+    }
+
     // -- ensamblado del argv ------------------------------------------------
 
     /**
@@ -180,7 +399,8 @@ export class Transcriber {
      * el conjunto de features semánticas y resuelve el acelerador/dispositivo.
      */
     private async _buildArgvOptions(
-        audioPath: string
+        audioPath: string,
+        streamChunkMs?: number
     ): Promise<BuildArgvOptions> {
         const modelParams = await this._resolveModelParams();
         const features = await this._resolveFeatures();
@@ -192,6 +412,7 @@ export class Transcriber {
             modelParams,
             extraFlags,
             audioPath,
+            streamChunkMs,
             features,
         };
     }

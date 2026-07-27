@@ -295,10 +295,12 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         asrGroup.add(extraFlagsRow.row);
         const realtimeRow = new Adw.SwitchRow({
             title: _('Realtime mode'),
-            subtitle: _('Transcribe live while you speak. With paste output the ' +
-                'text is typed at the cursor as you talk; with clipboard ' +
-                'output the full text is copied once at the end. Language ' +
-                'is auto-detected in this mode.'),
+            subtitle: _('When recording stops, the whole take is processed in one ' +
+                'streaming pass. With paste output the text is typed at ' +
+                'the cursor sequentially as the model produces it; with ' +
+                'clipboard output the full text is copied once when done. ' +
+                'Language is auto-detected in this mode, and it disables ' +
+                'the Long recordings options below.'),
         });
         asrGroup.add(realtimeRow);
         const validateButton = new Gtk.Button({
@@ -693,19 +695,14 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         const syncChunkSensitivity = () => {
             const realtime = settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
             const chunk = settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
-            // El modo en tiempo real absorbe el troceo en vivo y lo fuerza,
-            // así que el interruptor manual queda deshabilitado (en gris)
-            // mientras esté activo; su subtítulo lo aclara.
-            chunkEnabledRow.sensitive = !realtime;
-            chunkEnabledRow.subtitle = realtime
-                ? _('Always on while Realtime mode is enabled')
-                : _('Process each N-second chunk as you speak');
-            // La duración y el solapamiento del trozo los usa la ruta en vivo
-            // tanto si la activa el modo en tiempo real como el interruptor
-            // manual, por eso siguen al estado efectivo de ambos.
-            const streaming = realtime || chunk;
-            chunkSecondsRow.sensitive = streaming;
-            chunkOverlapRow.sensitive = streaming;
+            // El modo en tiempo real procesa la grabación completa al detener
+            // (no trocea en vivo), así que el grupo "Long recordings" entero
+            // queda deshabilitado (en gris) mientras esté activo.
+            chunkGroup.sensitive = !realtime;
+            // Dentro del grupo, la duración y el solapamiento solo aplican
+            // cuando el troceo en vivo está encendido.
+            chunkSecondsRow.sensitive = chunk;
+            chunkOverlapRow.sensitive = chunk;
         };
         syncChunkSensitivity();
         settings.connect(`changed::${SETTINGS_KEYS.CHUNK_ENABLED}`, syncChunkSensitivity);

@@ -43,6 +43,9 @@ export const ASR_BACKENDS = [
             opts.cliPath,
             ...transcribeCliFeatureArgs(opts.features),
             ...parseArgs(opts.modelParams),
+            ...(opts.streamChunkMs && opts.streamChunkMs > 0
+                ? ['--stream-chunk-ms', String(opts.streamChunkMs)]
+                : []),
             ...parseArgs(opts.extraFlags),
             opts.audioPath,
         ],

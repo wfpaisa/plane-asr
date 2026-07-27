@@ -22,6 +22,13 @@ import { SAMPLE_RATE, cleanupChunks, getWavDataOffset, wavAvailableSamples, writ
 import { AudioConverter, NoConverterError } from './audio-converter.js';
 import { copyToClipboard, pasteAtCursor } from '../util/paste.js';
 import { dedupChunkJoin, finalizeTranscript, stripPlaceholders, } from '../util/text-merge.js';
+/**
+ * Tamaño de trozo (ms) con el que el modo en tiempo real conduce el
+ * streaming del CLI (`--stream-chunk-ms`). Valores pequeños producen
+ * parciales más frecuentes (pegado más granular) a mayor coste por parcial;
+ * 500 ms da actualizaciones a nivel de palabra sin recargar el modelo.
+ */
+const REALTIME_STREAM_CHUNK_MS = 500;
 /** Estados generales del ciclo de vida, expuestos a la interfaz. */
 export var AsrState;
 (function (AsrState) {
@@ -180,13 +187,13 @@ export class AsrService {
             this._setState(AsrState.Idle, { error: this._errMsg(e) });
             return;
         }
-        // Lanza la transcripción en vivo: mientras el grabador sigue
-        // añadiendo al WAV, un worker en segundo plano recorta trozos de N
-        // segundos ya listos de la cola y transmite cada uno hacia afuera
-        // (pegado o copiado) para que las primeras palabras lleguen mientras
-        // el usuario sigue hablando. Con el troceo desactivado, se recurre a
-        // una sola pasada del archivo completo al detener.
-        if (this._streamingEnabled()) {
+        // Lanza el troceo en vivo: mientras el grabador sigue añadiendo al
+        // WAV, un worker en segundo plano recorta trozos de N segundos ya
+        // listos de la cola y transmite cada uno hacia afuera (pegado o
+        // copiado) para que las primeras palabras lleguen mientras el usuario
+        // sigue hablando. El modo en tiempo real NO entra aquí: procesa la
+        // grabación completa al detener (ver _stopAndTranscribe).
+        if (this._liveChunkingEnabled()) {
             const session = {
                 ended: false,
                 cancelled: false,
@@ -256,6 +263,16 @@ export class AsrService {
             this._setState(AsrState.Idle, { text: full });
             return;
         }
+        // Modo en tiempo real + pegado: procesa la grabación completa en una
+        // sola pasada usando el streaming del CLI y va pegando el texto en el
+        // cursor a medida que la librería lo emite. Con salida al portapapeles
+        // no hay pegado progresivo: cae a la pasada offline de abajo, que al
+        // terminar copia el texto completo de una vez.
+        if (this._settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE) &&
+            isPaste) {
+            await this._transcribeStreamingProgressive(audioPath);
+            return;
+        }
         // Ruta sin streaming: transcribe la grabación completa en una sola pasada.
         await this._transcribeWhole(audioPath, isPaste);
     }
@@ -267,6 +284,48 @@ export class AsrService {
      */
     async _transcribeWhole(audioPath, isPaste) {
         await this._runTranscription(audioPath, isPaste, true);
+    }
+    /**
+     * Ruta del modo en tiempo real con pegado: procesa la grabación completa
+     * al detener, en una sola pasada, usando el streaming del CLI, y va
+     * pegando el texto en el cursor a medida que la librería lo produce.
+     *
+     * A diferencia del troceo en vivo, aquí el modelo se carga una sola vez
+     * y el CLI emite parciales incrementales (append puro) que se pegan
+     * secuencialmente. El total final se deja también en el portapapeles,
+     * como en el resto de rutas.
+     */
+    async _transcribeStreamingProgressive(audioPath) {
+        this._setState(AsrState.Transcribing);
+        // Se lleva la cuenta de si ya se pegó algo para que el primer
+        // fragmento arranque en minúscula (continúa donde esté el cursor, no
+        // es una frase nueva), igual que la ruta de troceo en vivo.
+        let firstDelta = true;
+        try {
+            const result = await this._transcriber.transcribeStreaming(audioPath, REALTIME_STREAM_CHUNK_MS, async (delta) => {
+                const piece = firstDelta && delta
+                    ? delta[0].toLowerCase() + delta.slice(1)
+                    : delta;
+                firstDelta = false;
+                await pasteAtCursor(piece);
+            });
+            if (result.cancelled) {
+                this._setState(AsrState.Idle);
+                return;
+            }
+            const full = result.text.trim();
+            this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
+            // El total completo siempre queda en el portapapeles para que
+            // "Copiar texto" tenga la transcripción entera, incluso en pegado.
+            if (full)
+                copyToClipboard(full);
+            this._pruneRecordings();
+            notify(this._extensionDir, _('Plane ASR: transcription pasted'));
+            this._setState(AsrState.Idle, { text: full });
+        }
+        catch (e) {
+            this._setState(AsrState.Idle, { error: this._errMsg(e) });
+        }
     }
     /**
      * Núcleo de transcripción compartido tanto por la ruta de grabación
@@ -385,14 +444,6 @@ export class AsrService {
     async _runStream(audioPath, session) {
         const isPaste = (this._settings.get_string('output-mode') ?? 'clipboard') ===
             'paste';
-        // En modo tiempo real con salida al portapapeles el usuario quiere el
-        // texto completo una sola vez al terminar, no un portapapeles que
-        // cambia con cada trozo. El total final lo publica
-        // `_stopAndTranscribe`; aquí solo se suprime la copia progresiva. La
-        // ruta de "Live chunked transcription" sin tiempo real conserva el
-        // portapapeles progresivo de siempre.
-        const realtime = this._settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
-        const progressiveClipboard = !realtime;
         const chunkSamples = Math.max(1, Math.floor(this._settings.get_int(SETTINGS_KEYS.CHUNK_SECONDS) *
             SAMPLE_RATE));
         const overlapSeconds = Math.max(0, this._settings.get_int(SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS));
@@ -499,7 +550,7 @@ export class AsrService {
                     ? emitted[0].toLowerCase() + emitted.slice(1)
                     : ` ${emitted}`);
             }
-            else if (progressiveClipboard) {
+            else {
                 // Portapapeles progresivo: el total en curso siempre está
                 // listo para pegar incluso antes de que la grabación se detenga.
                 copyToClipboard(finalizeTranscript([...session.texts, emitted].join(' ')));
@@ -513,16 +564,20 @@ export class AsrService {
         }
     }
     /**
-     * Si la grabación debe transcribirse en vivo por trozos de N segundos.
+     * Si la grabación debe trocearse en vivo mientras se graba (interruptor
+     * "Live chunked transcription").
      *
-     * Se activa con el modo en tiempo real (que absorbe el troceo en vivo y
-     * lo fuerza) o con el interruptor independiente "Live chunked
-     * transcription". En ambos casos se exige una duración de trozo positiva.
+     * El modo en tiempo real queda excluido a propósito: procesa la
+     * grabación completa al detenerse mediante el streaming del CLI
+     * ({@link _transcribeStreamingProgressive}), no troceando en vivo, así
+     * que aquí no debe arrancar el worker de troceo. Requiere además una
+     * duración de trozo positiva.
      */
-    _streamingEnabled() {
-        const realtime = this._settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
-        const chunk = this._settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
-        return ((realtime || chunk) &&
+    _liveChunkingEnabled() {
+        if (this._settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE)) {
+            return false;
+        }
+        return (this._settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED) &&
             this._settings.get_int(SETTINGS_KEYS.CHUNK_SECONDS) > 0);
     }
     /** Promesa que resuelve tras `ms` mediante un timeout del bucle principal de GLib. */

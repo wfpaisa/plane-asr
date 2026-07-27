@@ -17,11 +17,12 @@ export const SETTINGS_KEYS = {
     /** Argumentos extra del CLI: ruta del modelo, idioma, etc. (string). */
     MODEL_PARAMS: 'model-params',
     /**
-     * Modo en tiempo real: transcribe en vivo por trozos mientras se graba.
-     * Con salida "paste" escribe el texto en el cursor a medida que hablas;
-     * con "clipboard" copia el texto completo una vez al terminar. Fuerza el
-     * troceo en vivo (absorbe `chunk-enabled`) e ignora el idioma elegido en
-     * favor de la autodetección (boolean).
+     * Modo en tiempo real: al detener la grabación, procesa la toma completa
+     * en una sola pasada con el streaming del CLI (`--stream-chunk-ms`) y
+     * entrega el texto progresivamente. Con salida "paste" lo escribe en el
+     * cursor de forma secuencial; con "clipboard" copia el texto completo una
+     * vez al terminar. Deshabilita el troceo en vivo (`chunk-enabled`) e
+     * ignora el idioma elegido en favor de la autodetección (boolean).
      */
     REALTIME_MODE: 'realtime-mode',
     /** Banderas extra opcionales añadidas a cada comando de transcripción (string). */
