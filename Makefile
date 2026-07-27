@@ -17,7 +17,7 @@ all: dist/extension.js
 node_modules/.modules.yaml: package.json
 	pnpm install
 
-TS_SOURCES := extension.ts prefs.ts $(wildcard src/**/*.ts)
+TS_SOURCES := extension.ts prefs.ts $(shell find src -name '*.ts')
 
 dist/extension.js dist/prefs.js: node_modules/.modules.yaml $(TS_SOURCES)
 	pnpm run build
