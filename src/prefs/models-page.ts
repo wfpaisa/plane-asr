@@ -251,7 +251,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
                 entry.description.toLowerCase().includes(q) ||
                 entry.languages.some(l => l.includes(q));
             state.row.visible = matches;
-            state.updatePresence(!!present.get(entry.id));
+            state.updatePresence(present.get(entry.id) ?? []);
         }
     };
 
@@ -263,15 +263,20 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     applyFilter();
 
     // Refleja qué modelo de catálogo (si lo hay) es el modelo activo de
-    // transcripción. Se llama una vez al construir y de nuevo cada vez que
-    // active-model-id cambia — incluido cuando se hace clic en "Usar",
-    // cuando se borra el modelo activo, o cuando el usuario vuelve a una
-    // ruta de modelo personalizada (id limpiado).
+    // transcripción, y con qué cuantización. Se llama una vez al construir y
+    // de nuevo cada vez que active-model-id o quant-preference cambian —
+    // incluido cuando se hace clic en "Usar", cuando se borra el modelo
+    // activo, o cuando el usuario vuelve a una ruta de modelo personalizada
+    // (id limpiado).
     const syncActiveModel = () => {
         const activeId =
             ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+        const activeQuant =
+            ctx.settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ?? '';
         for (const entry of catalog) {
-            rows.get(entry.id)?.updateActive(entry.id === activeId);
+            rows
+                .get(entry.id)
+                ?.updateActive(entry.id === activeId, activeQuant);
         }
     };
     syncActiveModel();
@@ -279,33 +284,49 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
         `changed::${SETTINGS_KEYS.ACTIVE_MODEL_ID}`,
         syncActiveModel
     );
+    ctx.settings.connect(
+        `changed::${SETTINGS_KEYS.QUANT_PREFERENCE}`,
+        syncActiveModel
+    );
 
     search.connect('search-changed', applyFilter);
 
     // Reacciona a las señales de descarga del ModelStore compartido.
     const store = getModelStore();
+    const onStarted = (_obj: unknown, modelId: string) => {
+        rows.get(modelId)?.updateDownloading(true);
+    };
     const onProgress = (_obj: unknown, modelId: string, fraction: number) => {
         rows.get(modelId)?.updateProgress(fraction);
     };
+    // En los tres desenlaces (completa, falla, cancela) se fija primero la
+    // presencia y se baja la bandera de descarga al final: mientras esa
+    // bandera sigue arriba la fila no se repinta, así que este orden la
+    // deja renderizar una sola vez, ya con el estado definitivo — y es
+    // updateDownloading(false) quien retira la barra de progreso.
     const onComplete = (_obj: unknown, modelId: string) => {
         const r = rows.get(modelId);
         if (r) {
-            r.updateProgress(1);
-            r.updatePresence(true);
+            r.updatePresence(refreshDownloaded().get(modelId) ?? []);
+            r.updateDownloading(false);
         }
         ctx.toast(_('Model downloaded: %s').format(modelId));
     };
     const onFailed = (_obj: unknown, modelId: string, msg: string) => {
-        rows.get(modelId)?.updatePresence(false);
+        const r = rows.get(modelId);
+        r?.updatePresence(refreshDownloaded().get(modelId) ?? []);
+        r?.updateDownloading(false);
         ctx.toast(_('Download failed: %s').format(`${modelId}: ${msg}`));
     };
     const onCancelled = (_obj: unknown, modelId: string) => {
-        rows.get(modelId)?.updatePresence(false);
+        const r = rows.get(modelId);
+        r?.updatePresence(refreshDownloaded().get(modelId) ?? []);
+        r?.updateDownloading(false);
     };
     const onDeleted = (_obj: unknown, modelId: string) => {
         const r = rows.get(modelId);
         if (r) {
-            r.updatePresence(false);
+            r.updatePresence(refreshDownloaded().get(modelId) ?? []);
             r.refreshPath();
         }
         // Si el modelo borrado era el activo, limpia la selección para que
@@ -318,11 +339,20 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
         }
         ctx.toast(_('Model deleted: %s').format(modelId));
     };
+    store.connect('download-started', onStarted);
     store.connect('download-progress', onProgress);
     store.connect('download-complete', onComplete);
     store.connect('download-failed', onFailed);
     store.connect('download-cancelled', onCancelled);
     store.connect('model-deleted', onDeleted);
+
+    // Si la ventana de preferencias se reabre mientras una descarga sigue en
+    // curso (el store es un singleton del proceso), refleja ese estado en
+    // el botón de acción en vez de mostrar "Descargar" por defecto.
+    for (const entry of catalog) {
+        if (store.isDownloading(entry.id))
+            rows.get(entry.id)?.updateDownloading(true);
+    }
 
     // -- Almacenamiento (siempre visible al final) -----------------------
     const customGroup = new Adw.PreferencesGroup({
@@ -394,9 +424,12 @@ interface ModelRowState {
     /** Selección en caché al momento del clic, para que los handlers vean el valor vigente. */
     selectedFile: () => ModelFile | null;
     updateProgress: (fraction: number) => void;
-    updatePresence: (downloaded: boolean) => void;
-    /** Marca/desmarca esta fila como el modelo activo de transcripción. */
-    updateActive: (active: boolean) => void;
+    /** Cuantizaciones presentes en disco para este modelo (vacío si ninguna). */
+    updatePresence: (quants: string[]) => void;
+    /** Marca/desmarca esta fila como el modelo activo de transcripción, indicando qué cuantización quedó activa. */
+    updateActive: (active: boolean, quant: string | null) => void;
+    /** Alterna el botón de acción entre "Descargar" y "Cancelar descarga". */
+    updateDownloading: (downloading: boolean) => void;
     /** Refresca la línea de ruta en disco (solo se muestra cuando el modelo está presente). */
     refreshPath: () => void;
 }
@@ -436,9 +469,26 @@ function buildModelRow(
     const selectedFile = (): ModelFile | null =>
         pickFile(entry, entry.files[quantCombo.selected]?.quant ?? null);
 
-    let isPresent = false;
+    /** Cuantizaciones actualmente presentes en disco para este modelo. */
+    let downloadedQuants: string[] = [];
     /** Si este modelo es el modelo activo de transcripción. */
     let isActive = false;
+    /** Cuantización activa de transcripción (solo significativa si isActive). */
+    let activeQuant: string | null = null;
+    /** Si hay una descarga en curso para este modelo (a lo sumo una cuantización a la vez). */
+    let isDownloading = false;
+
+    /** Si la cuantización elegida en el dropdown está en disco. */
+    const isSelectedDownloaded = (): boolean => {
+        const file = entry.files[quantCombo.selected];
+        return !!file && downloadedQuants.includes(file.quant);
+    };
+    /** Si la cuantización elegida en el dropdown es la que está activa para transcripción. */
+    const isSelectedActive = (): boolean => {
+        if (!isActive) return false;
+        const file = entry.files[quantCombo.selected];
+        return !!file && file.quant === activeQuant;
+    };
 
     const actionButton = new Gtk.Button({
         label: _('Download'),
@@ -446,9 +496,19 @@ function buildModelRow(
         cssClasses: ['suggested-action', 'planeasr-compact-button'],
     });
     actionButton.connect('clicked', () => {
-        if (isPresent) {
+        if (isDownloading) {
+            getModelDownloader().cancel(entry.id);
+            return;
+        }
+        if (isSelectedDownloaded()) {
+            const file = selectedFile();
             ctx.settings.set_string(SETTINGS_KEYS.ACTIVE_MODEL_ID, entry.id);
             ctx.settings.set_string(SETTINGS_KEYS.ASR_BACKEND, entry.backend);
+            if (file)
+                ctx.settings.set_string(
+                    SETTINGS_KEYS.QUANT_PREFERENCE,
+                    file.quant
+                );
             ctx.toast(_('Active model: %s').format(entry.name));
             return;
         }
@@ -496,11 +556,15 @@ function buildModelRow(
     });
     if (entry.recommended)
         badgeBox.append(
-            badgeIcon('heart-symbolic', _('Favorite'), 'planeasr-icon-badge')
+            badgeIcon('heart-symbolic', _('Favorite'), 'planeasr-icon-heart')
         );
     if (entry.streaming)
         badgeBox.append(
-            badgeIcon('flash-symbolic', _('Streaming'), 'planeasr-icon-badge')
+            badgeIcon(
+                'flash-symbolic',
+                _('Streaming'),
+                'planeasr-icon-streaming'
+            )
         );
     // La insignia "Descargado" aparece una vez que el archivo del modelo está
     // en disco; la alterna updatePresence para que siga sincronizada con el
@@ -508,7 +572,7 @@ function buildModelRow(
     const downloadedBadge = badgeIcon(
         'downloaded-symbolic',
         _('Downloaded'),
-        'planeasr-icon-badge'
+        'planeasr-icon-downloaded'
     );
     downloadedBadge.visible = false;
     badgeBox.append(downloadedBadge);
@@ -623,7 +687,7 @@ function buildModelRow(
     };
 
     const refreshPath = () => {
-        if (!isPresent) {
+        if (!isSelectedDownloaded()) {
             pathLabel.visible = false;
             return;
         }
@@ -638,46 +702,88 @@ function buildModelRow(
 
     const updateProgress = (fraction: number) => {
         progressBar.fraction = Math.max(0, Math.min(1, fraction));
-        progressBar.visible = fraction > 0 && fraction < 1;
+        // La barra solo tiene sentido mientras la descarga sigue viva: una
+        // señal de progreso rezagada, emitida justo antes de que la
+        // cancelación aterrice, no debe revivirla.
+        progressBar.visible = isDownloading && fraction > 0 && fraction < 1;
     };
-    const updatePresence = (downloaded: boolean) => {
-        isPresent = downloaded;
+    // Reevalúa insignia, botón de acción, botón de eliminar y ruta contra la
+    // cuantización actualmente seleccionada en el dropdown — no contra "el
+    // modelo en general" — para que cambiar de cuantización sin haberla
+    // descargado/activado no deje "Usar"/"Activo" visible por error.
+    // Mientras hay una descarga en curso, el botón se convierte en
+    // "Cancelar descarga".
+    const refreshPresenceUI = () => {
+        if (isDownloading) {
+            actionButton.label = _('Cancel download');
+            actionButton.remove_css_class('suggested-action');
+            actionButton.add_css_class('destructive-action');
+            deleteButton.visible = false;
+            refreshPath();
+            return;
+        }
+        // Sin descarga activa la barra nunca debe quedar en pantalla. Se
+        // limpia aquí y no solo en la rama "descargado" porque cancelar o
+        // fallar termina en la rama contraria — y así la dejaba congelada a
+        // media asta hasta reabrir las preferencias.
+        progressBar.visible = false;
+        progressBar.fraction = 0;
+        actionButton.remove_css_class('destructive-action');
+        if (isActive) {
+            actionButton.add_css_class('suggested-action');
+        } else {
+            actionButton.remove_css_class('suggested-action');
+        }
+        const downloaded = isSelectedDownloaded();
         downloadedBadge.visible = downloaded;
         deleteButton.visible = downloaded;
-        // La etiqueta del botón depende tanto de la presencia como del estado
-        // activo: un modelo descargado-pero-activo muestra "Activo" en vez de
-        // "Usar".
-        if (downloaded) {
-            actionButton.label = isActive ? _('Active') : _('Use');
-            progressBar.visible = false;
-        } else {
-            actionButton.label = _('Download');
-        }
+        // La etiqueta del botón depende tanto de la presencia como del
+        // estado activo EN ESTA CUANTIZACIÓN: un modelo descargado y activo
+        // muestra "Activo" solo si el dropdown coincide con la cuantización
+        // realmente activa; si el usuario cambia a otra cuantización
+        // descargada vuelve a mostrar "Usar".
+        actionButton.label = downloaded
+            ? isSelectedActive()
+                ? _('Active')
+                : _('Use')
+            : _('Download');
         refreshPath();
     };
-    // Refleja si este modelo es el elegido para transcripción. Solo un
-    // modelo está activo a la vez, así que la página lo controla desde un
-    // único listener de active-model-id. Un modelo activo y descargado
-    // recibe una insignia "Activo" y su botón se restilea; la fila también
-    // gana una clase CSS para un resalte de fondo sutil.
-    const updateActive = (active: boolean) => {
+    const updatePresence = (quants: string[]) => {
+        downloadedQuants = quants;
+        refreshPresenceUI();
+    };
+    const updateDownloading = (downloading: boolean) => {
+        isDownloading = downloading;
+        refreshPresenceUI();
+    };
+    // Refleja si este modelo es el elegido para transcripción, y con qué
+    // cuantización. Solo un modelo está activo a la vez, así que la página
+    // lo controla desde un único listener de active-model-id/quant-
+    // preference. La insignia "Activo" siempre nombra la cuantización
+    // realmente activa (independiente de lo que esté seleccionado en el
+    // dropdown ahora mismo); el botón, en cambio, solo dice "Activo" cuando
+    // el dropdown coincide con ella — ver isSelectedActive().
+    const updateActive = (active: boolean, quant: string | null) => {
         isActive = active;
+        activeQuant = active ? quant : null;
         activeBadge.visible = active;
+        activeBadge.label =
+            active && activeQuant
+                ? _('Active · %s').format(activeQuant)
+                : _('Active');
         if (active) {
             row.add_css_class('planeasr-active-model');
-            actionButton.add_css_class('suggested-action');
-            if (isPresent) actionButton.label = _('Active');
         } else {
             row.remove_css_class('planeasr-active-model');
-            actionButton.remove_css_class('suggested-action');
-            if (isPresent) actionButton.label = _('Use');
         }
+        refreshPresenceUI();
     };
 
-    // Reevalúa la línea de ruta cuando cambia la cuantización seleccionada,
-    // para que siempre refleje el archivo que el usuario realmente usaría o
-    // eliminaría.
-    quantCombo.connect('notify::selected', refreshPath);
+    // Reevalúa insignia/botones/ruta cuando cambia la cuantización
+    // seleccionada, para que siempre reflejen el archivo que el usuario
+    // realmente usaría, descargaría, eliminaría o activaría.
+    quantCombo.connect('notify::selected', refreshPresenceUI);
 
     return {
         row,
@@ -694,6 +800,7 @@ function buildModelRow(
         updateProgress,
         updatePresence,
         updateActive,
+        updateDownloading,
         refreshPath,
     };
 }

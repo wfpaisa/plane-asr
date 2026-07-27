@@ -169,6 +169,13 @@ export class Transcriber {
         const stdout = new Gio.DataInputStream({
             base_stream: proc.get_stdout_pipe(),
         });
+        // stderr se drena en paralelo desde ya: transcribe-cli vuelca sus
+        // logs `[info]` (carga del modelo, dispositivos) por stderr y, si no
+        // se consume durante la ejecución, el buffer del pipe (~64 KB) puede
+        // llenarse y bloquear al hijo mientras nosotros seguimos leyendo
+        // stdout — un deadlock. El texto acumulado solo se usa como detalle
+        // de error si el proceso falla.
+        const stderrPromise = this._drainUtf8(proc.get_stderr_pipe());
         // Estado compartido entre el lector y el surtidor.
         let latest = ''; // último texto acumulado visto en un parcial
         let finalText = ''; // línea `text:` autoritativa ('' = aún no vista)
@@ -235,7 +242,7 @@ export class Transcriber {
             return { text: '', cancelled: true };
         }
         if (!proc.get_successful()) {
-            const detail = (await this._drainUtf8(proc.get_stderr_pipe())).trim();
+            const detail = (await stderrPromise).trim();
             if (this._settings.get_boolean(SETTINGS_KEYS.DEBUG_LOGGING)) {
                 console.warn(`[planeasr] streaming argv=${JSON.stringify(argv)} ` +
                     `exit=${proc.get_exit_status()} stderr=${JSON.stringify(detail)}`);

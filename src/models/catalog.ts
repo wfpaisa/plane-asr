@@ -162,17 +162,18 @@ export function modelFilePath(modelDir: string, file: ModelFile): string {
  * separado (por ejemplo, tras una instalación manual del archivo).
  *
  * Qué hace: enumera los archivos `.gguf`/`.bin` del directorio, y para cada
- * entrada del catálogo comprueba si alguno de sus archivos está presente
- * con un tamaño que coincida (con tolerancia de 1 KiB). Devuelve un mapa de
- * id de modelo del catálogo -> cuantización presente en disco. Un modelo se
- * considera descargado cuando uno de sus archivos existe en el directorio y
- * su tamaño coincide con la entrada del catálogo.
+ * entrada del catálogo comprueba qué de sus archivos están presentes con un
+ * tamaño que coincida (con tolerancia de 1 KiB). Devuelve un mapa de id de
+ * modelo del catálogo -> lista de cuantizaciones presentes en disco (un
+ * modelo puede tener varias descargadas a la vez, p. ej. Q4_K_M y Q8_0). Un
+ * modelo se considera descargado cuando al menos uno de sus archivos existe
+ * en el directorio y su tamaño coincide con la entrada del catálogo.
  */
 export function scanDownloaded(
     extensionDir: string | null,
     modelDir: string
-): Map<string, string> {
-    const result = new Map<string, string>();
+): Map<string, string[]> {
+    const result = new Map<string, string[]>();
     const dir = Gio.File.new_for_path(modelDir);
     if (!dir.query_exists(null)) return result;
 
@@ -200,8 +201,9 @@ export function scanDownloaded(
                     size !== undefined &&
                     Math.abs(size - f.size_bytes) < 1024 // tolera un margen de 1 KiB
                 ) {
-                    result.set(entry.id, f.quant);
-                    break;
+                    const quants = result.get(entry.id);
+                    if (quants) quants.push(f.quant);
+                    else result.set(entry.id, [f.quant]);
                 }
             }
         }

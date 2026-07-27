@@ -34,7 +34,7 @@ export interface SetupPageContext {
 }
 
 /** Modelo y cuantización que instala el botón grande "Setup". */
-const SETUP_MODEL_ID = 'parakeet-tdt-0.6b-v3';
+const SETUP_MODEL_ID = 'nemotron-3.5-asr-streaming-0.6b';
 const SETUP_MODEL_QUANT = 'Q8_0';
 
 /** Construye la página de preferencias "Setup". */

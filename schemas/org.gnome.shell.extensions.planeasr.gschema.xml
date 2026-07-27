@@ -27,7 +27,7 @@
       <description>Extra arguments passed to the binary (model path, language, ...). Quote paths with spaces.</description>
     </key>
     <key name="realtime-mode" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Realtime mode</summary>
       <description>When recording stops, the whole take is processed in a single pass driven by the CLI streaming API (--stream-chunk-ms), and the transcript is delivered progressively as the model produces it. With paste output the text is typed at the cursor sequentially; with clipboard output the full text is copied once when processing finishes. Language is forced to auto-detection in this mode (streaming models advertise BCP-47 language codes that the short ISO codes from the picker do not match). Enabling this disables the Long recordings / live chunking options.</description>
     </key>
@@ -98,7 +98,7 @@
       <description>Transcribe long recordings live in N-second chunks while recording, streaming each piece as it is ready, so backends with a per-call generation cap (e.g. Qwen3-ASR) don't truncate the output.</description>
     </key>
     <key name="chunk-seconds" type="i">
-      <default>60</default>
+      <default>20</default>
       <summary>Seconds per chunk</summary>
       <description>Length in seconds of each chunk when 'chunk-enabled' is true. Lower values are safer for models that cap output tokens per call.</description>
     </key>

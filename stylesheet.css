@@ -49,14 +49,21 @@
     font-weight: bold;
 }
 
-/* Íconos de insignia (Favorito, Streaming, Descargado) en amarillo. El SVG
- * de heart-symbolic en data/icons/ no lleva color propio: se resuelve como
- * ícono symbolic (vía registerIconSearchPath) y se recolorea aquí con
- * `color`, igual que cualquier ícono symbolic del tema del sistema; los
- * íconos de flash-symbolic y downloaded-symbolic del tema estándar se
- * recolorean de la misma forma. */
-.planeasr-icon-badge {
+/* Íconos de insignia de cada fila de modelo: Favorito (rojo), Streaming
+ * (amarillo) y Descargado (verde). El SVG de heart-symbolic en
+ * data/icons/ no lleva color propio: se resuelve como ícono symbolic (vía
+ * registerIconSearchPath) y se recolorea aquí con `color`, igual que
+ * flash-symbolic y downloaded-symbolic, íconos symbolic del tema estándar. */
+.planeasr-icon-heart {
+    color: #e01b24;
+}
+
+.planeasr-icon-streaming {
     color: #f6d32d;
+}
+
+.planeasr-icon-downloaded {
+    color: #2ec27e;
 }
 
 /* Botón de acción (Usar/Descargar) de cada fila de modelo, a la mitad del

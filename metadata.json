@@ -5,5 +5,5 @@
     "url": "https://github.com/wfpaisa/plane-asr",
     "settings-schema": "org.gnome.shell.extensions.planeasr",
     "gettext-domain": "planeasr",
-    "shell-version": ["50"]
+    "shell-version": ["49", "50"]
 }

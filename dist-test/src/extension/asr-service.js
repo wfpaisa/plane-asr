@@ -269,7 +269,8 @@ export class AsrService {
         // no hay pegado progresivo: cae a la pasada offline de abajo, que al
         // terminar copia el texto completo de una vez.
         if (this._settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE) &&
-            isPaste) {
+            isPaste &&
+            this._activeModelSupportsStreaming()) {
             await this._transcribeStreamingProgressive(audioPath);
             return;
         }
@@ -579,6 +580,24 @@ export class AsrService {
         }
         return (this._settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED) &&
             this._settings.get_int(SETTINGS_KEYS.CHUNK_SECONDS) > 0);
+    }
+    /**
+     * Si el modelo activo anuncia streaming, para decidir si el modo en
+     * tiempo real puede conducir la API `--stream-chunk-ms` del CLI.
+     *
+     * Un modelo de catálogo lleva la bandera `streaming` explícita; los
+     * modelos personalizados (sin id de catálogo) se asumen compatibles y se
+     * deja que el CLI decida — si no lo son, fallará con un mensaje claro. Un
+     * modelo de catálogo no-streaming devuelve false para que el pegado en
+     * tiempo real caiga a la pasada offline en vez de que el CLI rechace la
+     * bandera.
+     */
+    _activeModelSupportsStreaming() {
+        const modelId = this._settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+        if (!modelId || !this._extensionDir)
+            return true;
+        const entry = findModel(this._extensionDir, modelId);
+        return entry ? entry.streaming : true;
     }
     /** Promesa que resuelve tras `ms` mediante un timeout del bucle principal de GLib. */
     _sleep(ms) {

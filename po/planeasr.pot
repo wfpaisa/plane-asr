@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-27 16:53-0500\n"
+"POT-Creation-Date: 2026-07-27 17:26-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -181,7 +181,7 @@ msgid ""
 "are kept on disk."
 msgstr ""
 
-#: src/prefs/index.ts:234 src/prefs/models-page.ts:569
+#: src/prefs/index.ts:234 src/prefs/models-page.ts:635
 msgid "Cancel"
 msgstr ""
 
@@ -531,92 +531,101 @@ msgstr ""
 msgid "Search by name or language…"
 msgstr ""
 
-#: src/prefs/models-page.ts:296
+#: src/prefs/models-page.ts:313
 #, javascript-format
 msgid "Model downloaded: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:300
+#: src/prefs/models-page.ts:319
 #, javascript-format
 msgid "Download failed: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:319
+#: src/prefs/models-page.ts:340
 #, javascript-format
 msgid "Model deleted: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:329
+#: src/prefs/models-page.ts:359
 msgid "Storage"
 msgstr ""
 
-#: src/prefs/models-page.ts:331
+#: src/prefs/models-page.ts:361
 msgid ""
 "Directory where downloaded models are stored. You can also drop "
 "any .gguf/.bin file here and point to it with a custom path."
 msgstr ""
 
-#: src/prefs/models-page.ts:346
+#: src/prefs/models-page.ts:376
 msgid "Open folder"
 msgstr ""
 
-#: src/prefs/models-page.ts:367
+#: src/prefs/models-page.ts:397
 msgid "Models directory"
 msgstr ""
 
-#: src/prefs/models-page.ts:444 src/prefs/models-page.ts:652
+#: src/prefs/models-page.ts:494 src/prefs/models-page.ts:749
 msgid "Download"
 msgstr ""
 
-#: src/prefs/models-page.ts:452
+#: src/prefs/models-page.ts:512
 #, javascript-format
 msgid "Active model: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:499
+#: src/prefs/models-page.ts:559
 msgid "Favorite"
 msgstr ""
 
-#: src/prefs/models-page.ts:502
+#: src/prefs/models-page.ts:565
 msgid "Streaming"
 msgstr ""
 
-#: src/prefs/models-page.ts:508
+#: src/prefs/models-page.ts:574
 msgid "Downloaded"
 msgstr ""
 
-#: src/prefs/models-page.ts:516 src/prefs/models-page.ts:649
-#: src/prefs/models-page.ts:667
+#: src/prefs/models-page.ts:582 src/prefs/models-page.ts:747
+#: src/prefs/models-page.ts:774
 msgid "Active"
 msgstr ""
 
-#: src/prefs/models-page.ts:554
+#: src/prefs/models-page.ts:620
 msgid "Delete downloaded file"
 msgstr ""
 
-#: src/prefs/models-page.ts:566
+#: src/prefs/models-page.ts:632
 msgid "Delete model file?"
 msgstr ""
 
-#: src/prefs/models-page.ts:567
+#: src/prefs/models-page.ts:633
 #, javascript-format
 msgid "This will remove \"%s\" from disk."
 msgstr ""
 
-#: src/prefs/models-page.ts:570
+#: src/prefs/models-page.ts:636
 msgid "Delete"
 msgstr ""
 
-#: src/prefs/models-page.ts:630
+#: src/prefs/models-page.ts:696
 #, javascript-format
 msgid "Path: %s"
 msgstr ""
 
-#: src/prefs/models-page.ts:649 src/prefs/models-page.ts:671
+#: src/prefs/models-page.ts:718
+msgid "Cancel download"
+msgstr ""
+
+#: src/prefs/models-page.ts:748
 msgid "Use"
 msgstr ""
 
-#: src/prefs/models-page.ts:704
+#: src/prefs/models-page.ts:773
+#, javascript-format
+msgid "Active · %s"
+msgstr ""
+
+#: src/prefs/models-page.ts:813
 #, javascript-format
 msgid "%d languages"
 msgstr ""
