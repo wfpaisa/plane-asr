@@ -88,7 +88,7 @@ export const Indicator = GObject.registerClass(
         private _recordIconB!: Gio.Icon;
         private _recordItem!: PopupMenu.PopupMenuItem;
         private _copyItem!: PopupMenu.PopupMenuItem;
-        private _openAudioItem!: PopupMenu.PopupMenuItem;
+        private _copyAudiosPathItem!: PopupMenu.PopupMenuItem;
         private _processFileItem!: PopupMenu.PopupMenuItem;
         private _settingsHandlers: number[] = [];
         /** Protege el bucle recursivo de easing en {@link _pulseBlink}; ver {@link _startBlink}. */
@@ -167,12 +167,14 @@ export const Indicator = GObject.registerClass(
             });
             menu.addMenuItem(this._copyItem);
 
-            this._openAudioItem = new PopupMenu.PopupMenuItem(_('Open audios'));
-            this._openAudioItem.connect('activate', () => {
+            this._copyAudiosPathItem = new PopupMenu.PopupMenuItem(
+                _('Copy audios path')
+            );
+            this._copyAudiosPathItem.connect('activate', () => {
                 menu.close();
-                this._openAudios();
+                this._copyAudiosPath();
             });
-            menu.addMenuItem(this._openAudioItem);
+            menu.addMenuItem(this._copyAudiosPathItem);
 
             this._processFileItem = new PopupMenu.PopupMenuItem(
                 _('Process audio file')
@@ -288,9 +290,9 @@ export const Indicator = GObject.registerClass(
             const lastText =
                 this.settings.get_string(SETTINGS_KEYS.LAST_TEXT) ?? '';
             this._copyItem.sensitive = lastText.length > 0;
-            // "Abrir audios" abre la carpeta de grabaciones bajo demanda
-            // (creándola si falta), así que siempre está disponible.
-            this._openAudioItem.sensitive = true;
+            // "Copiar ruta de audios" siempre está disponible: solo copia
+            // la ruta de la carpeta de grabaciones al portapapeles.
+            this._copyAudiosPathItem.sensitive = true;
             // "Procesar archivo de audio" inicia una transcripción, así que
             // solo se habilita en reposo — no debe competir con una
             // grabación o conversión en curso (el servicio también se
@@ -445,77 +447,17 @@ export const Indicator = GObject.registerClass(
             });
         }
 
-        /** Abre la carpeta de grabaciones en el gestor de archivos predeterminado. */
-        _openAudios() {
+        /** Copia la ruta de la carpeta de grabaciones al portapapeles. */
+        _copyAudiosPath() {
             const dir = recordsDir();
-            // Asegura que la carpeta exista para que el gestor de archivos
-            // realmente la muestre.
+            // Asegura que la carpeta exista para que la ruta copiada sea
+            // válida si el usuario la usa de inmediato.
             GLib.mkdir_with_parents(dir, 0o755);
-            const [uriOk, uri] = GLib.filename_to_uri(dir, null);
-            if (!uriOk || !uri) {
-                console.warn(`[planeasr] could not build URI for ${dir}`);
-                return;
-            }
-            // Dentro de GNOME Shell necesitamos un AppLaunchContext real.
-            // Gdk es una biblioteca cliente de GTK y NO está inicializada en
-            // el proceso del compositor (`Gdk.Display.get_default()`
-            // devuelve null ahí), así que un contexto basado en Gdk siempre
-            // es null y el lanzamiento falla en Wayland con "Operation not
-            // supported". El shell expone su propio contexto vía
-            // `global.create_app_launch_context(timestamp, workspace)` — la
-            // forma canónica de lanzar aplicaciones desde una extensión.
-            let launchContext: Gio.AppLaunchContext | null = null;
-            try {
-                launchContext = global.create_app_launch_context(0, -1);
-            } catch (e) {
-                console.warn(
-                    `[planeasr] could not build shell launch context: ${this._errMsg(e)}`
-                );
-            }
-            try {
-                Gio.AppInfo.launch_default_for_uri_async(
-                    uri,
-                    launchContext,
-                    null,
-                    (_self, res) => {
-                        try {
-                            Gio.AppInfo.launch_default_for_uri_finish(res);
-                        } catch (e) {
-                            console.warn(
-                                `[planeasr] launch_default_for_uri_async failed: ${this._errMsg(e)}`
-                            );
-                            this._openAudiosFallback(uri);
-                        }
-                    }
-                );
-            } catch (e) {
-                console.warn(
-                    `[planeasr] launch_default_for_uri_async threw: ${this._errMsg(e)}`
-                );
-                this._openAudiosFallback(uri);
-            }
-        }
-
-        /**
-         * Respaldo de último recurso: lanza `xdg-open` directamente. Solo se
-         * usa cuando la ruta apropiada de lanzamiento con AppInfo falló
-         * (por ejemplo, sin manejador por defecto para `inode/directory`).
-         * Se dispara sin esperar el resultado.
-         */
-        _openAudiosFallback(uri: string) {
-            try {
-                new Gio.Subprocess({
-                    argv: ['xdg-open', uri],
-                    flags: Gio.SubprocessFlags.NONE,
-                }).init(null);
-            } catch (e) {
-                console.warn(`[planeasr] xdg-open failed: ${this._errMsg(e)}`);
-                notify(
-                    this.extension.path,
-                    _('Plane ASR'),
-                    _('Could not open the audios folder')
-                );
-            }
+            St.Clipboard.get_default().set_text(
+                St.ClipboardType.CLIPBOARD,
+                dir
+            );
+            notify(this.extension.path, _('Plane ASR: copied audios path'));
         }
 
         /** Extrae un mensaje legible de cualquier error capturado. */
