@@ -18,8 +18,9 @@ Uses **pnpm**. Toolchain commands:
 
 ```bash
 pnpm install        # install deps
-pnpm run build      # tsc -> dist/ (this is the only "test"-like gate)
+pnpm run build      # tsc -> dist/ (primary correctness gate)
 pnpm run lint       # eslint .
+pnpm run test       # tsc -p tsconfig.test.json -> dist-test/ + node --test
 pnpm run format     # prettier --write .
 pnpm run setup      # build + pack + install (full local deploy)
 ```
@@ -28,8 +29,11 @@ Make targets wrap the same flow: `make` / `make pack` / `make install` /
 `make clean`. `make pack` requires the system `zip`, `glib-compile-schemas`,
 and `gnome-extensions` binaries — these are distro packages, not npm deps.
 
-**There is no test runner in this repo.** Treat `pnpm run build` (tsc typecheck)
-and `pnpm run lint` as the correctness gates.
+`pnpm run test` covers the **pure** logic only (helpers with no `gi://`
+imports, extracted under `src/util/`): chunk stitching, arg tokenizing,
+model-params normalization, WAV header build/parse, `--list-devices` parsing.
+The GJS-dependent code has no runner, so `pnpm run build` (tsc typecheck) and
+`pnpm run lint` remain the primary correctness gates.
 
 ## Architecture & layer rules
 

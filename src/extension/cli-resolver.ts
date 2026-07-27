@@ -1,16 +1,19 @@
 /* cli-resolver.ts
  *
  * Resolves the transcription CLI binary according to the active `cli-mode`:
- *   - 'auto'   → prefer the CPU-only `transcribe-cli` bundled with the
- *                extension (x86_64), falling back to a `transcribe-cli`
- *                discovered on PATH. Zero configuration required.
- *   - 'manual' → use the absolute path the user set in `cli-path` (e.g. a
- *                personally compiled Vulkan/CUDA build).
+ *   - 'cpu' → prefer the CPU-only `transcribe-cli` bundled with the extension
+ *             (x86_64), falling back to a `transcribe-cli` discovered on PATH.
+ *             Zero configuration required. This is what {@link resolveAutoCli}
+ *             below implements.
+ *   - 'gpu' → use the absolute path the user set in `cli-path` (e.g. a
+ *             personally compiled Vulkan/CUDA build); resolved by the caller,
+ *             not here.
  *
  * This mirrors the `cli-mode` GSetting documented in
- * src/config/settings.ts. The functions are pure (no subprocess) so they are
- * cheap to call from both the service pre-flight gate and the transcriber
- * argv builder, as well as from the preferences UI for status display.
+ * src/config/settings.ts (legacy 'auto'/'manual' values migrate to
+ * 'cpu'/'gpu'). The functions are pure (no subprocess) so they are cheap to
+ * call from both the service pre-flight gate and the transcriber argv builder,
+ * as well as from the preferences UI for status display.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
