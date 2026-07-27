@@ -414,7 +414,7 @@ function buildModelRow(
     entry: ModelEntry,
     ctx: ModelsPageContext
 ): ModelRowState {
-    // -- Quantization dropdown ------------------------------------------
+    // -- Menú desplegable de cuantización --------------------------------
     const quants = entry.files
         .map(f => f.quant)
         .sort((a, b) => QUANT_ORDER.indexOf(a) - QUANT_ORDER.indexOf(b));
@@ -437,7 +437,7 @@ function buildModelRow(
         pickFile(entry, entry.files[quantCombo.selected]?.quant ?? null);
 
     let isPresent = false;
-    /** Whether this model is the active transcription model. */
+    /** Si este modelo es el modelo activo de transcripción. */
     let isActive = false;
 
     const actionButton = new Gtk.Button({
@@ -460,12 +460,13 @@ function buildModelRow(
         try {
             Gio.File.new_for_path(modelDir).make_directory_with_parents(null);
         } catch {
-            // Already exists is fine; real download errors surface via toast.
+            // Que ya exista está bien; los errores reales de descarga se
+            // muestran a través del toast.
         }
         void getModelDownloader().download(entry, file, modelDir);
     });
 
-    // -- Title line: name + badges --------------------------------------
+    // -- Línea de título: nombre + insignias -----------------------------
     const nameLabel = new Gtk.Label({
         label: entry.name,
         hexpand: true,
@@ -485,14 +486,15 @@ function buildModelRow(
     if (entry.streaming) badgeBox.append(badgeLabel(_('Streaming'), 'tag'));
     badgeBox.append(badgeLabel(entry.parameters, 'caption'));
     badgeBox.append(badgeLabel(entry.backend, 'caption'));
-    // "Downloaded" badge appears once the model file is on disk; toggled by
-    // updatePresence so it stays in sync with the real presence state.
+    // La insignia "Descargado" aparece una vez que el archivo del modelo está
+    // en disco; la alterna updatePresence para que siga sincronizada con el
+    // estado real de presencia.
     const downloadedBadge = badgeLabel(_('Downloaded'), 'success');
     downloadedBadge.visible = false;
     badgeBox.append(downloadedBadge);
-    // "Active" badge marks the model currently selected for transcription.
-    // Toggled by updateActive, which the page calls whenever active-model-id
-    // changes (only one model is active at a time).
+    // La insignia "Activo" marca el modelo actualmente seleccionado para
+    // transcripción. La alterna updateActive, que la página invoca cada vez
+    // que cambia active-model-id (solo un modelo está activo a la vez).
     const activeBadge = badgeLabel(_('Active'), 'suggested-action');
     activeBadge.visible = false;
     badgeBox.append(activeBadge);
@@ -505,7 +507,7 @@ function buildModelRow(
     titleLine.append(nameLabel);
     titleLine.append(badgeBox);
 
-    // -- Controls line: quant · size · button --------------------------
+    // -- Línea de controles: cuantización · tamaño · botón ---------------
     const descLabel = new Gtk.Label({
         label: buildSubtitle(entry),
         xalign: 0,
@@ -513,9 +515,10 @@ function buildModelRow(
         cssClasses: ['caption'],
     });
 
-    // On-disk path line, shown only once the model is downloaded, so the user
-    // sees the concrete file used (and that -m is injected automatically — no
-    // need to type it). Refreshed by refreshPath / updatePresence.
+    // Línea con la ruta en disco, mostrada solo una vez que el modelo está
+    // descargado, para que el usuario vea el archivo concreto usado (y que
+    // -m se inyecta automáticamente — no hace falta escribirlo). La
+    // refrescan refreshPath / updatePresence.
     const pathLabel = new Gtk.Label({
         xalign: 0,
         wrap: true,
@@ -524,8 +527,9 @@ function buildModelRow(
         visible: false,
     });
 
-    // Delete button: removes the downloaded file for the selected quant.
-    // Confirmed via a lightweight Adw.MessageDialog to avoid accidental loss.
+    // Botón de eliminar: quita el archivo descargado de la cuantización
+    // seleccionada. Se confirma con un Adw.MessageDialog ligero para evitar
+    // pérdidas accidentales.
     const deleteButton = new Gtk.Button({
         icon_name: 'user-trash-symbolic',
         valign: Gtk.Align.CENTER,
@@ -571,10 +575,10 @@ function buildModelRow(
     controlsLine.append(deleteButton);
     controlsLine.append(actionButton);
 
-    // -- Progress bar (shown under everything during download) ---------
+    // -- Barra de progreso (se muestra debajo de todo durante la descarga) --
     const progressBar = new Gtk.ProgressBar({visible: false, hexpand: true});
 
-    // -- Assemble the row content ---------------------------------------
+    // -- Ensambla el contenido de la fila ---------------------------------
     const content = new Gtk.Box({
         orientation: Gtk.Orientation.VERTICAL,
         spacing: 8,
@@ -588,7 +592,7 @@ function buildModelRow(
     const row = new Adw.PreferencesRow({activatable: false});
     row.set_child(content);
 
-    /** Resolve the on-disk path for the currently selected quant, or '' . */
+    /** Resuelve la ruta en disco para la cuantización actualmente seleccionada, o '' si no hay. */
     const selectedPath = (): string => {
         const file = selectedFile();
         if (!file) return '';
@@ -620,8 +624,9 @@ function buildModelRow(
         isPresent = downloaded;
         downloadedBadge.visible = downloaded;
         deleteButton.visible = downloaded;
-        // The button label depends on both presence and active state: a
-        // downloaded-but-active model shows "Active" rather than "Use".
+        // La etiqueta del botón depende tanto de la presencia como del estado
+        // activo: un modelo descargado-pero-activo muestra "Activo" en vez de
+        // "Usar".
         if (downloaded) {
             actionButton.label = isActive ? _('Active') : _('Use');
             progressBar.visible = false;
@@ -630,11 +635,11 @@ function buildModelRow(
         }
         refreshPath();
     };
-    // Reflect whether this model is the one selected for transcription. Only
-    // one model is active at a time, so the page drives this from a single
-    // active-model-id listener. A downloaded active model gets an "Active"
-    // badge and its button restyled; the row also gains a CSS class for a
-    // subtle background highlight.
+    // Refleja si este modelo es el elegido para transcripción. Solo un
+    // modelo está activo a la vez, así que la página lo controla desde un
+    // único listener de active-model-id. Un modelo activo y descargado
+    // recibe una insignia "Activo" y su botón se restilea; la fila también
+    // gana una clase CSS para un resalte de fondo sutil.
     const updateActive = (active: boolean) => {
         isActive = active;
         activeBadge.visible = active;
@@ -649,8 +654,9 @@ function buildModelRow(
         }
     };
 
-    // Re-evaluate the path line when the selected quant changes, so it always
-    // reflects the file the user would actually use / delete.
+    // Reevalúa la línea de ruta cuando cambia la cuantización seleccionada,
+    // para que siempre refleje el archivo que el usuario realmente usaría o
+    // eliminaría.
     quantCombo.connect('notify::selected', refreshPath);
 
     return {
@@ -672,7 +678,7 @@ function buildModelRow(
     };
 }
 
-/** Compose the subtitle line for a model row. */
+/** Compone la línea de subtítulo para una fila de modelo. */
 function buildSubtitle(entry: ModelEntry): string {
     const langs =
         entry.language_count <= 4
