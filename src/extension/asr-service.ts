@@ -12,14 +12,15 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
 import {cacheDir, pruneRecordings, recordsDir} from '../config/paths.js';
 import {resolveAutoCli} from './cli-resolver.js';
 import {getBackend} from './asr-backends.js';
+import {notify} from './notify.js';
 import {Recorder} from './recorder.js';
 import {Transcriber, type TranscriberOptions} from './transcriber.js';
+import {findModel, pickFile, resolveModelDir, modelFilePath} from '../models/catalog.js';
 import {
     SAMPLE_RATE,
     cleanupChunks,
@@ -179,14 +180,61 @@ export class AsrService {
     }
 
     /**
-     * Inicia una nueva grabación tras validar que hay un binario del CLI
-     * disponible, y arranca el worker de transcripción en vivo si el
-     * troceo (chunking) está habilitado.
+     * Chequeo previo de que hay un modelo configurado antes de
+     * comprometerse a grabar: o el modelo de catálogo activo está
+     * descargado en disco, o el usuario dejó una ruta propia en
+     * `model-params`. Misma resolución que usa {@link Transcriber} al
+     * armar el flag `-m` del CLI, pero sin llegar a lanzarlo. Devuelve un
+     * string de error localizado, o null cuando hay un modelo utilizable.
+     */
+    private _validateModel(): string | null {
+        const modelId =
+            this._settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
+        if (modelId && this._extensionDir) {
+            const entry = findModel(this._extensionDir, modelId);
+            if (entry) {
+                const quant =
+                    this._settings.get_string(
+                        SETTINGS_KEYS.QUANT_PREFERENCE
+                    ) ?? '';
+                const file = pickFile(entry, quant);
+                if (file) {
+                    const modelDir = resolveModelDir(
+                        this._settings.get_string(SETTINGS_KEYS.MODEL_DIR) ??
+                            ''
+                    );
+                    const path = modelFilePath(modelDir, file);
+                    if (Gio.File.new_for_path(path).query_exists(null)) {
+                        return null;
+                    }
+                }
+            }
+        }
+        // Sin modelo de catálogo activo utilizable: una ruta propia en
+        // model-params también cuenta como "hay modelo configurado".
+        const userParams =
+            this._settings.get_string(SETTINGS_KEYS.MODEL_PARAMS) ?? '';
+        if (userParams.trim()) return null;
+        return _(
+            'No model selected. Open Preferences to choose a transcription model.'
+        );
+    }
+
+    /**
+     * Inicia una nueva grabación tras validar que hay un binario del CLI y
+     * un modelo disponibles, y arranca el worker de transcripción en vivo
+     * si el troceo (chunking) está habilitado.
      */
     private async _startRecording(): Promise<void> {
         const missing = this._validateCliBinary();
         if (missing) {
             this._setState(AsrState.Idle, {error: missing});
+            return;
+        }
+
+        const missingModel = this._validateModel();
+        if (missingModel) {
+            this._setState(AsrState.Idle, {error: missingModel});
             return;
         }
 
@@ -274,7 +322,8 @@ export class AsrService {
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
             if (full) copyToClipboard(full);
             this._pruneRecordings();
-            Main.notify(
+            notify(
+                this._extensionDir,
                 isPaste
                     ? _('Plane ASR: transcription pasted')
                     : _('Plane ASR: transcription copied')
@@ -323,7 +372,8 @@ export class AsrService {
                 if (isPaste) await pasteAtCursor(full);
                 else copyToClipboard(full);
             }
-            Main.notify(
+            notify(
+                this._extensionDir,
                 isPaste
                     ? _('Plane ASR: transcription pasted')
                     : _('Plane ASR: transcription copied')
@@ -354,7 +404,7 @@ export class AsrService {
         // solapen. Este punto de entrada se llama directamente desde el
         // indicador, así que debe protegerse a sí mismo.
         if (this._state !== AsrState.Idle) {
-            Main.notify(_('Plane ASR is busy'));
+            notify(this._extensionDir, _('Plane ASR is busy'));
             return;
         }
 
@@ -377,7 +427,7 @@ export class AsrService {
         let finalPath = srcPath;
         if (getWavDataOffset(srcPath) === null) {
             const destPath = this._newImportedPath(srcPath);
-            Main.notify(_('Converting audio…'));
+            notify(this._extensionDir, _('Converting audio…'));
             try {
                 await this._converter.convert(srcPath, destPath);
             } catch (e) {

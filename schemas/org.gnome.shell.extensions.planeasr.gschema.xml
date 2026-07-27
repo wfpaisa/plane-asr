@@ -98,7 +98,7 @@
       <description>Transcribe long recordings live in N-second chunks while recording, streaming each piece as it is ready, so backends with a per-call generation cap (e.g. Qwen3-ASR) don't truncate the output.</description>
     </key>
     <key name="chunk-seconds" type="i">
-      <default>10</default>
+      <default>60</default>
       <summary>Seconds per chunk</summary>
       <description>Length in seconds of each chunk when 'chunk-enabled' is true. Lower values are safer for models that cap output tokens per call.</description>
     </key>

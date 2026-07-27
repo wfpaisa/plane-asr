@@ -26,13 +26,13 @@ import St from 'gi://St';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import type {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {SETTINGS_KEYS} from '../config/settings.js';
 import {recordsDir} from '../config/paths.js';
 import {AsrState, type AsrChangeContext} from './asr-service.js';
+import {notify} from './notify.js';
 
 /** Clase CSS que se activa/desactiva en el botón mientras se graba. */
 const RECORDING_STYLE_CLASS = 'planeasr-recording';
@@ -232,7 +232,10 @@ export const Indicator = GObject.registerClass(
                     this.service.cancel();
                     break;
                 case undefined:
-                    Main.notify(_('Plane ASR is not ready yet'));
+                    notify(
+                        this.extension.path,
+                        _('Plane ASR is not ready yet')
+                    );
                     break;
                 default:
                     this.service.toggle();
@@ -256,7 +259,8 @@ export const Indicator = GObject.registerClass(
                         // se puedan inspeccionar con:
                         //   journalctl --user -b /usr/bin/gnome-shell | grep planeasr
                         console.warn(`[planeasr] ${ctx.error}`);
-                        Main.notify(
+                        notify(
+                            this.extension.path,
                             _('Plane ASR: transcription failed'),
                             ctx.error
                         );
@@ -342,7 +346,7 @@ export const Indicator = GObject.registerClass(
                 St.ClipboardType.CLIPBOARD,
                 text
             );
-            Main.notify(_('Plane ASR: copied transcription'));
+            notify(this.extension.path, _('Plane ASR: copied transcription'));
         }
 
         /**
@@ -354,13 +358,14 @@ export const Indicator = GObject.registerClass(
          */
         _pickAndTranscribe(): Promise<void> {
             if (this.service?.state !== AsrState.Idle) {
-                Main.notify(_('Plane ASR is busy'));
+                notify(this.extension.path, _('Plane ASR is busy'));
                 return Promise.resolve();
             }
 
             const gjs = GLib.find_program_in_path('gjs');
             if (!gjs) {
-                Main.notify(
+                notify(
+                    this.extension.path,
                     _('Plane ASR'),
                     _('gjs runtime not found; cannot open the file picker')
                 );
@@ -379,7 +384,8 @@ export const Indicator = GObject.registerClass(
                 console.warn(
                     `[planeasr] file picker script missing: ${pickerPath}`
                 );
-                Main.notify(
+                notify(
+                    this.extension.path,
                     _('Plane ASR'),
                     _('File picker helper is missing; reinstall the extension')
                 );
@@ -409,7 +415,8 @@ export const Indicator = GObject.registerClass(
                     console.warn(
                         `[planeasr] could not spawn file picker: ${this._errMsg(e)}`
                     );
-                    Main.notify(
+                    notify(
+                        this.extension.path,
                         _('Plane ASR'),
                         _('Could not open the file picker')
                     );
@@ -503,7 +510,8 @@ export const Indicator = GObject.registerClass(
                 }).init(null);
             } catch (e) {
                 console.warn(`[planeasr] xdg-open failed: ${this._errMsg(e)}`);
-                Main.notify(
+                notify(
+                    this.extension.path,
                     _('Plane ASR'),
                     _('Could not open the audios folder')
                 );
