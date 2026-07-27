@@ -342,6 +342,12 @@ export class AsrService {
             return;
         }
 
+        // Claim the busy state up front so a concurrent toggle() (global
+        // shortcut or primary click) can't start a recording while we convert
+        // or transcribe. Conversion can take a while for large files, and
+        // cancel() aborts the converter via forceExit().
+        this._setState(AsrState.Transcribing);
+
         // Already in the target format? getWavDataOffset validates RIFF/WAVE,
         // PCM, mono, 16 kHz, 16-bit — exactly what the recorder produces.
         let finalPath = srcPath;

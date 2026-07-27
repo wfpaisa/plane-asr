@@ -117,7 +117,7 @@ export const Indicator = GObject.registerClass(
                     this.extension.path,
                     'data',
                     'icons',
-                    'sound-symbolic.svg',
+                    'no-sound-symbolic.svg',
                 ])
             );
             this._soundIcon = Gio.icon_new_for_string(
@@ -125,7 +125,7 @@ export const Indicator = GObject.registerClass(
                     this.extension.path,
                     'data',
                     'icons',
-                    'no-sound-symbolic.svg',
+                    'sound-symbolic.svg',
                 ])
             );
             this._connectSettings();
