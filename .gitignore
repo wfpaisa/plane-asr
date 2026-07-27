@@ -3,6 +3,7 @@ node_modules
 
 # build output
 dist
+dist-test
 out
 *.tgz
 *.zip
@@ -33,3 +34,12 @@ logs
 
 # OS
 .DS_Store
+
+# editor backups
+*~
+
+# ZCode session plans (local only)
+.zcode/
+
+# vulkaninfo dumps (diagnostics, not source)
+VP_VULKANINFO_*.json

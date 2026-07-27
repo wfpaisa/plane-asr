@@ -1,0 +1,755 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the plane-asr package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: plane-asr 0.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
+"POT-Creation-Date: 2026-07-25 13:09-0500\n"
+"PO-Revision-Date: 2026-07-24 19:26-0500\n"
+"Last-Translator: Felipe Uribe <felipe@wfelipe.com>\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/extension/asr-service.ts:159
+msgid "ASR binary not found. Set it in preferences."
+msgstr "No se encontró el binario ASR. Configúrelo en las preferencias."
+
+#: src/extension/asr-service.ts:171
+msgid ""
+"No transcription binary available for this system. Switch to GPU mode and "
+"set the binary path, or install transcribe-cli on your PATH."
+msgstr ""
+"No hay ningún binario de transcripción disponible para este sistema. Cambie "
+"al modo GPU y establezca la ruta del binario, o instale transcribe-cli en su "
+"PATH."
+
+#: src/extension/asr-service.ts:262 src/extension/asr-service.ts:310
+msgid "Plane ASR: transcription pasted"
+msgstr "Plane ASR: transcripción pegada"
+
+#: src/extension/asr-service.ts:263 src/extension/asr-service.ts:311
+msgid "Plane ASR: transcription copied"
+msgstr "Plane ASR: transcripción copiada"
+
+#: src/extension/asr-service.ts:335 src/extension/indicator.ts:283
+msgid "Plane ASR is busy"
+msgstr "Plane ASR está ocupado"
+
+#: src/extension/asr-service.ts:350
+msgid "Converting audio…"
+msgstr "Convirtiendo audio…"
+
+#: src/extension/asr-service.ts:357
+msgid ""
+"No audio converter found. Install ffmpeg, or use a 16 kHz mono 16-bit WAV."
+msgstr ""
+"No se encontró conversor de audio. Instala ffmpeg o usa un WAV de 16 kHz "
+"mono 16-bit."
+
+#: src/extension/indicator.ts:87 src/extension/indicator.ts:290
+#: src/extension/indicator.ts:309 src/extension/indicator.ts:339
+#: src/extension/indicator.ts:430
+msgid "Plane ASR"
+msgstr "Plane ASR"
+
+#: src/extension/indicator.ts:124 src/extension/indicator.ts:218
+msgid "Start recording"
+msgstr "Iniciar grabación"
+
+#: src/extension/indicator.ts:134
+msgid "Copy text"
+msgstr "Copiar texto"
+
+#: src/extension/indicator.ts:141
+msgid "Open audios"
+msgstr "Abrir audios"
+
+#: src/extension/indicator.ts:149
+msgid "Process audio file"
+msgstr "Procesar archivo de audio"
+
+#: src/extension/indicator.ts:159
+msgid "Preferences"
+msgstr "Preferencias"
+
+#: src/extension/indicator.ts:203
+msgid "Plane ASR is not ready yet"
+msgstr "Plane ASR aún no está listo"
+
+#: src/extension/indicator.ts:227
+#, fuzzy
+msgid "Plane ASR: transcription failed"
+msgstr "Plane ASR: transcripción pegada"
+
+#: src/extension/indicator.ts:236
+msgid "Stop recording"
+msgstr "Detener grabación"
+
+#: src/extension/indicator.ts:241
+#, javascript-format
+msgid "Transcribing %s"
+msgstr "Transcribiendo %s"
+
+#: src/extension/indicator.ts:242
+msgid "Cancel transcription"
+msgstr "Cancelar transcripción"
+
+#: src/extension/indicator.ts:272
+msgid "Plane ASR: copied transcription"
+msgstr "Plane ASR: transcripción copiada"
+
+#: src/extension/indicator.ts:291
+msgid "gjs runtime not found; cannot open the file picker"
+msgstr ""
+"No se encontró el runtime gjs; no se puede abrir el selector de archivos"
+
+#: src/extension/indicator.ts:310
+msgid "File picker helper is missing; reinstall the extension"
+msgstr "Falta el asistente del selector de archivos; reinstala la extensión"
+
+#: src/extension/indicator.ts:322
+msgid "Select audio file"
+msgstr "Seleccionar archivo de audio"
+
+#: src/extension/indicator.ts:323
+msgid "Open"
+msgstr "Abrir"
+
+#: src/extension/indicator.ts:340
+msgid "Could not open the file picker"
+msgstr "No se pudo abrir el selector de archivos"
+
+#: src/extension/indicator.ts:431
+msgid "Could not open the audios folder"
+msgstr ""
+
+#: src/extension/recorder.ts:40
+msgid "A recording is already in progress"
+msgstr "Ya hay una grabación en curso"
+
+#: src/extension/recorder.ts:111
+msgid "Neither pw-record nor parecord was found in PATH"
+msgstr "No se encontró pw-record ni parecord en el PATH"
+
+#: src/prefs/index.ts:114
+msgid "binary path is empty"
+msgstr "la ruta del binario está vacía"
+
+#: src/prefs/index.ts:118
+#, javascript-format
+msgid "binary not found: %s"
+msgstr "binario no encontrado: %s"
+
+#: src/prefs/index.ts:127 src/prefs/index.ts:147
+#, javascript-format
+msgid "binary is not executable: %s"
+msgstr "el binario no es ejecutable: %s"
+
+#: src/prefs/index.ts:137
+msgid "no transcription binary found (bundled or on PATH)"
+msgstr "no se encontró ningún binario de transcripción (incluido o en el PATH)"
+
+#: src/prefs/index.ts:174
+msgid "no model file found"
+msgstr "no se encontró ningún archivo de modelo"
+
+#: src/prefs/index.ts:177
+#, javascript-format
+msgid "model not found: %s"
+msgstr "modelo no encontrado: %s"
+
+#: src/prefs/index.ts:181
+#, javascript-format
+msgid "model path is relative and cannot be verified: %s"
+msgstr "la ruta del modelo es relativa y no se puede verificar: %s"
+
+#: src/prefs/index.ts:188
+msgid "Binary and model look OK"
+msgstr "El binario y el modelo parecen correctos"
+
+#: src/prefs/index.ts:214
+msgid "Reset all settings?"
+msgstr "¿Restablecer todas las opciones?"
+
+#: src/prefs/index.ts:216
+msgid ""
+"This restores every option to its default value. Your downloaded model files "
+"are kept on disk."
+msgstr ""
+"Esto restaura todas las opciones a su valor predeterminado. Los archivos de "
+"modelo descargados se conservan en el disco."
+
+#: src/prefs/index.ts:221 src/prefs/models-page.ts:552
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/prefs/index.ts:222 src/prefs/index.ts:617
+msgid "Reset"
+msgstr "Restablecer"
+
+#: src/prefs/index.ts:289
+#, fuzzy
+msgid "Backend"
+msgstr "Motor ASR"
+
+#: src/prefs/index.ts:295
+msgid "Transcription"
+msgstr "Transcripción"
+
+#: src/prefs/index.ts:297
+msgid "Configure the transcribe-cli binary (transcribe.cpp)"
+msgstr ""
+
+#: src/prefs/index.ts:303 src/prefs/index.ts:392
+msgid "CPU"
+msgstr "CPU"
+
+#: src/prefs/index.ts:303
+msgid "GPU"
+msgstr "GPU"
+
+#: src/prefs/index.ts:306
+msgid "Binary mode"
+msgstr "Modo del binario"
+
+#: src/prefs/index.ts:308
+#, fuzzy
+msgid ""
+"CPU uses the transcribe-cli shipped with the extension (x86_64), falling "
+"back to one found on PATH. GPU lets you point to your own Vulkan/CUDA build."
+msgstr ""
+"CPU usa el transcribe-cli incluido con la extensión (CPU, x86_64), "
+"recurriendo a uno encontrado en el PATH. GPU le permite indicar su propia "
+"compilación, p. ej. con Vulkan/CUDA."
+
+#: src/prefs/index.ts:325
+#, fuzzy
+msgid ""
+"GPU mode uses a manually configured binary (e.g. a transcribe.cpp build with "
+"Vulkan/CUDA/Metal). Point it to the compiled transcribe-cli; the accelerator "
+"is left on Auto so the CLI uses whatever GPU it was built for."
+msgstr ""
+"El modo GPU usa un binario configurado manualmente (p. ej. una compilación "
+"de transcribe.cpp con Vulkan/CUDA). Apúntelo al transcribe-cli compilado; el "
+"acelerador se fuerza a Vulkan para que la inferencia se ejecute en su GPU."
+
+#: src/prefs/index.ts:346
+msgid "Resolved binary"
+msgstr "Binario resuelto"
+
+#: src/prefs/index.ts:351
+msgid "Binary path"
+msgstr "Ruta del binario"
+
+#: src/prefs/index.ts:357
+msgid "Optional extra flags"
+msgstr "Opciones adicionales opcionales"
+
+#: src/prefs/index.ts:358
+msgid "e.g. --verbose --beam-size 4 (left blank = none)"
+msgstr "p. ej. --verbose --beam-size 4 (vacío = ninguno)"
+
+#: src/prefs/index.ts:363
+msgid "Realtime mode"
+msgstr "Modo en tiempo real"
+
+#: src/prefs/index.ts:364
+msgid "Append --stream-chunk-ms 500"
+msgstr "Añadir --stream-chunk-ms 500"
+
+#: src/prefs/index.ts:369
+msgid "Validate"
+msgstr "Validar"
+
+#: src/prefs/index.ts:373
+msgid "Check binary and model"
+msgstr "Comprobar binario y modelo"
+
+#: src/prefs/index.ts:374
+msgid "Verify the paths exist and the binary is executable"
+msgstr "Verifique que las rutas existen y que el binario es ejecutable"
+
+#: src/prefs/index.ts:386
+msgid "Performance"
+msgstr "Rendimiento"
+
+#: src/prefs/index.ts:387
+#, fuzzy
+msgid "Tune CPU vs GPU acceleration and threading"
+msgstr "Aceleración por CPU frente a GPU Vulkan"
+
+#: src/prefs/index.ts:392
+msgid "Auto"
+msgstr "Automático"
+
+#: src/prefs/index.ts:392
+msgid "Vulkan"
+msgstr "Vulkan"
+
+#: src/prefs/index.ts:395
+msgid "Accelerator"
+msgstr "Acelerador"
+
+#: src/prefs/index.ts:396
+msgid "Compute backend for inference"
+msgstr "Motor de cálculo para la inferencia"
+
+#: src/prefs/index.ts:403
+msgid "Auto-detect GPU"
+msgstr "Detectar GPU automáticamente"
+
+#: src/prefs/index.ts:404
+msgid "Probe for a Vulkan GPU when accelerator is Auto"
+msgstr "Buscar una GPU Vulkan cuando el acelerador es Automático"
+
+#: src/prefs/index.ts:414 src/prefs/index.ts:797
+msgid "Auto (let CLI choose)"
+msgstr ""
+
+#: src/prefs/index.ts:417
+#, fuzzy
+msgid "GPU device"
+msgstr "Índice de dispositivo GPU"
+
+#: src/prefs/index.ts:418 src/prefs/index.ts:824
+msgid "Which compute device the CLI uses"
+msgstr ""
+
+#: src/prefs/index.ts:425
+msgid "CPU threads"
+msgstr "Hilos de CPU"
+
+#: src/prefs/index.ts:426
+msgid "0 = auto (use all cores)"
+msgstr "0 = automático (usar todos los núcleos)"
+
+#: src/prefs/index.ts:442
+msgid "Long recordings"
+msgstr "Grabaciones largas"
+
+#: src/prefs/index.ts:444
+msgid ""
+"Split live recordings into chunks so transcription streams progressively and "
+"backends with token limits do not truncate the output."
+msgstr ""
+
+#: src/prefs/index.ts:452
+msgid "Live chunked transcription"
+msgstr "Transcripción fragmentada en vivo"
+
+#: src/prefs/index.ts:453
+msgid "Process each N-second chunk as you speak"
+msgstr "Procesar cada fragmento de N segundos mientras habla"
+
+#: src/prefs/index.ts:458
+msgid "Seconds per chunk"
+msgstr "Segundos por fragmento"
+
+#: src/prefs/index.ts:460
+msgid "Lower values are safer for models that cap output tokens"
+msgstr ""
+"Los valores bajos son más seguros para modelos que limitan los tokens de "
+"salida"
+
+#: src/prefs/index.ts:476
+msgid "Overlap seconds"
+msgstr "Segundos de solapamiento"
+
+#: src/prefs/index.ts:478
+msgid ""
+"Re-transcribe this much at each chunk boundary so words split across the "
+"seam are not lost (0 = off)"
+msgstr ""
+"Vuelve a transcribir esta cantidad en cada límite de fragmento para que no "
+"se pierdan las palabras divididas en la unión (0 = desactivado)"
+
+#: src/prefs/index.ts:500
+msgid "General"
+msgstr "General"
+
+#: src/prefs/index.ts:506
+msgid "Language"
+msgstr "Idioma"
+
+#: src/prefs/index.ts:507
+msgid "Spoken language and translation settings"
+msgstr ""
+
+#: src/prefs/index.ts:520
+msgid "Spoken language"
+msgstr "Idioma hablado"
+
+#: src/prefs/index.ts:521
+msgid "Language hint passed to the model"
+msgstr "Pista de idioma pasada al modelo"
+
+#: src/prefs/index.ts:528
+msgid "Translate to English"
+msgstr "Traducir al inglés"
+
+#: src/prefs/index.ts:529
+msgid "When the model supports translation"
+msgstr "Cuando el modelo admite traducción"
+
+#: src/prefs/index.ts:535
+msgid "Quality"
+msgstr "Calidad"
+
+#: src/prefs/index.ts:537
+msgid ""
+"Custom vocabulary to bias the transcription toward specific names or terms"
+msgstr ""
+
+#: src/prefs/index.ts:544
+msgid "Initial prompt / custom words"
+msgstr "Prompt inicial / palabras personalizadas"
+
+#: src/prefs/index.ts:551
+#, fuzzy
+msgid "Output & Recording"
+msgstr "Detener grabación"
+
+#: src/prefs/index.ts:553
+#, fuzzy
+msgid "Where the transcribed text goes and how to trigger recording"
+msgstr "A dónde va el texto transcrito"
+
+#: src/prefs/index.ts:559
+msgid "Copy to clipboard"
+msgstr "Copiar al portapapeles"
+
+#: src/prefs/index.ts:559
+msgid "Paste at cursor"
+msgstr "Pegar en el cursor"
+
+#: src/prefs/index.ts:562
+msgid "Output mode"
+msgstr "Modo de salida"
+
+#: src/prefs/index.ts:563
+msgid "How to deliver the transcription"
+msgstr "Cómo entregar la transcripción"
+
+#: src/prefs/index.ts:573
+msgid "Keep last recordings"
+msgstr "Conservar últimas grabaciones"
+
+#: src/prefs/index.ts:575
+msgid ""
+"How many recent recordings to keep under records/. Older WAVs are deleted "
+"automatically (0 = keep none)"
+msgstr ""
+"Cuántas grabaciones recientes conservar en records/. Las más antiguas se "
+"eliminan automáticamente (0 = no conservar ninguna)"
+
+#: src/prefs/index.ts:593
+msgid "Debug"
+msgstr "Depuración"
+
+#: src/prefs/index.ts:595
+#, fuzzy
+msgid ""
+"Logs every transcription run to the system journal. Inspect with:\n"
+"journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
+msgstr ""
+"Cuando se activa, cada ejecución de transcripción se registra en el diario "
+"del sistema (línea de comandos, estado de salida y la salida stdout/stderr "
+"sin procesar del CLI ASR). Inspecciónelo con:\n"
+"journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
+
+#: src/prefs/index.ts:603
+msgid "Debug logging"
+msgstr "Registro de depuración"
+
+#: src/prefs/index.ts:605
+msgid "Record the ASR command and its raw output for troubleshooting"
+msgstr "Registra el comando ASR y su salida sin procesar para diagnóstico"
+
+#: src/prefs/index.ts:622
+msgid "Reset settings"
+msgstr "Restablecer opciones"
+
+#: src/prefs/index.ts:624
+msgid ""
+"Restore every option to its default value (binary, model, language, "
+"shortcut…)"
+msgstr ""
+"Restaura todas las opciones a su valor predeterminado (binario, modelo, "
+"idioma, atajo…)"
+
+#: src/prefs/index.ts:637
+msgid "Settings reset to their defaults"
+msgstr "Opciones restablecidas a sus valores predeterminados"
+
+#: src/prefs/index.ts:649
+#, javascript-format
+msgid "Binary path (%s)"
+msgstr "Ruta del binario (%s)"
+
+#: src/prefs/index.ts:667
+msgid "Using bundled CPU binary (transcribe-cli, x86_64)."
+msgstr "Usando el binario de CPU incluido (transcribe-cli, x86_64)."
+
+#: src/prefs/index.ts:671
+#, javascript-format
+msgid "Using transcribe-cli from PATH: %s"
+msgstr "Usando transcribe-cli del PATH: %s"
+
+#: src/prefs/index.ts:675
+msgid ""
+"No binary found for this system. Switch to GPU and set the binary path, or "
+"install transcribe-cli."
+msgstr ""
+"No se encontró ningún binario para este sistema. Cambie a GPU y establezca "
+"la ruta del binario, o instale transcribe-cli."
+
+#: src/prefs/index.ts:810
+#, javascript-format
+msgid "No devices detected by %s"
+msgstr ""
+
+#: src/prefs/index.ts:811
+#, fuzzy
+msgid "No transcription binary configured"
+msgstr "no se encontró ningún binario de transcripción (incluido o en el PATH)"
+
+#: src/prefs/index.ts:821
+#, javascript-format
+msgid "%d · %s (%s%s)"
+msgstr ""
+
+#: src/prefs/models-page.ts:46
+msgid "Models"
+msgstr "Modelos"
+
+#: src/prefs/models-page.ts:54
+msgid "Model selection"
+msgstr "Selección de modelo"
+
+#: src/prefs/models-page.ts:55
+msgid "Choose between a catalog model or a custom model path"
+msgstr "Elija entre un modelo del catálogo o una ruta de modelo personalizada"
+
+#: src/prefs/models-page.ts:62
+msgid "Custom model path"
+msgstr "Ruta de modelo personalizada"
+
+#: src/prefs/models-page.ts:72
+msgid "Catalog model"
+msgstr "Modelo del catálogo"
+
+#: src/prefs/models-page.ts:86
+msgid "Model path"
+msgstr "Ruta del modelo"
+
+#: src/prefs/models-page.ts:130
+msgid ""
+"No catalog model selected — browse below and click \"Use\" to select one."
+msgstr ""
+"No hay ningún modelo del catálogo seleccionado; explore abajo y haga clic en "
+"«Usar» para seleccionar uno."
+
+#: src/prefs/models-page.ts:200
+msgid "Browse models"
+msgstr "Explorar modelos"
+
+#: src/prefs/models-page.ts:202
+msgid ""
+"Download GGUF models from HuggingFace. They are verified with SHA-256 and "
+"stored locally."
+msgstr ""
+"Descargue modelos GGUF de HuggingFace. Se verifican con SHA-256 y se "
+"almacenan localmente."
+
+#: src/prefs/models-page.ts:210
+msgid "Search by name or language…"
+msgstr "Buscar por nombre o idioma…"
+
+#: src/prefs/models-page.ts:298
+#, javascript-format
+msgid "Model downloaded: %s"
+msgstr "Modelo descargado: %s"
+
+#: src/prefs/models-page.ts:302
+#, javascript-format
+msgid "Download failed: %s"
+msgstr "Falló la descarga: %s"
+
+#: src/prefs/models-page.ts:321
+#, javascript-format
+msgid "Model deleted: %s"
+msgstr "Modelo eliminado: %s"
+
+#: src/prefs/models-page.ts:331
+msgid "Storage"
+msgstr ""
+
+#: src/prefs/models-page.ts:333
+msgid ""
+"Directory where downloaded models are stored. You can also drop "
+"any .gguf/.bin file here and point to it with a custom path."
+msgstr ""
+
+#: src/prefs/models-page.ts:348
+msgid "Open folder"
+msgstr "Abrir carpeta"
+
+#: src/prefs/models-page.ts:372
+msgid "Models directory"
+msgstr "Directorio de modelos"
+
+#: src/prefs/models-page.ts:449 src/prefs/models-page.ts:638
+msgid "Download"
+msgstr "Descargar"
+
+#: src/prefs/models-page.ts:457
+#, javascript-format
+msgid "Active model: %s"
+msgstr "Modelo activo: %s"
+
+#: src/prefs/models-page.ts:489
+msgid "Recommended"
+msgstr "Recomendado"
+
+#: src/prefs/models-page.ts:490
+msgid "Streaming"
+msgstr "Streaming"
+
+#: src/prefs/models-page.ts:495
+msgid "Downloaded"
+msgstr "Descargado"
+
+#: src/prefs/models-page.ts:501 src/prefs/models-page.ts:635
+#: src/prefs/models-page.ts:653
+msgid "Active"
+msgstr ""
+
+#: src/prefs/models-page.ts:537
+msgid "Delete downloaded file"
+msgstr "Eliminar archivo descargado"
+
+#: src/prefs/models-page.ts:549
+msgid "Delete model file?"
+msgstr "¿Eliminar el archivo del modelo?"
+
+#: src/prefs/models-page.ts:550
+#, javascript-format
+msgid "This will remove \"%s\" from disk."
+msgstr "Esto eliminará «%s» del disco."
+
+#: src/prefs/models-page.ts:553
+msgid "Delete"
+msgstr "Eliminar"
+
+#: src/prefs/models-page.ts:617
+#, javascript-format
+msgid "Path: %s"
+msgstr "Ruta: %s"
+
+#: src/prefs/models-page.ts:635 src/prefs/models-page.ts:657
+msgid "Use"
+msgstr "Usar"
+
+#: src/prefs/models-page.ts:689
+#, javascript-format
+msgid "%d languages"
+msgstr "%d idiomas"
+
+#: src/prefs/widgets.ts:101
+msgid "Press the desired combination"
+msgstr "Pulse la combinación deseada"
+
+#: src/prefs/widgets.ts:102
+msgid "Esc to cancel · Backspace to disable"
+msgstr "Esc para cancelar · Retroceso para desactivar"
+
+#: src/prefs/widgets.ts:138
+msgid "Toggle recording shortcut"
+msgstr "Atajo para alternar grabación"
+
+#: src/prefs/widgets.ts:139
+msgid "Click Set and press the keys you want to use"
+msgstr "Haga clic en Definir y pulse las teclas que quiera usar"
+
+#: src/prefs/widgets.ts:143
+msgid "Disabled"
+msgstr "Desactivado"
+
+#: src/prefs/widgets.ts:147
+msgid "Set"
+msgstr "Definir"
+
+#: src/prefs/widgets.ts:153
+msgid "Disable shortcut"
+msgstr "Desactivar atajo"
+
+#~ msgid "Configure the local ASR backend"
+#~ msgstr "Configure el motor ASR local"
+
+#~ msgid "Which transcription CLI to invoke"
+#~ msgstr "Qué CLI de transcripción invocar"
+
+#~ msgid "Custom arg template"
+#~ msgstr "Plantilla de argumentos personalizada"
+
+#~ msgid "-1 = auto"
+#~ msgstr "-1 = automático"
+
+#~ msgid "CPU mode: GPU detection disabled."
+#~ msgstr "Modo CPU: detección de GPU desactivada."
+
+#~ msgid "GPU auto-detection is off."
+#~ msgstr "La detección automática de GPU está desactivada."
+
+#~ msgid "Detecting GPU…"
+#~ msgstr "Detectando GPU…"
+
+#~ msgid ""
+#~ "No Vulkan GPU detected. Install vulkan-tools (vulkaninfo) to enable "
+#~ "detection."
+#~ msgstr ""
+#~ "No se detectó ninguna GPU Vulkan. Instale vulkan-tools (vulkaninfo) para "
+#~ "activar la detección."
+
+#~ msgid "GPU detection failed."
+#~ msgstr "Falló la detección de GPU."
+
+#~ msgid "Voice activity detection and custom vocabulary"
+#~ msgstr "Detección de actividad de voz y vocabulario personalizado"
+
+#~ msgid "Voice Activity Detection (VAD)"
+#~ msgstr "Detección de actividad de voz (VAD)"
+
+#~ msgid "Filter silence before transcription. whisper-cli only."
+#~ msgstr "Filtrar el silencio antes de transcribir. Solo whisper-cli."
+
+#~ msgid "Output"
+#~ msgstr "Salida"
+
+#~ msgid ""
+#~ "Transcribe live in N-second chunks while you keep speaking, so the first "
+#~ "words are pasted right away and backends with a per-call generation cap "
+#~ "(e.g. Qwen3-ASR at 256 tokens) do not truncate the output."
+#~ msgstr ""
+#~ "Transcribe en vivo en fragmentos de N segundos mientras sigue hablando, "
+#~ "de modo que las primeras palabras se pegan de inmediato y los motores con "
+#~ "un límite de generación por llamada (p. ej. Qwen3-ASR a 256 tokens) no "
+#~ "truncan la salida."
+
+#~ msgid "Custom models"
+#~ msgstr "Modelos personalizados"
+
+#~ msgid ""
+#~ "You can also drop any .gguf/.bin file into the models directory and "
+#~ "select it with the advanced model params."
+#~ msgstr ""
+#~ "También puede depositar cualquier archivo .gguf/.bin en el directorio de "
+#~ "modelos y seleccionarlo con la ruta de modelo personalizada."

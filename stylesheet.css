@@ -1,1 +1,70 @@
-/* Add your custom extension styling here */
+/*
+ * Plane ASR extension styling.
+ *
+ * Este archivo lo cargan dos motores CSS distintos:
+ *  - GNOME Shell (St/Clutter) lo recoge automáticamente por convención para
+ *    la propia extensión (indicador, panel).
+ *  - La ventana de preferencias (GTK4/libadwaita) lo carga a mano vía
+ *    Gtk.CssProvider en src/prefs/index.ts, porque St no comparte motor de
+ *    estilos con GTK y libadwaita no expone estas variantes como clase
+ *    incorporada.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+/* -- Extensión (St/Clutter) ---------------------------------------------- */
+
+/* Recording state: red background, white icon. Applied to the indicator
+ * button while a capture is running. The slow blink itself is driven by a
+ * Clutter opacity transition in indicator.ts (St's CSS engine has no
+ * @keyframes support), so this only sets the base color. */
+.planeasr-recording {
+    background-color: #c01c28;
+}
+
+.planeasr-recording .system-status-icon {
+    color: #ffffff;
+}
+
+/* -- Preferencias (GTK4/libadwaita) --------------------------------------- */
+
+/* Resalta la fila del modelo de catálogo que es el modelo activo de
+ * transcripción: fondo sutil + contorno con el azul de acento por defecto
+ * de GNOME (#3584e4). Se usa un color fijo en vez de las variables
+ * @accent_bg_color/alpha() de libadwaita porque este archivo también lo
+ * carga el motor CSS de St/Clutter para la extensión, que no entiende esa
+ * sintaxis GTK4 y fallaba al cargar el stylesheet. */
+.planeasr-active-model {
+    background-color: rgba(53, 132, 228, 0.12);
+    outline: 1px solid rgba(53, 132, 228, 0.4);
+    outline-offset: -1px;
+}
+
+/* Botón grande de la página de Setup para instalar/activar el modelo
+ * recomendado de un clic. */
+.planeasr-setup-button {
+    min-width: 100px;
+    min-height: 36px;
+    font-size: 1.3em;
+    font-weight: bold;
+}
+
+/* Ícono de corazón (insignia "Favorito") en rojo. El SVG en
+ * data/icons/heart-symbolic.svg no lleva color propio: se resuelve como
+ * ícono symbolic (vía registerIconSearchPath) y se recolorea aquí con
+ * `color`, igual que cualquier ícono symbolic del tema del sistema. */
+.planeasr-icon-heart {
+    color: #e01b24;
+}
+
+/* Botón de acción (Usar/Descargar) de cada fila de modelo, a la mitad del
+ * tamaño estándar de libadwaita: menos padding, sin altura mínima y fuente
+ * más chica. */
+.planeasr-compact-button {
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-height: 0;
+    font-size: 0.85em;
+}

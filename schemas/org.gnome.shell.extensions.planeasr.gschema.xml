@@ -1,15 +1,144 @@
 <?xml version="1.0" encoding="utf-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.planeasr" path="/org/gnome/shell/extensions/planeasr/">
-    <key name="padding-inner" type="i">
-      <default>8</default>
-      <summary>Inner padding</summary>
-      <description>Padding between windows</description>
+    <!-- ASR backend selection -->
+    <key name="asr-backend" type="s">
+      <default>'transcribe-cli'</default>
+      <summary>ASR backend</summary>
+      <description>The transcription binary preset. Only 'transcribe-cli' (transcribe.cpp) is supported; the key is kept for compatibility with existing profiles.</description>
     </key>
-    <key name="animate" type="b">
+    <key name="cli-mode" type="s">
+      <choices>
+        <choice value="cpu"/>
+        <choice value="gpu"/>
+      </choices>
+      <default>'cpu'</default>
+      <summary>CLI mode</summary>
+      <description>How to resolve the transcription binary. 'cpu' uses the CPU-only transcribe-cli bundled with the extension (x86_64), falling back to a transcribe-cli found on PATH. 'gpu' uses the absolute path set in cli-path (e.g. a Vulkan/CUDA build) and forces the Vulkan accelerator so inference runs on the GPU. Legacy values 'auto' and 'manual' are migrated at load time to 'cpu' and 'gpu' respectively.</description>
+    </key>
+    <key name="cli-path" type="s">
+      <default>''</default>
+      <summary>Binary path</summary>
+      <description>Absolute path to the transcription CLI binary.</description>
+    </key>
+    <key name="model-params" type="s">
+      <default>''</default>
+      <summary>Model parameters</summary>
+      <description>Extra arguments passed to the binary (model path, language, ...). Quote paths with spaces.</description>
+    </key>
+    <key name="realtime-mode" type="b">
+      <default>false</default>
+      <summary>Realtime mode</summary>
+      <description>Append --stream-chunk-ms 500 when supported by the backend.</description>
+    </key>
+    <key name="extra-cli-flags" type="s">
+      <default>''</default>
+      <summary>Extra CLI flags</summary>
+      <description>Optional extra flags appended to every transcription command, after the model params and feature flags, before the audio path. Left blank means none. Quote values with spaces.</description>
+    </key>
+
+    <!-- Model selection -->
+    <key name="active-model-id" type="s">
+      <default>''</default>
+      <summary>Active model id</summary>
+      <description>Id of the active catalog model. When empty, the free-form model-params string is used instead.</description>
+    </key>
+    <key name="model-dir" type="s">
+      <default>''</default>
+      <summary>Model directory</summary>
+      <description>Directory where downloaded models are stored. Empty means ~/.cache/planeasr/models.</description>
+    </key>
+    <key name="quant-preference" type="s">
+      <default>'Q8_0'</default>
+      <summary>Preferred quantization</summary>
+      <description>Quantization selected by default when a model offers several files (Q4_K_M, Q5_K_M, Q6_K, Q8_0, F16, F32).</description>
+    </key>
+
+    <!-- Compute backend -->
+    <key name="accelerator" type="s">
+      <choices>
+        <choice value="auto"/>
+        <choice value="cpu"/>
+        <choice value="vulkan"/>
+      </choices>
+      <default>'auto'</default>
+      <summary>Accelerator</summary>
+      <description>Compute backend: auto (let the CLI pick), cpu, or vulkan.</description>
+    </key>
+    <key name="gpu-device" type="i">
+      <default>-1</default>
+      <summary>GPU device index</summary>
+      <description>Index of the GPU device to use. -1 means auto-detect.</description>
+    </key>
+
+    <!-- ASR parameters -->
+    <key name="selected-language" type="s">
+      <default>'auto'</default>
+      <summary>Spoken language</summary>
+      <description>ISO 639-1 language code or 'auto' for detection.</description>
+    </key>
+    <key name="translate-to-english" type="b">
+      <default>false</default>
+      <summary>Translate to English</summary>
+      <description>Translate the transcription to English when the model supports it.</description>
+    </key>
+    <key name="cpu-threads" type="i">
+      <default>0</default>
+      <summary>CPU threads</summary>
+      <description>Number of CPU threads to use. 0 means auto (all available cores).</description>
+    </key>
+    <key name="initial-prompt" type="s">
+      <default>''</default>
+      <summary>Initial prompt / custom words</summary>
+      <description>Custom vocabulary or context biasing passed as the model initial prompt.</description>
+    </key>
+    <key name="chunk-enabled" type="b">
       <default>true</default>
-      <summary>Animation</summary>
-      <description>Whether to animate window movement/resizing</description>
+      <summary>Live chunked transcription</summary>
+      <description>Transcribe long recordings live in N-second chunks while recording, streaming each piece as it is ready, so backends with a per-call generation cap (e.g. Qwen3-ASR) don't truncate the output.</description>
+    </key>
+    <key name="chunk-seconds" type="i">
+      <default>60</default>
+      <summary>Seconds per chunk</summary>
+      <description>Length in seconds of each chunk when 'chunk-enabled' is true. Lower values are safer for models that cap output tokens per call.</description>
+    </key>
+    <key name="chunk-overlap-seconds" type="i">
+      <default>1</default>
+      <summary>Overlap between chunks</summary>
+      <description>Seconds of audio re-transcribed at the boundary between consecutive chunks so words split across the seam are not lost. The overlapping text is removed with fuzzy matching. 0 disables overlap.</description>
+    </key>
+
+    <!-- Output -->
+    <key name="output-mode" type="s">
+      <default>'clipboard'</default>
+      <summary>Output mode</summary>
+      <description>Where to send the transcribed text: 'clipboard' or 'paste'.</description>
+    </key>
+    <key name="keep-records" type="i">
+      <default>3</default>
+      <summary>Keep last recordings</summary>
+      <description>Number of most recent WAV recordings to keep under records/. Older files are pruned after each successful transcription. 0 keeps none (deletes a recording right after transcribing it); set a large value to keep everything.</description>
+    </key>
+
+    <!-- Persisted results -->
+    <key name="last-text" type="s">
+      <default>''</default>
+      <summary>Last transcription</summary>
+      <description>The text produced by the last successful transcription.</description>
+    </key>
+
+    <!-- Global keybinding -->
+    <key name="toggle-record-shortcut" type="as">
+      <default><![CDATA[['<Super>A']]]></default>
+      <summary>Toggle recording shortcut</summary>
+      <description>Global keybinding that starts/stops recording.</description>
+    </key>
+
+    <!-- Debug -->
+    <key name="debug-logging" type="b">
+      <default>false</default>
+      <summary>Debug logging</summary>
+      <description>Log the ASR command line and its captured stdout/stderr to the system journal for troubleshooting.</description>
     </key>
   </schema>
 </schemalist>

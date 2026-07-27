@@ -1,0 +1,9 @@
+# Source files containing translatable strings (gettext _('...') calls).
+# Listed relative to the repository root. Regenerate the .pot with:
+#   make pot   (or)   xgettext -f po/POTFILES.in -o po/planeasr.pot
+src/extension/asr-service.ts
+src/extension/indicator.ts
+src/extension/recorder.ts
+src/prefs/index.ts
+src/prefs/models-page.ts
+src/prefs/widgets.ts
