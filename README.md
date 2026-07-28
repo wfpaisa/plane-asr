@@ -1,10 +1,23 @@
 # Plane-ASR
 
-A GNOME Shell extension (`planeasr@wfelipe.com`) for local ASR (speech-to-text),
-written in TypeScript and following the official
+Turn your voice into text instantly, right on your desktop — no cloud, no
+accounts, no waiting. **Plane-ASR** is a GNOME Shell extension
+(`planeasr@wfelipe.com`) that transcribes speech to text in real time. Hit a
+shortcut, speak, and watch the words land at your cursor or on your clipboard.
+
+- 🎙️ **One click or shortcut** to start/stop recording from the top panel.
+- ⚡ **Live chunked transcription** — even on long takes, the first words show
+  up while you're still talking.
+- 📂 **Transcribe existing audio files**, not just live recordings.
+- 🧠 **Pick your model** — browse, download and select GGUF models from
+  HuggingFace right from Preferences, checksum-verified.
+- 💻 **CPU or GPU** — grab the CPU engine with one click, or plug in your own
+  Vulkan/CUDA build.
+- 🔒 **Real privacy** — everything runs locally via `transcribe-cli`
+  (transcribe.cpp); nothing is ever sent to the cloud.
+
+Written in TypeScript, following the official
 [TypeScript and LSP](https://gjs.guide/extensions/development/typed.html) guide.
-Transcription runs entirely on your machine via `transcribe-cli`
-(transcribe.cpp); nothing is sent to the cloud.
 
 ![](screenshot/screenshot01.png) ![](screenshot/screenshot02.png)<br>
 <details>
