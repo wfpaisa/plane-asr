@@ -23,7 +23,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 /** Componentes de ruta, bajo la raíz de la extensión, del binario del CLI incluido. */
-const BUNDLED_SUBPATH = ['bin', 'transcribe-cli'];
+const BUNDLED_SUBPATH = ['bin', 'transcribe-cli.bin'];
 
 /** Resultado de una búsqueda de binario en modo automático, para runtime e interfaz. */
 export interface ResolvedCli {
