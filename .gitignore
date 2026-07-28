@@ -42,7 +42,11 @@ logs
 *~
 
 # ZCode session plans (local only)
-.zcode/
+.zcode
+.claude
+AGENTS.md
 
 # vulkaninfo dumps (diagnostics, not source)
 VP_VULKANINFO_*.json
+
+pnpm-lock.yaml
