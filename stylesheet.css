@@ -43,7 +43,6 @@
 /* Botón grande de la página de Setup para instalar/activar el modelo
  * recomendado de un clic. */
 .big-btn {
-    min-width: 38px;
     min-height: 24px;
     font-size: 1.1em;
     font-weight: bold;

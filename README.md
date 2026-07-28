@@ -7,11 +7,14 @@ Transcription runs entirely on your machine via `transcribe-cli`
 (transcribe.cpp); nothing is sent to the cloud.
 
 ![](screenshot/screenshot01.png) ![](screenshot/screenshot02.png)<br>
-![](screenshot/screenshot03.png)<br>
-![](screenshot/screenshot04.png)<br>
-![](screenshot/screenshot05.png)<br>
-![](screenshot/screenshot06.png)<br>
-![](screenshot/screenshot07.png)<br>
+<details>
+    <summary>Show screenshots</summary>
+    ![](screenshot/screenshot03.png)<br>
+    ![](screenshot/screenshot04.png)<br>
+    ![](screenshot/screenshot05.png)<br>
+    ![](screenshot/screenshot06.png)<br>
+    ![](screenshot/screenshot07.png)<br>
+</details>
 
 ## Features
 
@@ -36,48 +39,6 @@ Transcription runs entirely on your machine via `transcribe-cli`
   Vulkan/CUDA build; the compute device is chosen from the CLI's own
   `--list-devices`.
 
-## Project structure
-
-```
-plane-asr/
-├── src/                      # TypeScript sources (modular)
-│   ├── ambient.d.ts          # GJS / GNOME Shell ambient type imports
-│   ├── extension/            # Runtime code loaded into gnome-shell
-│   │   ├── index.ts          #   PlaneAsrExtension (enable/disable lifecycle)
-│   │   ├── indicator.ts      #   Panel indicator UI + menu
-│   │   ├── asr-service.ts    #   Record → transcribe → output state machine
-│   │   ├── asr-backends.ts   #   transcribe-cli argv builder + arg tokenizer
-│   │   ├── recorder.ts       #   WAV capture (pw-record / parecord)
-│   │   ├── transcriber.ts    #   Runs the ASR CLI subprocess
-│   │   ├── audio-chunker.ts  #   Live WAV chunk slicing
-│   │   ├── audio-converter.ts#   ffmpeg / gst format conversion
-│   │   ├── device-lister.ts  #   `--list-devices` probe
-│   │   ├── cli-resolver.ts   #   Locate the CPU/GPU binary
-│   │   └── file-chooser-portal.ts # XDG FileChooser portal (D-Bus, no subprocess)
-│   ├── prefs/                # Adwaita preferences window
-│   │   ├── index.ts          #   Pages: Models / Backend / General
-│   │   ├── models-page.ts    #   Catalog browser + downloader
-│   │   └── widgets.ts        #   Shared row builders
-│   ├── models/               # Catalog + downloader + download state store
-│   ├── config/               # settings.ts (GSettings keys) + paths.ts
-│   └── util/                 # Pure helpers (paste, text-merge, wav, …)
-├── test/                     # node:test suites over the pure util logic
-├── extension.ts / prefs.ts   # Root entry points (re-export src/)
-├── schemas/                  # GSettings schema
-├── data/                     # Icons + bundled model catalog
-├── bin/transcribe-cli.bin    # CPU-only binary (x86_64); published as a
-│                             #   GitHub Release asset, not packaged in the
-│                             #   extension zip — see engine-manifest.ts
-├── metadata.json             # GNOME Shell extension metadata
-├── stylesheet.css            # Custom styling
-├── tsconfig.json             # tsc config (NodeNext, outDir: dist)
-├── Makefile                  # build / pack / install targets
-└── package.json              # pnpm scripts and dependencies
-```
-
-GNOME Shell loads `extension.js` and `prefs.js` from the extension root, so the thin root
-entry points re-export the implementations living under `src/`.
-
 ## Requirements
 
 - GNOME Shell 50
@@ -99,12 +60,11 @@ pnpm install
 Compile `extension.ts` and `prefs.ts` into `dist/`:
 
 ```bash
+# Pack and install
 pnpm run setup
 
-# ts -> js
-pnpm run build
-# or
-make
+# Debug:
+pnpm run setup
 ```
 
 ## Test
@@ -117,17 +77,6 @@ them under plain Node — no GJS required:
 ```bash
 pnpm run test
 ```
-
-## Pack and install
-
-```bash
-make pack      # generates planeasr@wfelipe.com.zip
-make install   # installs it for the current user via gnome-extensions
-make clean     # removes dist/, node_modules/ and the generated zip
-```
-
-After `make install`, log out and back in (or restart the Shell) to see the extension in the
-Extension Manager.
 
 ## Updating the engine binary
 
