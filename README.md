@@ -21,12 +21,13 @@ Written in TypeScript, following the official
 
 ![](screenshot/screenshot01.png) ![](screenshot/screenshot02.png)<br>
 <details>
-    <summary>Show screenshots</summary>
-    ![](screenshot/screenshot03.png)<br>
-    ![](screenshot/screenshot04.png)<br>
-    ![](screenshot/screenshot05.png)<br>
-    ![](screenshot/screenshot06.png)<br>
-    ![](screenshot/screenshot07.png)<br>
+<summary>Show screenshots</summary>
+
+![](screenshot/screenshot03.png) <br>
+![](screenshot/screenshot04.png) <br>
+![](screenshot/screenshot05.png) <br>
+![](screenshot/screenshot06.png) <br>
+![](screenshot/screenshot07.png) <br>
 </details>
 
 ## Features
