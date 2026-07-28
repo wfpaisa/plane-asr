@@ -16,9 +16,6 @@ shortcut, speak, and watch the words land at your cursor or on your clipboard.
 - 🔒 **Real privacy** — everything runs locally via `transcribe-cli`
   (transcribe.cpp); nothing is ever sent to the cloud.
 
-Written in TypeScript, following the official
-[TypeScript and LSP](https://gjs.guide/extensions/development/typed.html) guide.
-
 ![](screenshot/screenshot01.png) ![](screenshot/screenshot02.png)<br>
 <details>
 <summary>Show screenshots</summary>
