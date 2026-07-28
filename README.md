@@ -1,5 +1,7 @@
 # Plane-ASR
 
+** After installing the extension, open its Preferences to download the required transcribe.cpp binary and the ASR model before using speech recognition. **
+
 Turn your voice into text instantly, right on your desktop — no cloud, no
 accounts, no waiting. **Plane-ASR** is a GNOME Shell extension
 (`planeasr@wfelipe.com`) that transcribes speech to text in real time. Hit a
