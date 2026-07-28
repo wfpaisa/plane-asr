@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-28 09:19-0500\n"
+"POT-Creation-Date: 2026-07-28 10:05-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -52,6 +52,60 @@ msgstr ""
 #: src/extension/asr-service.ts:511
 msgid ""
 "No audio converter found. Install ffmpeg, or use a 16 kHz mono 16-bit WAV."
+msgstr ""
+
+#: src/extension/cli-errors.ts:41
+msgid ""
+"The active model does not support real-time transcription. Turn off “Real-"
+"time mode” in preferences, or pick a model that supports streaming."
+msgstr ""
+
+#: src/extension/cli-errors.ts:50
+msgid ""
+"The selected language is not supported by this model. Set the language to "
+"“Auto” in preferences, or choose a different model."
+msgstr ""
+
+#: src/extension/cli-errors.ts:58
+msgid ""
+"The GPU ran out of memory (VRAM). Try a smaller model or a lower "
+"quantization, select a GPU with more VRAM, or switch to CPU mode in "
+"preferences."
+msgstr ""
+
+#: src/extension/cli-errors.ts:67
+msgid ""
+"The GPU could not be initialized. Check that the graphics driver is "
+"installed and up to date, select another device, or switch to CPU mode in "
+"preferences."
+msgstr ""
+
+#: src/extension/cli-errors.ts:75
+msgid ""
+"The model could not be loaded. The model file may be missing or incomplete — "
+"re-download it from the Models page in preferences, or verify the custom "
+"model path."
+msgstr ""
+
+#: src/extension/cli-errors.ts:84
+msgid ""
+"The CLI rejected its arguments. This usually means a stale model path or an "
+"invalid extra flag — re-select the model on the Models page, or review the "
+"extra CLI flags in preferences."
+msgstr ""
+
+#: src/extension/cli-errors.ts:93
+msgid ""
+"No audio could be read from the recording. Check that the microphone is "
+"working and try recording again for a bit longer."
+msgstr ""
+
+#: src/extension/cli-errors.ts:148
+msgid "The transcription process failed with no output."
+msgstr ""
+
+#: src/extension/cli-errors.ts:160
+msgid "Details"
 msgstr ""
 
 #: src/extension/indicator.ts:100 src/extension/indicator.ts:376

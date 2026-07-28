@@ -32,6 +32,7 @@ import {
     type BuildArgvOptions,
 } from './asr-backends.js';
 import {resolveAutoCli} from './cli-resolver.js';
+import {describeCliError} from './cli-errors.js';
 import {ensureModelFlag, extractExtraFlags} from '../util/model-params.js';
 
 /** Resuelto por `Transcriber.transcribe` cuando el proceso termina. */
@@ -147,13 +148,24 @@ export class Transcriber {
                     }
                     if (!ok) {
                         // Código de salida != 0 (o señal). Los CLI escriben
-                        // sus diagnósticos en stderr, así que se incluyen tal
-                        // cual — esto es lo que se muestra vía `Main.notify`
-                        // en caso de fallo.
+                        // sus diagnósticos en stderr; `describeCliError`
+                        // traduce las causas conocidas a un mensaje
+                        // accionable que es lo que se muestra vía
+                        // `Main.notify`. El volcado crudo completo (que el
+                        // mensaje amigable recorta) se registra aquí sin
+                        // recortar para que los diagnósticos largos del CLI
+                        // sobrevivan en el journal:
+                        //   journalctl --user -b /usr/bin/gnome-shell | grep planeasr
                         const detail = (stderr ?? '').trim();
+                        if (detail) {
+                            console.warn(
+                                `[planeasr] CLI failed (exit=${proc.get_exit_status()}): ${detail}`
+                            );
+                        }
                         throw new Error(
-                            detail ||
-                                `Child process exited with code ${proc.get_exit_status()}`
+                            detail
+                                ? describeCliError(detail)
+                                : `Child process exited with code ${proc.get_exit_status()}`
                         );
                     }
                     resolve({
@@ -311,15 +323,18 @@ export class Transcriber {
         }
         if (!proc.get_successful()) {
             const detail = (await stderrPromise).trim();
-            if (this._settings.get_boolean(SETTINGS_KEYS.DEBUG_LOGGING)) {
+            // El volcado crudo completo va al journal sin recortar (el
+            // mensaje amigable de `describeCliError` lo trunca para la
+            // notificación).
+            if (detail) {
                 console.warn(
-                    `[planeasr] streaming argv=${JSON.stringify(argv)} ` +
-                        `exit=${proc.get_exit_status()} stderr=${JSON.stringify(detail)}`
+                    `[planeasr] streaming CLI failed (exit=${proc.get_exit_status()}): ${detail}`
                 );
             }
             throw new Error(
-                detail ||
-                    `Child process exited with code ${proc.get_exit_status()}`
+                detail
+                    ? describeCliError(detail)
+                    : `Child process exited with code ${proc.get_exit_status()}`
             );
         }
         return {text: (finalText || latest).trim(), cancelled: false};

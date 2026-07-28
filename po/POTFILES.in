@@ -2,6 +2,7 @@
 # Listed relative to the repository root. Regenerate the .pot with:
 #   make pot   (or)   xgettext -f po/POTFILES.in -o po/planeasr.pot
 src/extension/asr-service.ts
+src/extension/cli-errors.ts
 src/extension/indicator.ts
 src/extension/recorder.ts
 src/prefs/index.ts
