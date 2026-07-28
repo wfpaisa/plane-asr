@@ -61,11 +61,13 @@ ifndef ZIP
 	$(error 'zip' is required to build $(NAME)@$(DOMAIN).zip but was not found in PATH. \
 Install it and retry: Arch: sudo pacman -S zip | Debian/Ubuntu: sudo apt install zip | Fedora: sudo dnf install zip)
 endif
+	@rm -rf dist/schemas dist/data dist/bin
 	@cp -r schemas dist/
 	@cp -r data dist/
 	@cp -r bin dist/
 	@cp metadata.json dist/
 	@cp stylesheet.css dist/
+	@rm -f $(NAME)@$(DOMAIN).zip
 	@(cd dist && zip ../$(NAME)@$(DOMAIN).zip -9r .)
 
 pack: $(NAME)@$(DOMAIN).zip
