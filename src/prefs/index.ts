@@ -30,6 +30,7 @@ import {parseArgs} from '../extension/asr-backends.js';
 import {resolveAutoCli} from '../extension/cli-resolver.js';
 import {listDevices} from '../extension/device-lister.js';
 import {findModel, pickFile, resolveModelDir} from '../models/catalog.js';
+import {getEngineStore} from '../models/engine-store.js';
 import {buildModelsPage} from './models-page.js';
 import {buildSetupPage} from './setup-page.js';
 import {
@@ -110,10 +111,7 @@ function extractModelPath(params: string): string | null {
 }
 
 /** Verificación rápida de cordura sobre el binario y el modelo configurados, para la UI. */
-function validateSetup(
-    settings: Gio.Settings,
-    extensionDir: string | null
-): string {
+function validateSetup(settings: Gio.Settings): string {
     const problems: string[] = [];
 
     const mode = normalizeCliMode(
@@ -142,11 +140,11 @@ function validateSetup(
             }
         }
     } else {
-        // Modo automático: valida el binario resuelto (empaquetado o de PATH).
-        const resolved = resolveAutoCli(extensionDir, 'transcribe-cli');
+        // Modo automático: valida el binario resuelto (descargado o de PATH).
+        const resolved = resolveAutoCli('transcribe-cli');
         if (resolved.source === 'none') {
             problems.push(
-                _('no transcription binary found (bundled or on PATH)')
+                _('no transcription binary found (downloaded or on PATH)')
             );
         } else {
             const info = Gio.File.new_for_path(resolved.path).query_info(
@@ -166,8 +164,8 @@ function validateSetup(
     // sobre los parámetros.
     const modelId = settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
     let modelPath: string | null = null;
-    if (modelId && extensionDir) {
-        const entry = findModel(extensionDir, modelId);
+    if (modelId) {
+        const entry = findModel(modelId);
         if (entry) {
             const file = pickFile(
                 entry,
@@ -292,7 +290,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
          * PÁGINA 1: Setup  (guía de incorporación + instalación de modelo de un clic)
          * ================================================================ */
         const setupPage = buildSetupPage({
-            extensionDir,
             settings,
             toast,
         });
@@ -302,7 +299,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
          * PÁGINA 2: Models  (selección de modelo, catálogo, almacenamiento)
          * ================================================================ */
         const modelsPage = buildModelsPage({
-            extensionDir,
             settings,
             toast,
         });
@@ -331,9 +327,10 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         const cliModeRow = new Adw.ComboRow({
             title: _('Binary mode'),
             subtitle: _(
-                'CPU uses the transcribe-cli shipped with the extension ' +
-                    '(x86_64), falling back to one found on PATH. GPU lets ' +
-                    'you point to your own Vulkan/CUDA build.'
+                'CPU prefers a transcribe-cli found on PATH, falling back ' +
+                    'to the CPU engine (x86_64) downloaded from the ' +
+                    '"Setup" tab. GPU lets you point to your own ' +
+                    'Vulkan/CUDA build.'
             ),
             titleLines: 0,
             subtitleLines: 0,
@@ -408,7 +405,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         asrGroup.add(validateRow);
 
         validateButton.connect('clicked', () => {
-            toast(validateSetup(settings, extensionDir));
+            toast(validateSetup(settings));
         });
 
         // -- Rendimiento / cómputo -----------------------------------------
@@ -687,10 +684,10 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             gpuNoteRow.visible = gpu;
             cliStatusRow.visible = !gpu;
             if (!gpu) {
-                const resolved = resolveAutoCli(extensionDir, 'transcribe-cli');
-                if (resolved.source === 'bundled') {
+                const resolved = resolveAutoCli('transcribe-cli');
+                if (resolved.source === 'downloaded') {
                     cliStatusRow.subtitle = _(
-                        'Using bundled CPU binary (transcribe-cli, x86_64).'
+                        'Using downloaded CPU engine (transcribe-cli, x86_64).'
                     ).format();
                 } else if (resolved.source === 'path') {
                     cliStatusRow.subtitle = _(
@@ -698,8 +695,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
                     ).format(resolved.path);
                 } else {
                     cliStatusRow.subtitle = _(
-                        'No binary found for this system. Switch to GPU and ' +
-                            'set the binary path, or install transcribe-cli.'
+                        'No binary found. Download the engine from the ' +
+                            '"Setup" tab, switch to GPU and set the binary ' +
+                            'path, or install transcribe-cli.'
                     );
                 }
             }
@@ -728,6 +726,9 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             }
         });
         settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncCliMode);
+        // Refresca el estado del binario resuelto cuando el usuario descarga
+        // el motor desde la página "Setup", sin necesidad de cambiar de modo.
+        getEngineStore().connect('download-complete', syncCliMode);
 
         // --- Bindings directos de ajustes (página backend) -----------------
         settings.bind(
@@ -826,7 +827,7 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             const cliPath =
                 mode === 'gpu'
                     ? (settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '')
-                    : resolveAutoCli(extensionDir, 'transcribe-cli').path;
+                    : resolveAutoCli('transcribe-cli').path;
 
             let devices = await listDevices(cliPath);
             if (devices.length === 0) {

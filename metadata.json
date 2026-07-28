@@ -1,6 +1,6 @@
 {
     "name": "plane-asr",
-    "description": "asr local",
+    "description": "Local, offline speech-to-text: press a shortcut, speak, and get the transcription typed at your cursor or copied to the clipboard. This extension accesses the clipboard to paste and copy transcribed text; no keyboard shortcut is set by default.",
     "uuid": "planeasr@wfelipe.com",
     "url": "https://github.com/wfpaisa/plane-asr",
     "settings-schema": "org.gnome.shell.extensions.planeasr",

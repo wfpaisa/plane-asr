@@ -129,9 +129,12 @@
 
     <!-- Global keybinding -->
     <key name="toggle-record-shortcut" type="as">
-      <default><![CDATA[['<Super>A']]]></default>
+      <default><![CDATA[[]]]></default>
       <summary>Toggle recording shortcut</summary>
-      <description>Global keybinding that starts/stops recording.</description>
+      <description>Global keybinding that starts/stops recording. Empty by
+        default — the default output mode pastes via the clipboard, so per
+        GNOME extension review guidelines no shortcut interacting with
+        clipboard data is preset; set one in Preferences to use it.</description>
     </key>
 
     <!-- Debug -->

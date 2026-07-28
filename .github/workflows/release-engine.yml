@@ -1,0 +1,49 @@
+name: Release engine binary
+
+# Publishes bin/transcribe-cli.bin (built and committed out-of-band, since
+# transcribe.cpp is not vendored in this repo) as a GitHub Release asset.
+#
+# This exists so the extension never bundles an executable inside the
+# packaged zip (GNOME extension review guidelines, EGO-P-005:
+# https://gjs.guide/extensions/review-guidelines/review-guidelines.html#scripts-and-binaries) —
+# instead src/models/engine-manifest.ts points at the release asset URL and
+# pins its SHA-256, and the user downloads it explicitly from the "Setup"
+# page in preferences.
+#
+# Usage: after updating bin/transcribe-cli.bin and computing its new
+# sha256/size into src/models/engine-manifest.ts, tag and push:
+#   git tag engine-v1.0.3 && git push origin engine-v1.0.3
+
+on:
+  push:
+    tags:
+      - 'engine-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rename binary to release asset name
+        run: cp bin/transcribe-cli.bin transcribe-cli-x86_64
+
+      - name: Verify checksum matches engine-manifest.ts
+        run: |
+          actual=$(sha256sum transcribe-cli-x86_64 | cut -d' ' -f1)
+          expected=$(grep -A3 "arch: 'x86_64'" src/models/engine-manifest.ts | grep sha256 | grep -oE '[0-9a-f]{64}')
+          echo "actual:   $actual"
+          echo "expected: $expected"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::sha256 of bin/transcribe-cli.bin does not match src/models/engine-manifest.ts — update the manifest before tagging."
+            exit 1
+          fi
+
+      - name: Create GitHub Release with the binary attached
+        uses: softprops/action-gh-release@v2
+        with:
+          files: transcribe-cli-x86_64
+          generate_release_notes: true

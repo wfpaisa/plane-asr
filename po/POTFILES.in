@@ -6,4 +6,5 @@ src/extension/indicator.ts
 src/extension/recorder.ts
 src/prefs/index.ts
 src/prefs/models-page.ts
+src/prefs/setup-page.ts
 src/prefs/widgets.ts

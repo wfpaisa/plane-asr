@@ -11,6 +11,14 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 /** Nombre del directorio de nivel superior que posee esta extensión dentro de la caché del usuario. */
 const CACHE_DIR_NAME = 'planeasr';
+/**
+ * Nombre del directorio de nivel superior bajo el directorio de datos del
+ * usuario (`XDG_DATA_HOME`, típicamente `~/.local/share`). A diferencia de
+ * la caché, este directorio no se espera que se vacíe periódicamente, así
+ * que es donde vive el binario del motor descargado — se instala una sola
+ * vez y debe sobrevivir a una limpieza de caché.
+ */
+const DATA_DIR_NAME = 'planeasr';
 /** Patrón de nombre para grabaciones finalizadas (`recording_<microsegundos>.wav`). */
 const RECORDING_RE = /^recording_\d+\.wav$/i;
 /**
@@ -36,6 +44,32 @@ export function recordsDir() {
  */
 export function defaultModelDir() {
     return GLib.build_filenamev([cacheDir(), 'models']);
+}
+/**
+ * Directorio de datos persistentes de la extensión:
+ * `<datos-usuario>/planeasr` (típicamente `~/.local/share/planeasr`).
+ */
+export function dataDir() {
+    return GLib.build_filenamev([GLib.get_user_data_dir(), DATA_DIR_NAME]);
+}
+/**
+ * Directorio donde se instala el binario del motor descargado:
+ * `<datos-usuario>/planeasr/bin`.
+ */
+export function engineDir() {
+    return GLib.build_filenamev([dataDir(), 'bin']);
+}
+/**
+ * Ruta absoluta del binario del motor para una versión dada:
+ * `<engineDir>/transcribe-cli-<version>`.
+ *
+ * Para qué: versionar el binario instalado por nombre de archivo hace que
+ * las actualizaciones sean atómicas (se descarga el nuevo junto al viejo y
+ * solo se cambia qué ruta resuelve {@link resolveAutoCli} en cli-resolver.ts),
+ * sin arriesgar dejar un binario a medio reemplazar.
+ */
+export function engineBinaryPath(version) {
+    return GLib.build_filenamev([engineDir(), `transcribe-cli-${version}`]);
 }
 /**
  * Poda las grabaciones finalizadas bajo {@link recordsDir} para que como

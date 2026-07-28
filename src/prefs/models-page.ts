@@ -32,7 +32,6 @@ import {badgeIcon, badgeLabel, entryRow, rowContentMargins} from './widgets.js';
 
 /** Contexto entregado al constructor de la página. */
 export interface ModelsPageContext {
-    extensionDir: string | null;
     settings: Gio.Settings;
     /** Overlay de notificaciones (toast) de la ventana de preferencias. */
     toast: (title: string) => void;
@@ -47,7 +46,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
         iconName: 'folder-download-symbolic',
     });
 
-    const catalog = ctx.extensionDir ? loadModelCatalog(ctx.extensionDir) : [];
+    const catalog = loadModelCatalog();
 
     // -- Grupo de selección de modelo (radio: catálogo vs ruta personalizada) --
     const selectionGroup = new Adw.PreferencesGroup({
@@ -110,8 +109,8 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
     // Auxiliar para refrescar la visualización del modelo activo
     const refreshActiveModel = () => {
         const id = ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
-        if (id && ctx.extensionDir) {
-            const entry = findModel(ctx.extensionDir, id);
+        if (id) {
+            const entry = findModel(id);
             if (entry) {
                 const file = pickFile(
                     entry,
@@ -236,7 +235,7 @@ export function buildModelsPage(ctx: ModelsPageContext): Adw.PreferencesPage {
         const modelDir = resolveModelDir(
             ctx.settings.get_string(SETTINGS_KEYS.MODEL_DIR) ?? ''
         );
-        return scanDownloaded(ctx.extensionDir, modelDir);
+        return scanDownloaded(modelDir);
     };
 
     const applyFilter = () => {

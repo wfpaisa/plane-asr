@@ -1,10 +1,15 @@
 /* cli-resolver.ts
  *
  * Resuelve el binario del CLI de transcripción según el `cli-mode` activo:
- *   - 'cpu' → prefiere el `transcribe-cli` solo-CPU incluido con la
- *             extensión (x86_64), recurriendo a un `transcribe-cli`
- *             encontrado en el PATH. No requiere configuración. Esto es lo
- *             que implementa {@link resolveAutoCli} más abajo.
+ *   - 'cpu' → prefiere un `transcribe-cli` encontrado en el PATH (por
+ *             ejemplo, instalado por el sistema o compilado por el
+ *             usuario), recurriendo al binario del motor descargado bajo
+ *             {@link engineBinaryPath} — nunca se incluye un ejecutable
+ *             dentro de la extensión (ver EGO-P-005 en la guía de revisión
+ *             de gjs.guide: las extensiones no deben incluir binarios). El
+ *             usuario dispara la descarga explícitamente desde la página
+ *             "Setup" de preferencias; {@link resolveAutoCli} solo resuelve
+ *             qué ya hay disponible en el sistema.
  *   - 'gpu' → usa la ruta absoluta que el usuario definió en `cli-path`
  *             (por ejemplo, una compilación propia con Vulkan/CUDA);
  *             quien llama la resuelve, no este módulo.
@@ -20,26 +25,21 @@
  */
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-/** Componentes de ruta, bajo la raíz de la extensión, del binario del CLI incluido. */
-const BUNDLED_SUBPATH = ['bin', 'transcribe-cli'];
+import { engineBinaryPath } from '../config/paths.js';
+import { ENGINE_MANIFEST } from '../models/engine-manifest.js';
 /**
- * Ruta absoluta del CLI incluido con la extensión:
- * `${extensionDir}/bin/transcribe-cli`. Devuelve '' cuando no hay directorio de extensión.
+ * Ruta donde vivirá el binario del motor una vez descargado por el usuario:
+ * `<datos-usuario>/planeasr/bin/transcribe-cli-<versión del manifiesto>`.
  */
-export function bundledCliPath(extensionDir) {
-    if (!extensionDir)
-        return '';
-    return GLib.build_filenamev([extensionDir, ...BUNDLED_SUBPATH]);
+export function downloadedCliPath(version = ENGINE_MANIFEST.version) {
+    return engineBinaryPath(version);
 }
 /**
- * Indica si el binario incluido existe y es ejecutable. Es falso cuando no
- * hay binario incluido para la arquitectura en ejecución (ej. hosts que no
- * son x86_64).
+ * Indica si el binario del motor descargado existe y es ejecutable. Es
+ * falso antes de la primera descarga, o si el usuario la borró.
  */
-export function bundledCliAvailable(extensionDir) {
-    const p = bundledCliPath(extensionDir);
-    if (!p)
-        return false;
+export function downloadedCliAvailable(version = ENGINE_MANIFEST.version) {
+    const p = downloadedCliPath(version);
     const file = Gio.File.new_for_path(p);
     if (!file.query_exists(null))
         return false;
@@ -59,19 +59,24 @@ export function findCliInPath(name) {
     return GLib.find_program_in_path(name) ?? null;
 }
 /**
- * Resuelve el binario para el modo automático: primero el binario incluido,
- * luego el PATH.
+ * Resuelve el binario para el modo automático: primero el PATH, luego el
+ * binario del motor descargado.
  *
  * Qué hace: nunca lanza excepción; devuelve `source: 'none'` cuando no hay
- * nada usable disponible, para que quien llama pueda mostrar un error claro.
+ * nada usable disponible, para que quien llama pueda mostrar un error claro
+ * (o, en preferencias, el botón de descarga).
+ *
+ * El PATH tiene prioridad sobre el binario descargado: si el usuario ya
+ * instaló `transcribe-cli` por su distro/gestor de paquetes, no tiene
+ * sentido descargar una segunda copia.
  */
-export function resolveAutoCli(extensionDir, pathName) {
-    if (bundledCliAvailable(extensionDir)) {
-        return { path: bundledCliPath(extensionDir), source: 'bundled' };
-    }
+export function resolveAutoCli(pathName) {
     const found = pathName ? findCliInPath(pathName) : null;
     if (found)
         return { path: found, source: 'path' };
+    if (downloadedCliAvailable()) {
+        return { path: downloadedCliPath(), source: 'downloaded' };
+    }
     return { path: '', source: 'none' };
 }
 //# sourceMappingURL=cli-resolver.js.map

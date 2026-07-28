@@ -1,8 +1,17 @@
 /* setup-page.ts
  *
  * La página de preferencias "Setup": una guía rápida de tres pasos para
- * dejar la extensión funcionando, más un botón grande centrado que
- * descarga (y activa) el modelo recomendado con un solo clic.
+ * dejar la extensión funcionando, un botón para descargar el motor de
+ * transcripción CPU (transcribe-cli) bajo acción explícita del usuario, y
+ * un botón grande centrado que descarga (y activa) el modelo recomendado
+ * con un solo clic.
+ *
+ * El motor no se incluye dentro del paquete de la extensión — las
+ * directrices de revisión de gjs.guide prohíben distribuir binarios
+ * ejecutables (EGO-P-005) — así que esta página es el único lugar desde el
+ * que se dispara su descarga, con el hash SHA-256 fijado en
+ * ../models/engine-manifest.ts (no obtenido de la red) verificado antes de
+ * marcar el archivo como ejecutable.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -23,11 +32,19 @@ import {
 } from '../models/catalog.js';
 import {getModelStore} from '../models/model-store.js';
 import {getModelDownloader} from '../models/model-downloader.js';
+import {findEngineBuild, ENGINE_MANIFEST} from '../models/engine-manifest.js';
+import {getEngineStore} from '../models/engine-store.js';
+import {getEngineDownloader} from '../models/engine-downloader.js';
+import {
+    downloadedCliAvailable,
+    downloadedCliPath,
+    resolveAutoCli,
+} from '../extension/cli-resolver.js';
+import {engineDir} from '../config/paths.js';
 import {rowContentMargins} from './widgets.js';
 
 /** Contexto entregado al constructor de la página. */
 export interface SetupPageContext {
-    extensionDir: string | null;
     settings: Gio.Settings;
     /** Overlay de notificaciones (toast) de la ventana de preferencias. */
     toast: (title: string) => void;
@@ -53,13 +70,14 @@ export function buildSetupPage(ctx: SetupPageContext): Adw.PreferencesPage {
 
     const steps: Array<[string, string]> = [
         [
-            _('1. Choose a processor'),
+            _('1. Get the engine'),
             _(
-                'CPU works out of the box with the transcribe-cli binary ' +
-                    'bundled with the extension — nothing to install. To use ' +
-                    'your GPU (Vulkan/CUDA/Metal) instead, you need to build ' +
-                    'transcribe.cpp yourself and point to the resulting ' +
-                    'binary in the "Backend" tab (Binary mode → GPU).'
+                'CPU works with a transcribe-cli found on your PATH, or ' +
+                    'download the CPU engine below — nothing else to ' +
+                    'install. To use your GPU (Vulkan/CUDA/Metal) instead, ' +
+                    'you need to build transcribe.cpp yourself and point to ' +
+                    'the resulting binary in the "Backend" tab (Binary mode ' +
+                    '→ GPU).'
             ),
         ],
         [
@@ -90,16 +108,123 @@ export function buildSetupPage(ctx: SetupPageContext): Adw.PreferencesPage {
         );
     }
 
+    // -- Motor de transcripción (descarga bajo acción explícita) ----------
+    const engineGroup = new Adw.PreferencesGroup({
+        title: _('Transcription engine'),
+        description: _(
+            'transcribe-cli (transcribe.cpp), CPU-only, x86_64 — not ' +
+                'bundled with the extension per GNOME extension review ' +
+                'guidelines'
+        ),
+    });
+    page.add(engineGroup);
+
+    const engineBuild = findEngineBuild();
+
+    const engineButton = new Gtk.Button({
+        label: _('Download engine'),
+        cssClasses: ['suggested-action', 'pill', 'big-btn'],
+    });
+    const engineStatusLabel = new Gtk.Label({
+        xalign: 0.5,
+        justify: Gtk.Justification.CENTER,
+        wrap: true,
+        cssClasses: ['caption', 'dim-label'],
+    });
+    const engineProgressBar = new Gtk.ProgressBar({visible: false});
+
+    const engineBox = new Gtk.Box({
+        orientation: Gtk.Orientation.VERTICAL,
+        spacing: 6,
+        halign: Gtk.Align.CENTER,
+        ...rowContentMargins(12),
+    });
+    engineBox.append(engineButton);
+    engineBox.append(engineStatusLabel);
+    engineBox.append(engineProgressBar);
+    const engineRow = new Adw.PreferencesRow({activatable: false});
+    engineRow.set_child(engineBox);
+    engineGroup.add(engineRow);
+
+    /** Refresca el texto/estado del botón del motor. */
+    const updateEngineStatus = () => {
+        if (!engineBuild) {
+            engineButton.sensitive = false;
+            engineStatusLabel.label = _('Engine manifest unavailable.');
+            return;
+        }
+        const resolved = resolveAutoCli('transcribe-cli');
+        if (resolved.source === 'path') {
+            engineButton.label = _('Found on PATH ✓');
+            engineButton.sensitive = false;
+            engineStatusLabel.label = _(
+                'Using transcribe-cli already on your PATH: %s'
+            ).format(resolved.path);
+        } else if (downloadedCliAvailable()) {
+            engineButton.label = _('Downloaded ✓');
+            engineButton.sensitive = false;
+            engineStatusLabel.label = _(
+                'Engine %s downloaded and verified at %s.'
+            ).format(ENGINE_MANIFEST.version, downloadedCliPath());
+        } else {
+            engineButton.label = _('Download engine');
+            engineButton.sensitive = true;
+            engineStatusLabel.label = _(
+                'Downloads %s (%s) from %s and verifies its SHA-256 ' +
+                    'before making it executable.'
+            ).format(
+                engineBuild.filename,
+                formatSize(engineBuild.size_bytes),
+                'github.com/wfpaisa/plane-asr'
+            );
+        }
+    };
+    updateEngineStatus();
+
+    engineButton.connect('clicked', () => {
+        if (!engineBuild) return;
+        try {
+            Gio.File.new_for_path(engineDir()).make_directory_with_parents(
+                null
+            );
+        } catch {
+            // Ya existe; los errores reales de descarga se reportan vía toast.
+        }
+        engineButton.sensitive = false;
+        engineProgressBar.visible = true;
+        engineProgressBar.fraction = 0;
+        void getEngineDownloader().download(engineBuild, downloadedCliPath());
+    });
+
+    const engineStore = getEngineStore();
+    engineStore.connect('download-progress', (_obj: unknown, fraction: number) => {
+        engineProgressBar.fraction = Math.max(0, Math.min(1, fraction));
+    });
+    engineStore.connect('download-complete', () => {
+        engineProgressBar.visible = false;
+        ctx.toast(_('Engine downloaded: %s').format(ENGINE_MANIFEST.version));
+        updateEngineStatus();
+    });
+    engineStore.connect('download-failed', (_obj: unknown, msg: string) => {
+        engineProgressBar.visible = false;
+        ctx.toast(_('Engine download failed: %s').format(msg));
+        updateEngineStatus();
+    });
+    engineStore.connect('download-cancelled', () => {
+        engineProgressBar.visible = false;
+        updateEngineStatus();
+    });
+
     // -- Botón grande de instalación ---------------------------------------
     const actionGroup = new Adw.PreferencesGroup();
     page.add(actionGroup);
 
-    const entry = findModel(ctx.extensionDir, SETUP_MODEL_ID);
+    const entry = findModel(SETUP_MODEL_ID);
     const file = entry ? pickFile(entry, SETUP_MODEL_QUANT) : null;
 
     const setupButton = new Gtk.Button({
         label: _('Setup'),
-        cssClasses: ['suggested-action', 'pill', 'planeasr-setup-button'],
+        cssClasses: ['suggested-action', 'pill', 'big-btn'],
     });
 
     const statusLabel = new Gtk.Label({
@@ -134,7 +259,7 @@ export function buildSetupPage(ctx: SetupPageContext): Adw.PreferencesPage {
         const modelDir = resolveModelDir(
             ctx.settings.get_string(SETTINGS_KEYS.MODEL_DIR) ?? ''
         );
-        const present = scanDownloaded(ctx.extensionDir, modelDir).has(
+        const present = scanDownloaded(modelDir).has(
             entry.id
         );
         const activeId =
@@ -168,7 +293,7 @@ export function buildSetupPage(ctx: SetupPageContext): Adw.PreferencesPage {
         const modelDir = resolveModelDir(
             ctx.settings.get_string(SETTINGS_KEYS.MODEL_DIR) ?? ''
         );
-        const present = scanDownloaded(ctx.extensionDir, modelDir).has(
+        const present = scanDownloaded(modelDir).has(
             entry.id
         );
         if (present) {

@@ -16,13 +16,13 @@
     "homepage": "https://github.com/wfpaisa/plane-asr#readme",
     "sideEffects": false,
     "scripts": {
-        "build": "tsc",
+        "build": "node scripts/gen-model-catalog.mjs && rm -rf dist && tsc",
         "pack": "make pack",
         "install": "make install",
         "setup": "make all && make pack && make install",
         "debug": "dbus-run-session gnome-shell --devkit --wayland",
         "lint": "eslint .",
-        "test": "tsc -p tsconfig.test.json && node --test \"dist-test/test/**/*.test.js\"",
+        "test": "node scripts/gen-model-catalog.mjs && tsc -p tsconfig.test.json && node --test \"dist-test/test/**/*.test.js\"",
         "format": "prettier --write .",
         "i18n": "make pot && make locale"
     },

@@ -8,6 +8,9 @@ out
 *.tgz
 *.zip
 
+# generated from data/model-catalog.json by scripts/gen-model-catalog.mjs
+src/models/model-catalog-data.ts
+
 # compiled schemas
 schemas/gschemas.compiled
 

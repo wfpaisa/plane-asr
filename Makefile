@@ -19,11 +19,8 @@ node_modules/.modules.yaml: package.json
 
 TS_SOURCES := extension.ts prefs.ts $(shell find src -name '*.ts')
 
-dist/extension.js dist/prefs.js: node_modules/.modules.yaml $(TS_SOURCES)
+dist/extension.js dist/prefs.js: node_modules/.modules.yaml $(TS_SOURCES) data/model-catalog.json
 	pnpm run build
-
-schemas/gschemas.compiled: schemas/org.gnome.shell.extensions.$(NAME).gschema.xml
-	glib-compile-schemas schemas
 
 # Regenerate the gettext template from the translatable sources listed in
 # po/POTFILES.in. Run after adding/changing any _('...') string, then update
@@ -45,7 +42,10 @@ pot: po/$(GETTEXT_DOMAIN).pot
 
 # Compile every po/<lang>.po into dist/locale/<lang>/LC_MESSAGES/<domain>.mo,
 # so GNOME Shell's initTranslations() finds them under <extdir>/locale.
-locale: po/$(GETTEXT_DOMAIN).pot
+# Order-only dependency on the compile step: `pnpm run build` wipes dist/ to
+# drop stale outputs of deleted sources, so locale must run *after* it or its
+# .mo files would be erased.
+locale: po/$(GETTEXT_DOMAIN).pot | dist/extension.js
 ifndef MSGFMT
 	$(error 'msgfmt' (gettext) is required to compile translations but was not found in PATH. \
 Install it and retry: Arch: sudo pacman -S gettext | Debian/Ubuntu: sudo apt install gettext | Fedora: sudo dnf install gettext)
@@ -56,15 +56,15 @@ endif
 		msgfmt -o dist/locale/$$lang/LC_MESSAGES/$(GETTEXT_DOMAIN).mo $$po; \
 	done
 
-$(NAME)@$(DOMAIN).zip: dist/extension.js dist/prefs.js schemas/gschemas.compiled locale
+$(NAME)@$(DOMAIN).zip: dist/extension.js dist/prefs.js locale
 ifndef ZIP
 	$(error 'zip' is required to build $(NAME)@$(DOMAIN).zip but was not found in PATH. \
 Install it and retry: Arch: sudo pacman -S zip | Debian/Ubuntu: sudo apt install zip | Fedora: sudo dnf install zip)
 endif
-	@rm -rf dist/schemas dist/data dist/bin
-	@cp -r schemas dist/
+	@rm -rf dist/schemas dist/data
+	@mkdir -p dist/schemas
+	@cp schemas/*.gschema.xml dist/schemas/
 	@cp -r data dist/
-	@cp -r bin dist/
 	@cp metadata.json dist/
 	@cp stylesheet.css dist/
 	@rm -f $(NAME)@$(DOMAIN).zip

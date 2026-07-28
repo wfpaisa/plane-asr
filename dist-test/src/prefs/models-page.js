@@ -23,7 +23,7 @@ export function buildModelsPage(ctx) {
         title: _('Models'),
         iconName: 'folder-download-symbolic',
     });
-    const catalog = ctx.extensionDir ? loadModelCatalog(ctx.extensionDir) : [];
+    const catalog = loadModelCatalog();
     // -- Grupo de selección de modelo (radio: catálogo vs ruta personalizada) --
     const selectionGroup = new Adw.PreferencesGroup({
         title: _('Model selection'),
@@ -76,8 +76,8 @@ export function buildModelsPage(ctx) {
     // Auxiliar para refrescar la visualización del modelo activo
     const refreshActiveModel = () => {
         const id = ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
-        if (id && ctx.extensionDir) {
-            const entry = findModel(ctx.extensionDir, id);
+        if (id) {
+            const entry = findModel(id);
             if (entry) {
                 const file = pickFile(entry, ctx.settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ??
                     '');
@@ -175,7 +175,7 @@ export function buildModelsPage(ctx) {
     const rows = new Map();
     const refreshDownloaded = () => {
         const modelDir = resolveModelDir(ctx.settings.get_string(SETTINGS_KEYS.MODEL_DIR) ?? '');
-        return scanDownloaded(ctx.extensionDir, modelDir);
+        return scanDownloaded(modelDir);
     };
     const applyFilter = () => {
         const q = search.get_text().trim().toLowerCase();

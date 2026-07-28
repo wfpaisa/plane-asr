@@ -436,7 +436,7 @@ export class Transcriber {
             this._settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
             'transcribe-cli';
         const pathName = getBackend(backendId).defaultCliName;
-        return resolveAutoCli(this._opts.extensionDir, pathName).path;
+        return resolveAutoCli(pathName).path;
     }
 
     /**
@@ -456,11 +456,9 @@ export class Transcriber {
     private async _resolveModelParams(): Promise<string> {
         const userParams = this._settings.get_string('model-params') ?? '';
         const modelId = this._settings.get_string('active-model-id') ?? '';
-        if (!modelId || !this._opts.extensionDir) {
-            return ensureModelFlag(userParams);
-        }
+        if (!modelId) return ensureModelFlag(userParams);
 
-        const entry = findModel(this._opts.extensionDir, modelId);
+        const entry = findModel(modelId);
         if (!entry) return ensureModelFlag(userParams);
 
         const quant = this._settings.get_string('quant-preference') ?? '';

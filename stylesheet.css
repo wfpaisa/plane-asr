@@ -42,8 +42,8 @@
 
 /* Botón grande de la página de Setup para instalar/activar el modelo
  * recomendado de un clic. */
-.planeasr-setup-button {
-    min-width: 50px;
+.big-btn {
+    min-width: 38px;
     min-height: 24px;
     font-size: 1.1em;
     font-weight: bold;

@@ -1,60 +1,30 @@
 /* catalog.ts
  *
- * Tipos y cargador para el catálogo de modelos incluido sin conexión
+ * Tipos y accesor para el catálogo de modelos incluido sin conexión
  * (data/model-catalog.json). Lo comparten el runtime de la extensión y la
  * interfaz de preferencias, para que ambos vean la misma lista de modelos
  * sin necesidad de una llamada de red.
+ *
+ * El catálogo se importa como el módulo ESM generado
+ * model-catalog-data.ts (ver scripts/gen-model-catalog.mjs) en vez de
+ * leerse con `Gio.File.load_contents()` en runtime: las directrices de
+ * revisión de extensiones GNOME desaconsejan IO de archivo síncrono en
+ * código del shell, y un import de módulo no cuenta como tal — es la misma
+ * forma en que ya se carga cualquier otro archivo .js de la extensión.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { defaultModelDir } from '../config/paths.js';
-const CATALOG_REL_PATH = 'data/model-catalog.json';
-let _cache = null;
-/**
- * Carga (y memoiza) el catálogo incluido con la extensión.
- *
- * Para qué: dar acceso a la lista de modelos disponibles sin depender de
- * red, leyendo el JSON empaquetado junto al código de la extensión.
- *
- * Qué hace: si ya hay un resultado en caché lo devuelve directamente; si
- * no, localiza `data/model-catalog.json` dentro de `extensionDir`, lo lee y
- * lo parsea, guardando el arreglo de modelos en caché para llamadas futuras.
- * Ante cualquier error (archivo ausente o JSON inválido) registra una
- * advertencia y devuelve una lista vacía.
- *
- * @param extensionDir Ruta absoluta a la raíz de la extensión instalada (el
- * directorio que contiene extension.js compilado / data/). Si se omite, el
- * cargador no puede encontrar el archivo y devuelve una lista vacía.
- */
-export function loadModelCatalog(extensionDir) {
-    if (_cache)
-        return _cache;
-    if (!extensionDir)
-        return [];
-    const path = GLib.build_filenamev([extensionDir, CATALOG_REL_PATH]);
-    const file = Gio.File.new_for_path(path);
-    if (!file.query_exists(null)) {
-        console.warn(`[planeasr] model catalog not found at ${path}`);
-        return [];
-    }
-    try {
-        const [, contents] = file.load_contents(null);
-        const decoder = new TextDecoder();
-        const raw = decoder.decode(contents);
-        const catalog = JSON.parse(raw);
-        _cache = catalog.models ?? [];
-    }
-    catch (e) {
-        console.warn(`[planeasr] failed to parse model catalog: ${e}`);
-        _cache = [];
-    }
-    return _cache;
+import { MODEL_CATALOG } from './model-catalog-data.js';
+/** Devuelve el catálogo de modelos incluido con la extensión. */
+export function loadModelCatalog() {
+    return MODEL_CATALOG.models;
 }
 /** Busca una entrada del catálogo por id, o devuelve null. */
-export function findModel(extensionDir, id) {
-    return loadModelCatalog(extensionDir).find(m => m.id === id) ?? null;
+export function findModel(id) {
+    return loadModelCatalog().find(m => m.id === id) ?? null;
 }
 /**
  * Elige el archivo correspondiente a una cuantización dada.
@@ -109,7 +79,7 @@ export function modelFilePath(modelDir, file) {
  * modelo se considera descargado cuando al menos uno de sus archivos existe
  * en el directorio y su tamaño coincide con la entrada del catálogo.
  */
-export function scanDownloaded(extensionDir, modelDir) {
+export function scanDownloaded(modelDir) {
     const result = new Map();
     const dir = Gio.File.new_for_path(modelDir);
     if (!dir.query_exists(null))
@@ -126,7 +96,7 @@ export function scanDownloaded(extensionDir, modelDir) {
                 present.set(name, info.get_size());
             }
         }
-        for (const entry of loadModelCatalog(extensionDir)) {
+        for (const entry of loadModelCatalog()) {
             for (const f of entry.files) {
                 const size = present.get(f.filename);
                 if (size !== undefined &&

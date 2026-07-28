@@ -9,13 +9,10 @@
  * red -> buffer de 1 MiB -> archivo de salida -> checksum, así que funciona
  * incluso con modelos de varios GB.
  *
- * NOTA sobre el estilo async: los métodos async de GJS/GI requieren un
- * callback de estilo C y NO respetan de forma confiable los overloads con
- * promesas ni `Gio._promisify` en todos los runtimes (el parche del
- * prototipo puede perderse silenciosamente para métodos nativos). Por eso
- * cada operación asíncrona aquí se envuelve en una Promise hecha a mano que
- * invoca el método con su firma de callback nativa, que es la única forma
- * garantizada de funcionar.
+ * Los envoltorios en Promise de las APIs async de GJS/GIO viven en
+ * ../util/gio-async.js, compartidos con el descargador del motor
+ * (engine-downloader.ts), que sigue el mismo patrón streaming + checksum +
+ * renombrado atómico para el binario `transcribe-cli`.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -23,153 +20,13 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup';
 import { getModelStore } from './model-store.js';
+import { CHUNK_SIZE, errMessage, fileAppendToAsync, fileQueryInfoAsync, fileReplaceAsync, hashOfFile, hashPrefix, isErrorCancelled, renameAtomic, safeDelete, soupSendAsync, streamCloseAsync, streamReadBytesAsync, streamWriteBytesAsync, } from '../util/gio-async.js';
 /** URL de resolución de HuggingFace para un archivo concreto de un repo. */
 export function hfResolveUrl(repo, filename) {
     return `https://huggingface.co/${repo}/resolve/main/${filename}`;
 }
-/** Buffer de streaming de 1 MiB — suficientemente pequeño para poca memoria, suficientemente grande para buen rendimiento. */
-const CHUNK_SIZE = 1024 * 1024;
 /** Intervalo mínimo entre emisiones de progreso (ms). */
 const PROGRESS_THROTTLE_MS = 250;
-// =============================================================================
-// Envoltorios en Promise para los métodos async de GJS (firma de callback
-// nativa). Cada uno llama al método con su callback requerido
-// `(source, result) => ...` y resuelve/rechaza desde ahí. Esta es la ÚNICA
-// forma async que GJS soporta de manera confiable.
-// =============================================================================
-/** Envuelve en una Promise el abridor async de flujo de archivo (para escritura). */
-function fileReplaceAsync(file, etag, makeBackup, flags, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        file.replace_async(etag, makeBackup, flags, ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(file.replace_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio async de "append" (la ruta de reanudación abre el parcial existente para añadir al final). */
-function fileAppendToAsync(file, flags, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        file.append_to_async(flags, ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(file.append_to_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de query_info_async. */
-function fileQueryInfoAsync(file, attributes, flags, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        file.query_info_async(attributes, flags, ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(file.query_info_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de read_async (abre un FileInputStream). */
-function fileReadAsync(file, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        file.read_async(ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(file.read_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de set_display_name_async. */
-function fileSetDisplayNameAsync(file, displayName, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        file.set_display_name_async(displayName, ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(file.set_display_name_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de delete_async. */
-function fileDeleteAsync(file, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        file.delete_async(ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(file.delete_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de InputStream.read_bytes_async. */
-function streamReadBytesAsync(stream, count, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        stream.read_bytes_async(count, ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(stream.read_bytes_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de OutputStream.write_bytes_async. */
-function streamWriteBytesAsync(stream, bytes, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        stream.write_bytes_async(bytes, ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(stream.write_bytes_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de OutputStream/InputStream.close_async. */
-function streamCloseAsync(stream, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        stream.close_async(ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(stream.close_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-/** Envoltorio de Soup.Session.send_async (devuelve el InputStream del cuerpo). */
-function soupSendAsync(session, msg, ioPriority, cancellable) {
-    return new Promise((resolve, reject) => {
-        session.send_async(msg, ioPriority, cancellable, (_src, res) => {
-            try {
-                resolve(session.send_finish(res));
-            }
-            catch (e) {
-                reject(e);
-            }
-        });
-    });
-}
-// =============================================================================
-// Downloader
-// =============================================================================
 /**
  * Descargador de modelos de HuggingFace. Mantiene una `Soup.Session` de
  * larga duración compartida entre descargas. Es seguro mantenerlo como
@@ -346,78 +203,6 @@ function checksumTypeFor(hash) {
     return hash.length === 40
         ? GLib.ChecksumType.SHA1
         : GLib.ChecksumType.SHA256;
-}
-/** Calcula el hash de contenido de un archivo completo por streaming (bajo consumo de memoria). */
-async function hashOfFile(path, type, cancellable) {
-    const checksum = new GLib.Checksum(type);
-    const file = Gio.File.new_for_path(path);
-    const stream = await fileReadAsync(file, GLib.PRIORITY_DEFAULT, cancellable);
-    for (;;) {
-        const bytes = await streamReadBytesAsync(stream, CHUNK_SIZE, GLib.PRIORITY_DEFAULT, cancellable);
-        const data = bytes.get_data();
-        if (!data || bytes.get_size() === 0)
-            break;
-        checksum.update(data);
-    }
-    await streamCloseAsync(stream, GLib.PRIORITY_DEFAULT, null).catch(() => { });
-    return checksum.get_string();
-}
-/** Alimenta los primeros `offset` bytes de `path` a `checksum` (ruta de reanudación). */
-async function hashPrefix(checksum, path, offset, cancellable) {
-    const file = Gio.File.new_for_path(path);
-    const stream = await fileReadAsync(file, GLib.PRIORITY_DEFAULT, cancellable);
-    let remaining = offset;
-    while (remaining > 0) {
-        const want = Math.min(CHUNK_SIZE, remaining);
-        const bytes = await streamReadBytesAsync(stream, want, GLib.PRIORITY_DEFAULT, cancellable);
-        const data = bytes.get_data();
-        if (!data || bytes.get_size() === 0)
-            break;
-        checksum.update(data);
-        remaining -= bytes.get_size();
-    }
-    await streamCloseAsync(stream, GLib.PRIORITY_DEFAULT, null).catch(() => { });
-}
-/** Renombrado atómico vía Gio.File.set_display_name, con reserva de mover de forma síncrona. */
-async function renameAtomic(from, to) {
-    const fromFile = Gio.File.new_for_path(from);
-    // set_display_name es atómico dentro del mismo sistema de archivos (el
-    // .part vive en el mismo directorio que el destino), que es el caso
-    // común aquí.
-    try {
-        await fileSetDisplayNameAsync(fromFile, GLib.path_get_basename(to), GLib.PRIORITY_DEFAULT, null);
-        return;
-    }
-    catch {
-        // Reserva entre sistemas de archivos: Gio.File.move es síncrono y
-        // acepta un callback de progreso (null aquí). Es una ruta poco
-        // frecuente, así que bloquear está bien.
-        await safeDelete(to);
-        fromFile.move(Gio.File.new_for_path(to), Gio.FileCopyFlags.OVERWRITE, null, null);
-    }
-}
-/** Borrado en modo "mejor esfuerzo"; nunca rechaza la promesa. */
-async function safeDelete(path) {
-    try {
-        const file = Gio.File.new_for_path(path);
-        if (file.query_exists(null)) {
-            await fileDeleteAsync(file, GLib.PRIORITY_DEFAULT, null);
-        }
-    }
-    catch {
-        // ignora — la limpieza parcial es solo mejor esfuerzo
-    }
-}
-/** Indica si el error capturado corresponde a una cancelación del Cancellable. */
-function isErrorCancelled(e) {
-    if (e instanceof GLib.Error) {
-        return e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED);
-    }
-    return false;
-}
-/** Extrae un mensaje legible de cualquier error capturado. */
-function errMessage(e) {
-    return e instanceof GLib.Error ? e.message : String(e);
 }
 /** Singleton a nivel de proceso (crear una Soup.Session es costoso). */
 let _downloader = null;

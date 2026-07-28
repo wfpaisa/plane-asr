@@ -29,6 +29,7 @@ import { SETTINGS_KEYS } from '../config/settings.js';
 import { recordsDir } from '../config/paths.js';
 import { AsrState } from './asr-service.js';
 import { notify } from './notify.js';
+import { pickAudioFile } from './file-chooser-portal.js';
 /** Clase CSS que se activa/desactiva en el botón mientras se graba. */
 const RECORDING_STYLE_CLASS = 'planeasr-recording';
 /** Opacidad hasta la que se atenúa el botón en el extremo tenue de cada fase de parpadeo. */
@@ -123,7 +124,7 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
         this._processFileItem = new PopupMenu.PopupMenuItem(_('Process audio file'));
         this._processFileItem.connect('activate', () => {
             menu.close();
-            this._pickAndTranscribe();
+            void this._pickAndTranscribe();
         });
         menu.addMenuItem(this._processFileItem);
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -267,79 +268,29 @@ export const Indicator = GObject.registerClass(class Indicator extends PanelMenu
         notify(this.extension.path, _('Plane ASR: copied transcription'));
     }
     /**
-     * Abre un selector de archivos nativo (un Gtk.FileDialog fuera del
-     * proceso, ya que los diálogos GTK no pueden correr dentro del
-     * proceso St/Clutter de gnome-shell) y le pasa la ruta elegida a
+     * Abre el selector de archivos de audio vía el portal de escritorio
+     * XDG (ver file-chooser-portal.ts) y le pasa la ruta elegida a
      * {@link AsrServiceLike.transcribeFile}. Silencioso al cancelar;
-     * cualquier fallo al lanzar el proceso se registra y se notifica.
+     * cualquier fallo de la llamada D-Bus se registra y se notifica.
      */
-    _pickAndTranscribe() {
+    async _pickAndTranscribe() {
         if (this.service?.state !== AsrState.Idle) {
             notify(this.extension.path, _('Plane ASR is busy'));
-            return Promise.resolve();
+            return;
         }
-        const gjs = GLib.find_program_in_path('gjs');
-        if (!gjs) {
-            notify(this.extension.path, _('Plane ASR'), _('gjs runtime not found; cannot open the file picker'));
-            return Promise.resolve();
+        let path;
+        try {
+            path = await pickAudioFile(_('Select audio file'), _('Open'));
         }
-        // El selector se distribuye en <extdir>/src/extension/file-picker.js
-        // (compilado desde src/extension/file-picker.ts; el build
-        // preserva la disposición de src/ bajo la raíz de la extensión).
-        const pickerPath = GLib.build_filenamev([
-            this.extension.path,
-            'src',
-            'extension',
-            'file-picker.js',
-        ]);
-        if (!Gio.File.new_for_path(pickerPath).query_exists(null)) {
-            console.warn(`[planeasr] file picker script missing: ${pickerPath}`);
-            notify(this.extension.path, _('Plane ASR'), _('File picker helper is missing; reinstall the extension'));
-            return Promise.resolve();
+        catch (e) {
+            console.warn(`[planeasr] file chooser portal failed: ${this._errMsg(e)}`);
+            notify(this.extension.path, _('Plane ASR'), _('Could not open the file chooser'));
+            return;
         }
-        // El selector es agnóstico de i18n (no puede acceder al dominio
-        // gettext del shell), así que el título/etiqueta traducidos se
-        // pasan por línea de comandos como ARGV[0]/ARGV[1].
-        const argv = [
-            gjs,
-            '-m',
-            pickerPath,
-            _('Select audio file'),
-            _('Open'),
-        ];
-        return new Promise(resolve => {
-            let proc;
-            try {
-                proc = new Gio.Subprocess({
-                    argv,
-                    flags: Gio.SubprocessFlags.STDOUT_PIPE,
-                });
-                proc.init(null);
-            }
-            catch (e) {
-                console.warn(`[planeasr] could not spawn file picker: ${this._errMsg(e)}`);
-                notify(this.extension.path, _('Plane ASR'), _('Could not open the file picker'));
-                resolve();
-                return;
-            }
-            proc.communicate_utf8_async(null, null, (_self, res) => {
-                let stdout = '';
-                try {
-                    const [, out] = proc.communicate_utf8_finish(res);
-                    stdout = (out ?? '').trim();
-                }
-                catch (e) {
-                    console.warn(`[planeasr] file picker failed: ${this._errMsg(e)}`);
-                    resolve();
-                    return;
-                }
-                // stdout vacío = el usuario canceló / cerró el diálogo.
-                if (stdout) {
-                    void this.service?.transcribeFile(stdout);
-                }
-                resolve();
-            });
-        });
+        // `null` = el usuario canceló / cerró el diálogo.
+        if (path) {
+            void this.service?.transcribeFile(path);
+        }
     }
     /** Copia la ruta de la carpeta de grabaciones al portapapeles. */
     _copyAudiosPath() {

@@ -11,5 +11,5 @@
         "useDefineForClassFields": false
     },
     "include": ["src/ambient.d.ts"],
-    "files": ["extension.ts", "prefs.ts", "src/extension/file-picker.ts"]
+    "files": ["extension.ts", "prefs.ts"]
 }

@@ -120,12 +120,12 @@ export class AsrService {
         const backendId = this._settings.get_string(SETTINGS_KEYS.ASR_BACKEND) ??
             'transcribe-cli';
         const pathName = getBackend(backendId).defaultCliName;
-        const resolved = resolveAutoCli(this._extensionDir, pathName);
+        const resolved = resolveAutoCli(pathName);
         if (resolved.source !== 'none')
             return null;
-        return _('No transcription binary available for this system. ' +
-            'Switch to GPU mode and set the binary path, or install ' +
-            'transcribe-cli on your PATH.');
+        return _('No transcription binary available. Download the engine from ' +
+            'the "Setup" tab in preferences, switch to GPU mode and set ' +
+            'the binary path, or install transcribe-cli on your PATH.');
     }
     /**
      * Chequeo previo de que hay un modelo configurado antes de
@@ -137,8 +137,8 @@ export class AsrService {
      */
     _validateModel() {
         const modelId = this._settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
-        if (modelId && this._extensionDir) {
-            const entry = findModel(this._extensionDir, modelId);
+        if (modelId) {
+            const entry = findModel(modelId);
             if (entry) {
                 const quant = this._settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ?? '';
                 const file = pickFile(entry, quant);
@@ -594,9 +594,9 @@ export class AsrService {
      */
     _activeModelSupportsStreaming() {
         const modelId = this._settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
-        if (!modelId || !this._extensionDir)
+        if (!modelId)
             return true;
-        const entry = findModel(this._extensionDir, modelId);
+        const entry = findModel(modelId);
         return entry ? entry.streaming : true;
     }
     /** Promesa que resuelve tras `ms` mediante un timeout del bucle principal de GLib. */
