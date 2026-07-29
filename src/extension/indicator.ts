@@ -87,10 +87,10 @@ export const Indicator = GObject.registerClass(
         private _recordIconA!: Gio.Icon;
         /** Segundo cuadro de la animación de grabación (data/icons/sound2-symbolic.svg), intercalado con {@link _recordIconA} en cada fase de parpadeo. */
         private _recordIconB!: Gio.Icon;
-        private _recordItem!: PopupMenu.PopupMenuItem;
-        private _copyItem!: PopupMenu.PopupMenuItem;
-        private _copyAudiosPathItem!: PopupMenu.PopupMenuItem;
-        private _processFileItem!: PopupMenu.PopupMenuItem;
+        private _recordItem!: PopupMenu.PopupImageMenuItem;
+        private _copyItem!: PopupMenu.PopupImageMenuItem;
+        private _copyAudiosPathItem!: PopupMenu.PopupImageMenuItem;
+        private _processFileItem!: PopupMenu.PopupImageMenuItem;
         private _settingsHandlers: number[] = [];
         /** Protege el bucle recursivo de easing en {@link _pulseBlink}; ver {@link _startBlink}. */
         private _blinking = false;
@@ -104,7 +104,6 @@ export const Indicator = GObject.registerClass(
             });
             this.add_child(this._icon);
 
-            this._buildMenu();
             this._overrideToggle();
         }
 
@@ -118,6 +117,10 @@ export const Indicator = GObject.registerClass(
          */
         bind(settings: Gio.Settings) {
             this.settings = settings;
+            // El menú se arma aquí (no en _init) porque sus iconos se
+            // resuelven desde this.extension.path, asignado por la extensión
+            // recién tras construir el indicador.
+            this._buildMenu();
             this._idleIcon = Gio.icon_new_for_string(
                 GLib.build_filenamev([
                     this.extension.path,
@@ -150,8 +153,9 @@ export const Indicator = GObject.registerClass(
         _buildMenu() {
             const menu = this.menu as PopupMenu.PopupMenu;
 
-            this._recordItem = new PopupMenu.PopupMenuItem(
-                _('Start recording')
+            this._recordItem = new PopupMenu.PopupImageMenuItem(
+                _('Start recording'),
+                this._menuIcon('sound-symbolic.svg')
             );
             this._recordItem.connect('activate', () => {
                 menu.close();
@@ -161,15 +165,19 @@ export const Indicator = GObject.registerClass(
 
             menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-            this._copyItem = new PopupMenu.PopupMenuItem(_('Copy text'));
+            this._copyItem = new PopupMenu.PopupImageMenuItem(
+                _('Copy text'),
+                this._menuIcon('copy-symbolic.svg')
+            );
             this._copyItem.connect('activate', () => {
                 menu.close();
                 this._copyLastText();
             });
             menu.addMenuItem(this._copyItem);
 
-            this._copyAudiosPathItem = new PopupMenu.PopupMenuItem(
-                _('Copy audios path')
+            this._copyAudiosPathItem = new PopupMenu.PopupImageMenuItem(
+                _('Copy audios path'),
+                this._menuIcon('copy-symbolic.svg')
             );
             this._copyAudiosPathItem.connect('activate', () => {
                 menu.close();
@@ -177,8 +185,9 @@ export const Indicator = GObject.registerClass(
             });
             menu.addMenuItem(this._copyAudiosPathItem);
 
-            this._processFileItem = new PopupMenu.PopupMenuItem(
-                _('Process audio file')
+            this._processFileItem = new PopupMenu.PopupImageMenuItem(
+                _('Process audio file'),
+                this._menuIcon('audio-symbolic.svg')
             );
             this._processFileItem.connect('activate', () => {
                 menu.close();
@@ -188,12 +197,27 @@ export const Indicator = GObject.registerClass(
 
             menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-            const settingsItem = new PopupMenu.PopupMenuItem(_('Preferences'));
+            const settingsItem = new PopupMenu.PopupImageMenuItem(
+                _('Preferences'),
+                this._menuIcon('settings-symbolic.svg')
+            );
             settingsItem.connect('activate', () => {
                 menu.close();
                 this.extension.openPreferences();
             });
             menu.addMenuItem(settingsItem);
+        }
+
+        /** Crea un {@link Gio.Icon} a partir de un archivo SVG de data/icons. */
+        _menuIcon(name: string): Gio.Icon {
+            return Gio.icon_new_for_string(
+                GLib.build_filenamev([
+                    this.extension.path,
+                    'data',
+                    'icons',
+                    name,
+                ])
+            );
         }
 
         /**
