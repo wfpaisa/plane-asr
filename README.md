@@ -18,6 +18,13 @@ shortcut, speak, and watch the words land at your cursor or on your clipboard.
 - 🔒 **Real privacy** — everything runs locally via `transcribe-cli`
   (transcribe.cpp); nothing is ever sent to the cloud.
 
+| Shortcut | Default | Gesture |
+| --- | --- | --- |
+| Toggle recording | Ctrl+Alt+Space | tap: start / tap again: stop |
+| Push-to-talk | Ctrl+Shift+Space | hold: record / release: stop |
+
+Both are configurable (and can be disabled) from Preferences.
+
 ![](screenshot/screenshot01.png) ![](screenshot/screenshot02.png)<br>
 <details>
 <summary>Show screenshots</summary>
@@ -93,60 +100,35 @@ pnpm run test
 
 ## Updating the engine binary
 
-The `transcribe-cli` engine (CPU-only, x86_64) is **not** bundled in the
-extension zip — that would violate the GNOME extension review guidelines
-([EGO-P-005](https://gjs.guide/extensions/review-guidelines/review-guidelines.html#scripts-and-binaries)).
-Instead it is published as a **GitHub Release asset** and downloaded on demand
-from the "Setup" page. [`src/models/engine-manifest.ts`](src/models/engine-manifest.ts)
-pins the exact URL, size and SHA-256, and the downloader refuses anything that
-does not match.
+`transcribe-cli` isn't bundled in the zip (GNOME review guidelines forbid
+shipping binaries) — it's downloaded on demand from a GitHub Release, pinned
+by URL/size/SHA-256 in [`src/models/engine-manifest.ts`](src/models/engine-manifest.ts).
 
-To ship a new engine build:
+```bash
+# 1. Build the binary out-of-band (transcribe.cpp, CPU-only, x86_64)
+#    and commit it
+cp /path/to/new/transcribe-cli bin/transcribe-cli.bin
+git add bin/transcribe-cli.bin
 
-1. **Build the binary out-of-band** (from transcribe.cpp, CPU-only) and place it
-   at `bin/transcribe-cli.bin`. It is committed to the repo (git only, never the
-   zip) so the release workflow can pick it up.
+# 2. Compute its checksum and size
+sha256sum bin/transcribe-cli.bin
+stat -c%s bin/transcribe-cli.bin
 
-2. **Compute its checksum and size:**
+# 3. Edit src/models/engine-manifest.ts: bump `version` and set
+#    `url`, `size_bytes`, `sha256` for the x86_64 build (version
+#    must match the tag below)
 
-    ```bash
-    sha256sum bin/transcribe-cli.bin
-    stat -c%s bin/transcribe-cli.bin
-    ```
+# 4. Commit, tag and push — release-engine.yml renames the binary,
+#    re-verifies its hash and publishes the release with the asset
+git commit -m "engine: bump to v1.0.3"
+git tag engine-v1.0.3 && git push origin engine-v1.0.3
 
-3. **Update the manifest** in [`src/models/engine-manifest.ts`](src/models/engine-manifest.ts):
-   bump `version` and set `url`, `size_bytes` and `sha256` for the `x86_64`
-   build. The `version` **must** match the tag you push in the next step, and
-   the URL follows the pattern
-   `…/releases/download/engine-v<version>/transcribe-cli-x86_64`. Compute the
-   checksum from the actual binary first — never edit the hash by hand.
+# 5. Verify the asset is live (expect HTTP/200)
+curl -sIL https://github.com/wfpaisa/plane-asr/releases/download/engine-v1.0.3/transcribe-cli-x86_64 | grep -i '^HTTP/'
+```
 
-4. **Publish the release.** Two options:
-
-    - **Automated (recommended)** — commit the binary + manifest, then tag and
-      push. The [`release-engine.yml`](.github/workflows/release-engine.yml)
-      workflow renames the binary to `transcribe-cli-x86_64`, re-verifies its
-      SHA-256 against the manifest, and creates the release with the asset
-      attached:
-
-        ```bash
-        git tag engine-v1.0.3 && git push origin engine-v1.0.3
-        ```
-
-    - **Manual** — on GitHub, _Releases → Draft a new release_, create the tag
-      `engine-v<version>`, and upload the binary. It **must** be uploaded with
-      the exact asset name `transcribe-cli-x86_64` (no extension), since that is
-      the filename the manifest URL points to.
-
-5. **Verify** the asset resolves and its hash matches the manifest:
-
-    ```bash
-    curl -sIL https://github.com/wfpaisa/plane-asr/releases/download/engine-v1.0.3/transcribe-cli-x86_64 | grep -i '^HTTP/'   # expect 200
-    ```
-
-The "download engine" button will then fetch the binary, validate the hash and
-mark it executable. For a new CPU architecture, add another entry to the
-manifest's `builds` array instead of replacing the `x86_64` one.
+For a new CPU architecture, add another entry to the manifest's `builds`
+array instead of replacing `x86_64`.
 
 ## License
 
