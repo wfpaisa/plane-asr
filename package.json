@@ -1,6 +1,6 @@
 {
     "name": "plane-asr",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "Plane ASR — a local ASR GNOME Shell extension",
     "type": "module",
     "private": true,
