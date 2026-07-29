@@ -217,6 +217,95 @@ export function shortcutRow(
     return row;
 }
 
+/**
+ * Construye un `Adw.ComboRow` cableado a una clave GSettings de tipo string,
+ * mapeando cada opción a un id estable en vez de al índice crudo del combo
+ * (el orden de las opciones puede cambiar sin romper el valor guardado).
+ *
+ * Encapsula el patrón que se repetía para los combos de modo del binario,
+ * acelerador, idioma y modo de salida: crear el `Gtk.StringList`, ensanchar
+ * las etiquetas del combo, leer el string guardado y mapearlo a un índice al
+ * poblar, y escribir de vuelta el id al seleccionar. Expone `sync()` para que
+ * el caller pueda forzar una relectura (p. ej. antes de leer `row.selected`
+ * en lógica que depende del valor, sin esperar a la señal `changed::`).
+ *
+ * `normalize` es un gancho opcional para migrar valores heredados/inválidos
+ * (ver `normalizeCliMode`) antes de buscarlos en `options`; sin él, el valor
+ * crudo de GSettings se usa tal cual.
+ */
+export function comboRow<T extends string>(
+    settings: Gio.Settings,
+    key: string,
+    opts: {
+        title: string;
+        subtitle?: string;
+        options: readonly {id: T; label: string}[];
+        fallback: T;
+        normalize?: (raw: string) => T;
+    }
+): {row: Adw.ComboRow; sync: () => void} {
+    const model = new Gtk.StringList({strings: opts.options.map(o => o.label)});
+    const row = new Adw.ComboRow({
+        title: opts.title,
+        ...(opts.subtitle !== undefined ? {subtitle: opts.subtitle} : {}),
+        model,
+    });
+    widenComboRow(row);
+
+    const sync = () => {
+        const raw = settings.get_string(key) ?? opts.fallback;
+        const id = opts.normalize ? opts.normalize(raw) : (raw as T);
+        row.selected = Math.max(
+            0,
+            opts.options.findIndex(o => o.id === id)
+        );
+    };
+    sync();
+    row.connect('notify::selected', () => {
+        const opt = opts.options[row.selected];
+        if (opt) settings.set_string(key, opt.id);
+    });
+    settings.connect(`changed::${key}`, sync);
+
+    return {row, sync};
+}
+
+/**
+ * Construye un `Adw.SpinRow` entero cableado bidireccionalmente a una clave
+ * GSettings numérica vía `settings.bind()`.
+ *
+ * Encapsula el trío `Gtk.Adjustment` + `Adw.SpinRow` + `settings.bind()` que
+ * se repetía para hilos de CPU, duración/solapamiento de fragmentos y
+ * cantidad de grabaciones a conservar. El valor inicial del `Adjustment` no
+ * importa: `bind()` lo sincroniza desde GSettings de inmediato.
+ */
+export function spinRow(
+    settings: Gio.Settings,
+    key: string,
+    opts: {
+        title: string;
+        subtitle?: string;
+        lower: number;
+        upper: number;
+        step?: number;
+        page?: number;
+    }
+): Adw.SpinRow {
+    const row = new Adw.SpinRow({
+        title: opts.title,
+        ...(opts.subtitle !== undefined ? {subtitle: opts.subtitle} : {}),
+        adjustment: new Gtk.Adjustment({
+            lower: opts.lower,
+            upper: opts.upper,
+            step_increment: opts.step ?? 1,
+            page_increment: opts.page ?? opts.step ?? 1,
+        }),
+        digits: 0,
+    });
+    settings.bind(key, row, 'value', Gio.SettingsBindFlags.DEFAULT);
+    return row;
+}
+
 /** Una etiqueta insignia en forma de píldora, usada para decorar filas de modelo. */
 export function badgeLabel(text: string, cssClass = 'tag'): Gtk.Label {
     return new Gtk.Label({

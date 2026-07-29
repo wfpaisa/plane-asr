@@ -34,21 +34,14 @@ import {getEngineStore} from '../models/engine-store.js';
 import {buildModelsPage} from './models-page.js';
 import {buildSetupPage} from './setup-page.js';
 import {
+    comboRow,
     entryRow,
     registerIconSearchPath,
     rowContentMargins,
     shortcutRow,
+    spinRow,
     widenComboRow,
 } from './widgets.js';
-
-/** Ids que respaldan el combo "Output", en orden de visualización. */
-const OUTPUT_IDS = ['clipboard', 'paste'] as const;
-
-/** Ids que respaldan el combo "Accelerator". */
-const ACCELERATOR_IDS = ['auto', 'cpu', 'vulkan'] as const;
-
-/** Ids que respaldan el combo "Binary mode", en orden de visualización. */
-const CLI_MODE_IDS = ['cpu', 'gpu'] as const;
 
 /** Códigos de idioma comunes ofrecidos en el combo de idioma. Las etiquetas
  *  se traducen de forma diferida dentro de `fillPreferencesWindow`, porque
@@ -321,10 +314,11 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         backendPage.add(asrGroup);
 
-        const cliModeModel = new Gtk.StringList({
-            strings: [_('CPU'), _('GPU')],
-        });
-        const cliModeRow = new Adw.ComboRow({
+        const cliModeOptions = [
+            {id: 'cpu', label: _('CPU')},
+            {id: 'gpu', label: _('GPU')},
+        ] as const;
+        const cliMode = comboRow(settings, SETTINGS_KEYS.CLI_MODE, {
             title: _('Binary mode'),
             subtitle: _(
                 'CPU prefers a transcribe-cli found on PATH, falling back ' +
@@ -332,12 +326,12 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
                     '"Setup" tab. GPU lets you point to your own ' +
                     'Vulkan/CUDA build.'
             ),
-            titleLines: 0,
-            subtitleLines: 0,
-            model: cliModeModel,
+            options: cliModeOptions,
+            fallback: 'cpu',
+            normalize: normalizeCliMode,
         });
+        const cliModeRow = cliMode.row;
         asrGroup.add(cliModeRow);
-        widenComboRow(cliModeRow);
 
         // Nota explicativa mostrada solo en modo GPU
         const gpuNoteLabel = new Gtk.Label({
@@ -415,16 +409,18 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         backendPage.add(perfGroup);
 
-        const accelModel = new Gtk.StringList({
-            strings: [_('Auto'), _('CPU'), _('Vulkan')],
-        });
-        const accelRow = new Adw.ComboRow({
+        const accel = comboRow(settings, SETTINGS_KEYS.ACCELERATOR, {
             title: _('Accelerator'),
             subtitle: _('Compute backend for inference'),
-            model: accelModel,
+            options: [
+                {id: 'auto', label: _('Auto')},
+                {id: 'cpu', label: _('CPU')},
+                {id: 'vulkan', label: _('Vulkan')},
+            ] as const,
+            fallback: 'auto',
         });
+        const accelRow = accel.row;
         perfGroup.add(accelRow);
-        widenComboRow(accelRow);
 
         // Menú desplegable de dispositivo GPU: se rellena a partir de la
         // salida de `--list-devices` del CLI configurado, así el índice al
@@ -444,19 +440,13 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         perfGroup.add(gpuDeviceRow);
         widenComboRow(gpuDeviceRow);
 
-        const threadsRow = new Adw.SpinRow({
+        const threadsRow = spinRow(settings, SETTINGS_KEYS.CPU_THREADS, {
             title: _('CPU threads'),
             subtitle: _('0 = auto (use all cores)'),
-            titleLines: 0,
-            subtitleLines: 0,
-            adjustment: new Gtk.Adjustment({
-                lower: 0,
-                upper: 128,
-                step_increment: 1,
-                page_increment: 4,
-                value: 0,
-            }),
-            digits: 0,
+            lower: 0,
+            upper: 128,
+            step: 1,
+            page: 4,
         });
         perfGroup.add(threadsRow);
 
@@ -477,41 +467,33 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         chunkGroup.add(chunkEnabledRow);
 
-        const chunkSecondsRow = new Adw.SpinRow({
+        const chunkSecondsRow = spinRow(settings, SETTINGS_KEYS.CHUNK_SECONDS, {
             title: _('Seconds per chunk'),
             subtitle: _(
                 'Lower values are safer for models that cap output tokens'
             ),
-            titleLines: 0,
-            subtitleLines: 0,
-            adjustment: new Gtk.Adjustment({
-                lower: 5,
-                upper: 60,
-                step_increment: 1,
-                page_increment: 5,
-                value: 10,
-            }),
-            digits: 0,
+            lower: 5,
+            upper: 60,
+            step: 1,
+            page: 5,
         });
         chunkGroup.add(chunkSecondsRow);
 
-        const chunkOverlapRow = new Adw.SpinRow({
-            title: _('Overlap seconds'),
-            subtitle: _(
-                'Re-transcribe this much at each chunk boundary so words ' +
-                    'split across the seam are not lost (0 = off)'
-            ),
-            titleLines: 0,
-            subtitleLines: 0,
-            adjustment: new Gtk.Adjustment({
+        const chunkOverlapRow = spinRow(
+            settings,
+            SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS,
+            {
+                title: _('Overlap seconds'),
+                subtitle: _(
+                    'Re-transcribe this much at each chunk boundary so words ' +
+                        'split across the seam are not lost (0 = off)'
+                ),
                 lower: 0,
                 upper: 5,
-                step_increment: 1,
-                page_increment: 1,
-                value: 1,
-            }),
-            digits: 0,
-        });
+                step: 1,
+                page: 1,
+            }
+        );
         chunkGroup.add(chunkOverlapRow);
 
         window.add(backendPage);
@@ -536,16 +518,14 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             label: _(LANGUAGE_DEFAULT_NAMES[id] ?? id),
         }));
 
-        const langModel = new Gtk.StringList({
-            strings: languageOptions.map(o => o.label),
-        });
-        const langRow = new Adw.ComboRow({
+        const lang = comboRow(settings, SETTINGS_KEYS.SELECTED_LANGUAGE, {
             title: _('Spoken language'),
             subtitle: _('Language hint passed to the model'),
-            model: langModel,
+            options: languageOptions,
+            fallback: 'auto',
         });
+        const langRow = lang.row;
         langGroup.add(langRow);
-        widenComboRow(langRow);
 
         const translateRow = new Adw.SwitchRow({
             title: _('Translate to English'),
@@ -578,16 +558,17 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         });
         generalPage.add(outputGroup);
 
-        const outputModel = new Gtk.StringList({
-            strings: [_('Copy to clipboard'), _('Paste at cursor')],
-        });
-        const outputRow = new Adw.ComboRow({
+        const output = comboRow(settings, SETTINGS_KEYS.OUTPUT_MODE, {
             title: _('Output mode'),
             subtitle: _('How to deliver the transcription'),
-            model: outputModel,
+            options: [
+                {id: 'clipboard', label: _('Copy to clipboard')},
+                {id: 'paste', label: _('Paste at cursor')},
+            ] as const,
+            fallback: 'clipboard',
         });
+        const outputRow = output.row;
         outputGroup.add(outputRow);
-        widenComboRow(outputRow);
         outputGroup.add(
             shortcutRow(settings, SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT, window)
         );
@@ -601,22 +582,16 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             })
         );
 
-        const keepRecordsRow = new Adw.SpinRow({
+        const keepRecordsRow = spinRow(settings, SETTINGS_KEYS.KEEP_RECORDS, {
             title: _('Keep last recordings'),
             subtitle: _(
                 'How many recent recordings to keep under records/. Older ' +
                     'WAVs are deleted automatically (0 = keep none)'
             ),
-            titleLines: 0,
-            subtitleLines: 0,
-            adjustment: new Gtk.Adjustment({
-                lower: 0,
-                upper: 100,
-                step_increment: 1,
-                page_increment: 5,
-                value: 3,
-            }),
-            digits: 0,
+            lower: 0,
+            upper: 100,
+            step: 1,
+            page: 5,
         });
         outputGroup.add(keepRecordsRow);
 
@@ -681,12 +656,14 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         cliPathRow.label.label = _('Binary path (%s)').format('transcribe-cli');
         realtimeRow.sensitive = true; // transcribe-cli admite tiempo real
 
-        // --- Combo de modo del binario: CPU vs GPU -------------------------
+        // --- Visibilidad derivada del modo del binario: CPU vs GPU ---------
+        // El propio índice del combo ya lo mantiene sincronizado `comboRow`;
+        // aquí solo se deriva la visibilidad/sensibilidad de las filas
+        // vecinas, que no es un mapeo 1:1 de una sola clave.
         const syncCliMode = () => {
-            const raw = settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu';
-            const id = normalizeCliMode(raw);
-            const idx = Math.max(0, CLI_MODE_IDS.indexOf(id));
-            cliModeRow.selected = idx;
+            const id = normalizeCliMode(
+                settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu'
+            );
             const gpu = id === 'gpu';
             cliPathRow.row.visible = gpu;
             cliPathRow.row.sensitive = gpu;
@@ -713,9 +690,8 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         };
         syncCliMode();
         cliModeRow.connect('notify::selected', () => {
-            const modeId = CLI_MODE_IDS[cliModeRow.selected];
+            const modeId = cliModeOptions[cliModeRow.selected]?.id;
             if (!modeId) return;
-            settings.set_string(SETTINGS_KEYS.CLI_MODE, modeId);
             // Mantiene el acelerador sincronizado con el modo del binario
             // para que el binario resuelto y el flag --backend nunca
             // discrepen:
@@ -759,22 +735,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        // --- Combo de idioma (sincronización bidireccional basada en índice) --
-        const syncLang = () => {
-            const id =
-                settings.get_string(SETTINGS_KEYS.SELECTED_LANGUAGE) ?? 'auto';
-            const idx = Math.max(
-                0,
-                languageOptions.findIndex(o => o.id === id)
-            );
-            langRow.selected = idx;
-        };
-        syncLang();
-        langRow.connect('notify::selected', () => {
-            const opt = languageOptions[langRow.selected];
-            if (opt)
-                settings.set_string(SETTINGS_KEYS.SELECTED_LANGUAGE, opt.id);
-        });
         settings.bind(
             SETTINGS_KEYS.TRANSLATE_TO_ENGLISH,
             translateRow,
@@ -782,11 +742,12 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        // --- Combo de acelerador + menú de dispositivo GPU + hilos ---------
+        // --- Sensibilidad derivada del acelerador + menú de dispositivo GPU --
+        // El propio índice del combo ya lo mantiene `comboRow`; aquí solo se
+        // deriva la sensibilidad/visibilidad de filas vecinas según el modo
+        // del binario, que no es un mapeo 1:1 de una sola clave.
         const syncAccel = () => {
             const id = settings.get_string(SETTINGS_KEYS.ACCELERATOR) ?? 'auto';
-            const idx = Math.max(0, ACCELERATOR_IDS.indexOf(id as never));
-            accelRow.selected = idx;
             // El binario CPU empaquetado no tiene soporte de GPU, así que en
             // modo CPU el acelerador queda fijo en 'cpu' (lo fija
             // syncCliMode) y el combo es de solo lectura para evitar una
@@ -801,22 +762,11 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             gpuDeviceRow.sensitive = id === 'vulkan' || id === 'auto';
         };
         syncAccel();
-        accelRow.connect('notify::selected', () => {
-            const id = ACCELERATOR_IDS[accelRow.selected];
-            if (id) settings.set_string(SETTINGS_KEYS.ACCELERATOR, id);
-        });
         settings.connect(`changed::${SETTINGS_KEYS.ACCELERATOR}`, syncAccel);
         // Reevalúa la sensibilidad del acelerador cuando cambia el modo del
         // binario: el modo CPU fija el acelerador en 'cpu' y deshabilita el
         // combo.
         settings.connect(`changed::${SETTINGS_KEYS.CLI_MODE}`, syncAccel);
-
-        settings.bind(
-            SETTINGS_KEYS.CPU_THREADS,
-            threadsRow,
-            'value',
-            Gio.SettingsBindFlags.DEFAULT
-        );
 
         // --- Menú de dispositivo GPU (dinámico, desde <cli> --list-devices) --
         // La lista de dispositivos depende de qué binario está activo, así
@@ -909,18 +859,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
             'active',
             Gio.SettingsBindFlags.DEFAULT
         );
-        settings.bind(
-            SETTINGS_KEYS.CHUNK_SECONDS,
-            chunkSecondsRow,
-            'value',
-            Gio.SettingsBindFlags.DEFAULT
-        );
-        settings.bind(
-            SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS,
-            chunkOverlapRow,
-            'value',
-            Gio.SettingsBindFlags.DEFAULT
-        );
         const syncChunkSensitivity = () => {
             const realtime = settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
             const chunk = settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
@@ -941,25 +879,6 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         settings.connect(
             `changed::${SETTINGS_KEYS.REALTIME_MODE}`,
             syncChunkSensitivity
-        );
-
-        // --- Modo de salida --------------------------------------------------
-        outputRow.selected = Math.max(
-            0,
-            OUTPUT_IDS.indexOf(
-                (settings.get_string(SETTINGS_KEYS.OUTPUT_MODE) ??
-                    'clipboard') as (typeof OUTPUT_IDS)[number]
-            )
-        );
-        outputRow.connect('notify::selected', () => {
-            const id = OUTPUT_IDS[outputRow.selected];
-            if (id) settings.set_string(SETTINGS_KEYS.OUTPUT_MODE, id);
-        });
-        settings.bind(
-            SETTINGS_KEYS.KEEP_RECORDS,
-            keepRecordsRow,
-            'value',
-            Gio.SettingsBindFlags.DEFAULT
         );
 
         // --- Depuración --------------------------------------------------------
