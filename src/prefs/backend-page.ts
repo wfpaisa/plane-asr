@@ -17,6 +17,12 @@ import GObject from 'gi://GObject';
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
+import {
+    PRESET_IDS,
+    guessActivePreset,
+    presetEntries,
+    type PresetId,
+} from '../config/presets.js';
 import {resolveAutoCli} from '../extension/cli-resolver.js';
 import {listDevices} from '../extension/device-lister.js';
 import {findModel, pickFile, resolveModelDir} from '../models/catalog.js';
@@ -150,6 +156,127 @@ function validateSetup(settings: Gio.Settings): string {
         : problems.map(formatSetupProblem).join('; ');
 }
 
+/** Etiqueta y descripción (traducibles) mostradas por cada preset. */
+function presetLabels(): Record<PresetId, {label: string; subtitle: string}> {
+    return {
+        fast: {
+            label: _('Fast'),
+            subtitle: _('Realtime streaming, lowest latency'),
+        },
+        balanced: {
+            label: _('Balanced'),
+            subtitle: _('Live chunking with a light overlap'),
+        },
+        accurate: {
+            label: _('Accurate'),
+            subtitle: _('Shorter chunks, more overlap — fewer lost words'),
+        },
+    };
+}
+
+/**
+ * Aplica un preset escribiendo cada uno de sus valores en GSettings,
+ * despachando por tipo (boolean vs int) porque `settings.set_value` genérico
+ * exigiría envolver cada valor en un GLib.Variant.
+ */
+function applyPreset(settings: Gio.Settings, id: PresetId): void {
+    for (const [key, value] of presetEntries(id)) {
+        if (typeof value === 'boolean') {
+            settings.set_boolean(key, value);
+        } else {
+            settings.set_int(key, value);
+        }
+    }
+}
+
+/** Lee el estado actual de las claves que gobiernan los presets. */
+function readPresetState(
+    settings: Gio.Settings
+): Record<string, boolean | number> {
+    return {
+        [SETTINGS_KEYS.REALTIME_MODE]: settings.get_boolean(
+            SETTINGS_KEYS.REALTIME_MODE
+        ),
+        [SETTINGS_KEYS.CHUNK_ENABLED]: settings.get_boolean(
+            SETTINGS_KEYS.CHUNK_ENABLED
+        ),
+        [SETTINGS_KEYS.CHUNK_SECONDS]: settings.get_int(
+            SETTINGS_KEYS.CHUNK_SECONDS
+        ),
+        [SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS]: settings.get_int(
+            SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS
+        ),
+        [SETTINGS_KEYS.CPU_THREADS]: settings.get_int(
+            SETTINGS_KEYS.CPU_THREADS
+        ),
+    };
+}
+
+/**
+ * Grupo de presets: tres botones enlazados que aplican perfiles de
+ * procesamiento de un clic. Resalta el que coincide con la configuración
+ * actual (o ninguno, si es personalizada) y se re-evalúa cuando cambia
+ * cualquiera de las claves que gobierna.
+ */
+function buildPresetsGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = new Adw.PreferencesGroup({
+        title: _('Presets'),
+        description: _(
+            'One-click processing profiles. They set realtime/chunking and ' +
+                'threads; hardware options (binary mode, accelerator) are ' +
+                'left untouched.'
+        ),
+    });
+
+    const labels = presetLabels();
+    const buttons = new Map<PresetId, Gtk.Button>();
+
+    const buttonBox = new Gtk.Box({
+        orientation: Gtk.Orientation.HORIZONTAL,
+        spacing: 0,
+        homogeneous: true,
+        cssClasses: ['linked'],
+        ...rowContentMargins(8),
+    });
+    for (const id of PRESET_IDS) {
+        const button = new Gtk.Button({
+            label: labels[id].label,
+            tooltip_text: labels[id].subtitle,
+            hexpand: true,
+        });
+        button.connect('clicked', () => applyPreset(settings, id));
+        buttons.set(id, button);
+        buttonBox.append(button);
+    }
+
+    const row = new Adw.PreferencesRow({activatable: false});
+    row.set_child(buttonBox);
+    group.add(row);
+
+    // Resalta el preset activo (o ninguno) según el estado actual. La
+    // clase 'suggested-action' es la única diferencia visual; el resto son
+    // botones neutros.
+    const refreshActive = () => {
+        const active = guessActivePreset(readPresetState(settings));
+        for (const [id, button] of buttons) {
+            if (id === active) button.add_css_class('suggested-action');
+            else button.remove_css_class('suggested-action');
+        }
+    };
+    refreshActive();
+    for (const key of [
+        SETTINGS_KEYS.REALTIME_MODE,
+        SETTINGS_KEYS.CHUNK_ENABLED,
+        SETTINGS_KEYS.CHUNK_SECONDS,
+        SETTINGS_KEYS.CHUNK_OVERLAP_SECONDS,
+        SETTINGS_KEYS.CPU_THREADS,
+    ]) {
+        settings.connect(`changed::${key}`, refreshActive);
+    }
+
+    return group;
+}
+
 /** Construye la página de preferencias "Backend". */
 export function buildBackendPage(ctx: BackendPageContext): Adw.PreferencesPage {
     const {settings, toast} = ctx;
@@ -158,6 +285,8 @@ export function buildBackendPage(ctx: BackendPageContext): Adw.PreferencesPage {
         title: _('Backend'),
         iconName: 'utilities-terminal-symbolic',
     });
+
+    backendPage.add(buildPresetsGroup(settings));
 
     // -- Transcripción -----------------------------------------------------
     const asrGroup = new Adw.PreferencesGroup({

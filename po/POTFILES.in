@@ -5,6 +5,8 @@ src/extension/asr-service.ts
 src/extension/cli-errors.ts
 src/extension/indicator.ts
 src/extension/recorder.ts
+src/prefs/backend-page.ts
+src/prefs/general-page.ts
 src/prefs/index.ts
 src/prefs/models-page.ts
 src/prefs/setup-page.ts

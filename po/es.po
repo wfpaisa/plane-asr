@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: plane-asr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-28 19:10-0500\n"
+"POT-Creation-Date: 2026-07-29 09:31-0500\n"
 "PO-Revision-Date: 2026-07-24 19:26-0500\n"
 "Last-Translator: Felipe Uribe <felipe@wfelipe.com>\n"
 "Language-Team: Spanish\n"
@@ -194,89 +194,105 @@ msgstr "Ya hay una grabación en curso"
 msgid "Neither pw-record nor parecord was found in PATH"
 msgstr "No se encontró pw-record ni parecord en el PATH"
 
-#: src/prefs/index.ts:124
+#: src/prefs/backend-page.ts:130
 msgid "binary path is empty"
 msgstr "la ruta del binario está vacía"
 
-#: src/prefs/index.ts:128
-#, javascript-format
-msgid "binary not found: %s"
-msgstr "binario no encontrado: %s"
-
-#: src/prefs/index.ts:137 src/prefs/index.ts:157
-#, javascript-format
-msgid "binary is not executable: %s"
-msgstr "el binario no es ejecutable: %s"
-
-#: src/prefs/index.ts:147
+#: src/prefs/backend-page.ts:132
 #, fuzzy
 msgid "no transcription binary found (downloaded or on PATH)"
 msgstr "no se encontró ningún binario de transcripción (incluido o en el PATH)"
 
-#: src/prefs/index.ts:185
+#: src/prefs/backend-page.ts:134
+#, javascript-format
+msgid "binary not found: %s"
+msgstr "binario no encontrado: %s"
+
+#: src/prefs/backend-page.ts:136
+#, javascript-format
+msgid "binary is not executable: %s"
+msgstr "el binario no es ejecutable: %s"
+
+#: src/prefs/backend-page.ts:138
 msgid "no model file found"
 msgstr "no se encontró ningún archivo de modelo"
 
-#: src/prefs/index.ts:188
+#: src/prefs/backend-page.ts:140
 #, javascript-format
 msgid "model not found: %s"
 msgstr "modelo no encontrado: %s"
 
-#: src/prefs/index.ts:192
+#: src/prefs/backend-page.ts:143
 #, javascript-format
 msgid "model path is relative and cannot be verified: %s"
 msgstr "la ruta del modelo es relativa y no se puede verificar: %s"
 
-#: src/prefs/index.ts:199
+#: src/prefs/backend-page.ts:155
 msgid "Binary and model look OK"
 msgstr "El binario y el modelo parecen correctos"
 
-#: src/prefs/index.ts:225
-msgid "Reset all settings?"
-msgstr "¿Restablecer todas las opciones?"
+#: src/prefs/backend-page.ts:163
+msgid "Fast"
+msgstr "Rápido"
 
-#: src/prefs/index.ts:227
+#: src/prefs/backend-page.ts:164
+msgid "Realtime streaming, lowest latency"
+msgstr "Streaming en tiempo real, mínima latencia"
+
+#: src/prefs/backend-page.ts:167
+msgid "Balanced"
+msgstr "Equilibrado"
+
+#: src/prefs/backend-page.ts:168
+msgid "Live chunking with a light overlap"
+msgstr "Troceo en vivo con un solapamiento ligero"
+
+#: src/prefs/backend-page.ts:171
+msgid "Accurate"
+msgstr "Preciso"
+
+#: src/prefs/backend-page.ts:172
+msgid "Shorter chunks, more overlap — fewer lost words"
+msgstr "Trozos más cortos, más solapamiento — menos palabras perdidas"
+
+#: src/prefs/backend-page.ts:223
+msgid "Presets"
+msgstr "Perfiles"
+
+#: src/prefs/backend-page.ts:225
 msgid ""
-"This restores every option to its default value. Your downloaded model files "
-"are kept on disk."
+"One-click processing profiles. They set realtime/chunking and threads; "
+"hardware options (binary mode, accelerator) are left untouched."
 msgstr ""
-"Esto restaura todas las opciones a su valor predeterminado. Los archivos de "
-"modelo descargados se conservan en el disco."
+"Perfiles de procesamiento de un clic. Ajustan el tiempo real/troceo y los "
+"hilos; las opciones de hardware (modo del binario, acelerador) no se tocan."
 
-#: src/prefs/index.ts:232 src/prefs/models-page.ts:634
-msgid "Cancel"
-msgstr "Cancelar"
-
-#: src/prefs/index.ts:233 src/prefs/index.ts:649
-msgid "Reset"
-msgstr "Restablecer"
-
-#: src/prefs/index.ts:311
+#: src/prefs/backend-page.ts:285
 #, fuzzy
 msgid "Backend"
 msgstr "Motor ASR"
 
-#: src/prefs/index.ts:317
+#: src/prefs/backend-page.ts:293
 msgid "Transcription"
 msgstr "Transcripción"
 
-#: src/prefs/index.ts:319
+#: src/prefs/backend-page.ts:294
 msgid "Configure the transcribe-cli binary (transcribe.cpp)"
 msgstr ""
 
-#: src/prefs/index.ts:325 src/prefs/index.ts:419
+#: src/prefs/backend-page.ts:299 src/prefs/backend-page.ts:398
 msgid "CPU"
 msgstr "CPU"
 
-#: src/prefs/index.ts:325
+#: src/prefs/backend-page.ts:300
 msgid "GPU"
 msgstr "GPU"
 
-#: src/prefs/index.ts:328
+#: src/prefs/backend-page.ts:303
 msgid "Binary mode"
 msgstr "Modo del binario"
 
-#: src/prefs/index.ts:330
+#: src/prefs/backend-page.ts:305
 #, fuzzy
 msgid ""
 "CPU prefers a transcribe-cli found on PATH, falling back to the CPU engine "
@@ -287,7 +303,7 @@ msgstr ""
 "recurriendo a uno encontrado en el PATH. GPU le permite indicar su propia "
 "compilación, p. ej. con Vulkan/CUDA."
 
-#: src/prefs/index.ts:348
+#: src/prefs/backend-page.ts:323
 #, fuzzy
 msgid ""
 "GPU mode uses a manually configured binary (e.g. a transcribe.cpp build with "
@@ -298,27 +314,27 @@ msgstr ""
 "de transcribe.cpp con Vulkan/CUDA). Apúntelo al transcribe-cli compilado; el "
 "acelerador se fuerza a Vulkan para que la inferencia se ejecute en su GPU."
 
-#: src/prefs/index.ts:366
+#: src/prefs/backend-page.ts:341
 msgid "Resolved binary"
 msgstr "Binario resuelto"
 
-#: src/prefs/index.ts:371
+#: src/prefs/backend-page.ts:346
 msgid "Binary path"
 msgstr "Ruta del binario"
 
-#: src/prefs/index.ts:377
+#: src/prefs/backend-page.ts:352
 msgid "Optional extra flags"
 msgstr "Opciones adicionales opcionales"
 
-#: src/prefs/index.ts:378
+#: src/prefs/backend-page.ts:353
 msgid "e.g. --verbose --beam-size 4 (left blank = none)"
 msgstr "p. ej. --verbose --beam-size 4 (vacío = ninguno)"
 
-#: src/prefs/index.ts:383
+#: src/prefs/backend-page.ts:358
 msgid "Realtime mode"
 msgstr "Modo en tiempo real"
 
-#: src/prefs/index.ts:385
+#: src/prefs/backend-page.ts:360
 msgid ""
 "When recording stops, the whole take is processed in one streaming pass. "
 "With paste output the text is typed at the cursor sequentially as the model "
@@ -327,97 +343,97 @@ msgid ""
 "options below."
 msgstr ""
 
-#: src/prefs/index.ts:396
+#: src/prefs/backend-page.ts:371
 msgid "Validate"
 msgstr "Validar"
 
-#: src/prefs/index.ts:400
+#: src/prefs/backend-page.ts:375
 msgid "Check binary and model"
 msgstr "Comprobar binario y modelo"
 
-#: src/prefs/index.ts:401
+#: src/prefs/backend-page.ts:376
 msgid "Verify the paths exist and the binary is executable"
 msgstr "Verifique que las rutas existen y que el binario es ejecutable"
 
-#: src/prefs/index.ts:413
+#: src/prefs/backend-page.ts:388
 msgid "Performance"
 msgstr "Rendimiento"
 
-#: src/prefs/index.ts:414
+#: src/prefs/backend-page.ts:389
 #, fuzzy
 msgid "Tune CPU vs GPU acceleration and threading"
 msgstr "Aceleración por CPU frente a GPU Vulkan"
 
-#: src/prefs/index.ts:419
-msgid "Auto"
-msgstr "Automático"
-
-#: src/prefs/index.ts:419
-msgid "Vulkan"
-msgstr "Vulkan"
-
-#: src/prefs/index.ts:422
+#: src/prefs/backend-page.ts:394
 msgid "Accelerator"
 msgstr "Acelerador"
 
-#: src/prefs/index.ts:423
+#: src/prefs/backend-page.ts:395
 msgid "Compute backend for inference"
 msgstr "Motor de cálculo para la inferencia"
 
-#: src/prefs/index.ts:437 src/prefs/index.ts:831
+#: src/prefs/backend-page.ts:397
+msgid "Auto"
+msgstr "Automático"
+
+#: src/prefs/backend-page.ts:399
+msgid "Vulkan"
+msgstr "Vulkan"
+
+#: src/prefs/backend-page.ts:414 src/prefs/backend-page.ts:602
 msgid "Auto (let CLI choose)"
 msgstr ""
 
-#: src/prefs/index.ts:440
+#: src/prefs/backend-page.ts:417
 #, fuzzy
 msgid "GPU device"
 msgstr "Índice de dispositivo GPU"
 
-#: src/prefs/index.ts:441 src/prefs/index.ts:859
+#: src/prefs/backend-page.ts:418 src/prefs/backend-page.ts:630
 msgid "Which compute device the CLI uses"
 msgstr ""
 
-#: src/prefs/index.ts:448
+#: src/prefs/backend-page.ts:425
 msgid "CPU threads"
 msgstr "Hilos de CPU"
 
-#: src/prefs/index.ts:449
+#: src/prefs/backend-page.ts:426
 msgid "0 = auto (use all cores)"
 msgstr "0 = automático (usar todos los núcleos)"
 
-#: src/prefs/index.ts:465
+#: src/prefs/backend-page.ts:436
 msgid "Long recordings"
 msgstr "Grabaciones largas"
 
-#: src/prefs/index.ts:467
+#: src/prefs/backend-page.ts:438
 msgid ""
 "Split live recordings into chunks so transcription streams progressively and "
 "backends with token limits do not truncate the output."
 msgstr ""
 
-#: src/prefs/index.ts:475
+#: src/prefs/backend-page.ts:446
 msgid "Live chunked transcription"
 msgstr "Transcripción fragmentada en vivo"
 
-#: src/prefs/index.ts:476
+#: src/prefs/backend-page.ts:447
 msgid "Process each N-second chunk as you speak"
 msgstr "Procesar cada fragmento de N segundos mientras habla"
 
-#: src/prefs/index.ts:481
+#: src/prefs/backend-page.ts:452
 msgid "Seconds per chunk"
 msgstr "Segundos por fragmento"
 
-#: src/prefs/index.ts:483
+#: src/prefs/backend-page.ts:453
 msgid "Lower values are safer for models that cap output tokens"
 msgstr ""
 "Los valores bajos son más seguros para modelos que limitan los tokens de "
 "salida"
 
-#: src/prefs/index.ts:499
+#: src/prefs/backend-page.ts:465
 msgid "Overlap seconds"
 msgstr "Segundos de solapamiento"
 
-#: src/prefs/index.ts:501
+#: src/prefs/backend-page.ts:467
 msgid ""
 "Re-transcribe this much at each chunk boundary so words split across the "
 "seam are not lost (0 = off)"
@@ -425,78 +441,137 @@ msgstr ""
 "Vuelve a transcribir esta cantidad en cada límite de fragmento para que no "
 "se pierdan las palabras divididas en la unión (0 = desactivado)"
 
-#: src/prefs/index.ts:523
+#: src/prefs/backend-page.ts:484
+#, javascript-format
+msgid "Binary path (%s)"
+msgstr "Ruta del binario (%s)"
+
+#: src/prefs/backend-page.ts:504
+#, fuzzy
+msgid "Using downloaded CPU engine (transcribe-cli, x86_64)."
+msgstr "Usando el binario de CPU incluido (transcribe-cli, x86_64)."
+
+#: src/prefs/backend-page.ts:508
+#, javascript-format
+msgid "Using transcribe-cli from PATH: %s"
+msgstr "Usando transcribe-cli del PATH: %s"
+
+#: src/prefs/backend-page.ts:512
+#, fuzzy
+msgid ""
+"No binary found. Download the engine from the \"Setup\" tab, switch to GPU "
+"and set the binary path, or install transcribe-cli."
+msgstr ""
+"No se encontró ningún binario para este sistema. Cambie a GPU y establezca "
+"la ruta del binario, o instale transcribe-cli."
+
+#: src/prefs/backend-page.ts:615
+#, javascript-format
+msgid "No devices detected by %s"
+msgstr ""
+
+#: src/prefs/backend-page.ts:616
+#, fuzzy
+msgid "No transcription binary configured"
+msgstr "no se encontró ningún binario de transcripción (incluido o en el PATH)"
+
+#: src/prefs/backend-page.ts:627
+#, javascript-format
+msgid "%d · %s (%s%s)"
+msgstr ""
+
+#: src/prefs/general-page.ts:87
+msgid "Reset all settings?"
+msgstr "¿Restablecer todas las opciones?"
+
+#: src/prefs/general-page.ts:89
+msgid ""
+"This restores every option to its default value. Your downloaded model files "
+"are kept on disk."
+msgstr ""
+"Esto restaura todas las opciones a su valor predeterminado. Los archivos de "
+"modelo descargados se conservan en el disco."
+
+#: src/prefs/general-page.ts:94 src/prefs/models-page.ts:634
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/prefs/general-page.ts:95 src/prefs/general-page.ts:228
+msgid "Reset"
+msgstr "Restablecer"
+
+#: src/prefs/general-page.ts:111
 msgid "General"
 msgstr "General"
 
-#: src/prefs/index.ts:529
+#: src/prefs/general-page.ts:117
 msgid "Language"
 msgstr "Idioma"
 
-#: src/prefs/index.ts:530
+#: src/prefs/general-page.ts:118
 msgid "Spoken language and translation settings"
 msgstr ""
 
-#: src/prefs/index.ts:543
+#: src/prefs/general-page.ts:128
 msgid "Spoken language"
 msgstr "Idioma hablado"
 
-#: src/prefs/index.ts:544
+#: src/prefs/general-page.ts:129
 msgid "Language hint passed to the model"
 msgstr "Pista de idioma pasada al modelo"
 
-#: src/prefs/index.ts:551
+#: src/prefs/general-page.ts:136
 msgid "Translate to English"
 msgstr "Traducir al inglés"
 
-#: src/prefs/index.ts:552
+#: src/prefs/general-page.ts:137
 msgid "When the model supports translation"
 msgstr "Cuando el modelo admite traducción"
 
-#: src/prefs/index.ts:558
+#: src/prefs/general-page.ts:143
 msgid "Quality"
 msgstr "Calidad"
 
-#: src/prefs/index.ts:560
+#: src/prefs/general-page.ts:145
 msgid ""
 "Custom vocabulary to bias the transcription toward specific names or terms"
 msgstr ""
 
-#: src/prefs/index.ts:567
+#: src/prefs/general-page.ts:152
 msgid "Initial prompt / custom words"
 msgstr "Prompt inicial / palabras personalizadas"
 
-#: src/prefs/index.ts:574
+#: src/prefs/general-page.ts:159
 #, fuzzy
 msgid "Output & Recording"
 msgstr "Detener grabación"
 
-#: src/prefs/index.ts:576
+#: src/prefs/general-page.ts:161
 #, fuzzy
 msgid "Where the transcribed text goes and how to trigger recording"
 msgstr "A dónde va el texto transcrito"
 
-#: src/prefs/index.ts:582
-msgid "Copy to clipboard"
-msgstr "Copiar al portapapeles"
-
-#: src/prefs/index.ts:582
-msgid "Paste at cursor"
-msgstr "Pegar en el cursor"
-
-#: src/prefs/index.ts:585
+#: src/prefs/general-page.ts:167
 msgid "Output mode"
 msgstr "Modo de salida"
 
-#: src/prefs/index.ts:586
+#: src/prefs/general-page.ts:168
 msgid "How to deliver the transcription"
 msgstr "Cómo entregar la transcripción"
 
-#: src/prefs/index.ts:596
+#: src/prefs/general-page.ts:170
+msgid "Copy to clipboard"
+msgstr "Copiar al portapapeles"
+
+#: src/prefs/general-page.ts:171
+msgid "Paste at cursor"
+msgstr "Pegar en el cursor"
+
+#: src/prefs/general-page.ts:181
 msgid "Push-to-talk shortcut"
 msgstr "Atajo de mantener para hablar"
 
-#: src/prefs/index.ts:598
+#: src/prefs/general-page.ts:183
 msgid ""
 "Records only while held; needs a modifier (e.g. Ctrl+Shift+Space). Release "
 "to stop"
@@ -504,11 +579,11 @@ msgstr ""
 "Graba solo mientras se mantiene oprimido; requiere un modificador (p. ej. "
 "Ctrl+Shift+Espacio). Suelta para detener"
 
-#: src/prefs/index.ts:605
+#: src/prefs/general-page.ts:190
 msgid "Keep last recordings"
 msgstr "Conservar últimas grabaciones"
 
-#: src/prefs/index.ts:607
+#: src/prefs/general-page.ts:192
 msgid ""
 "How many recent recordings to keep under records/. Older WAVs are deleted "
 "automatically (0 = keep none)"
@@ -516,11 +591,11 @@ msgstr ""
 "Cuántas grabaciones recientes conservar en records/. Las más antiguas se "
 "eliminan automáticamente (0 = no conservar ninguna)"
 
-#: src/prefs/index.ts:625
+#: src/prefs/general-page.ts:204
 msgid "Debug"
 msgstr "Depuración"
 
-#: src/prefs/index.ts:627
+#: src/prefs/general-page.ts:206
 #, fuzzy
 msgid ""
 "Logs every transcription run to the system journal. Inspect with:\n"
@@ -531,19 +606,19 @@ msgstr ""
 "sin procesar del CLI ASR). Inspecciónelo con:\n"
 "journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
 
-#: src/prefs/index.ts:635
+#: src/prefs/general-page.ts:214
 msgid "Debug logging"
 msgstr "Registro de depuración"
 
-#: src/prefs/index.ts:637
+#: src/prefs/general-page.ts:216
 msgid "Record the ASR command and its raw output for troubleshooting"
 msgstr "Registra el comando ASR y su salida sin procesar para diagnóstico"
 
-#: src/prefs/index.ts:654
+#: src/prefs/general-page.ts:233
 msgid "Reset settings"
 msgstr "Restablecer opciones"
 
-#: src/prefs/index.ts:656
+#: src/prefs/general-page.ts:235
 msgid ""
 "Restore every option to its default value (binary, model, language, "
 "shortcut…)"
@@ -551,48 +626,9 @@ msgstr ""
 "Restaura todas las opciones a su valor predeterminado (binario, modelo, "
 "idioma, atajo…)"
 
-#: src/prefs/index.ts:669
+#: src/prefs/general-page.ts:248
 msgid "Settings reset to their defaults"
 msgstr "Opciones restablecidas a sus valores predeterminados"
-
-#: src/prefs/index.ts:681
-#, javascript-format
-msgid "Binary path (%s)"
-msgstr "Ruta del binario (%s)"
-
-#: src/prefs/index.ts:699
-#, fuzzy
-msgid "Using downloaded CPU engine (transcribe-cli, x86_64)."
-msgstr "Usando el binario de CPU incluido (transcribe-cli, x86_64)."
-
-#: src/prefs/index.ts:703
-#, javascript-format
-msgid "Using transcribe-cli from PATH: %s"
-msgstr "Usando transcribe-cli del PATH: %s"
-
-#: src/prefs/index.ts:707
-#, fuzzy
-msgid ""
-"No binary found. Download the engine from the \"Setup\" tab, switch to GPU "
-"and set the binary path, or install transcribe-cli."
-msgstr ""
-"No se encontró ningún binario para este sistema. Cambie a GPU y establezca "
-"la ruta del binario, o instale transcribe-cli."
-
-#: src/prefs/index.ts:844
-#, javascript-format
-msgid "No devices detected by %s"
-msgstr ""
-
-#: src/prefs/index.ts:845
-#, fuzzy
-msgid "No transcription binary configured"
-msgstr "no se encontró ningún binario de transcripción (incluido o en el PATH)"
-
-#: src/prefs/index.ts:856
-#, javascript-format
-msgid "%d · %s (%s%s)"
-msgstr ""
 
 #: src/prefs/models-page.ts:45
 msgid "Models"
