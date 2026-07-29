@@ -18,7 +18,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 
@@ -36,10 +38,26 @@ import {Indicator} from './indicator.js';
  * indicador de la barra superior, atajo de teclado) al activarse, y
  * liberarlos limpiamente al desactivarse.
  */
+/**
+ * Máscara de los modificadores que vigila el modo "mantener para hablar".
+ * `global.get_pointer()` devuelve el estado actual de estos, así que basta
+ * con sondearlos para saber cuándo el usuario suelta la combinación.
+ */
+const PTT_MOD_MASK =
+    Clutter.ModifierType.CONTROL_MASK |
+    Clutter.ModifierType.SHIFT_MASK |
+    Clutter.ModifierType.MOD1_MASK |
+    Clutter.ModifierType.SUPER_MASK;
+
+/** Cada cuántos ms se sondea si el usuario ya soltó las teclas. */
+const PTT_POLL_INTERVAL_MS = 40;
+
 export default class PlaneAsrExtension extends Extension {
     _indicator?: InstanceType<typeof Indicator>;
     _settings?: Gio.Settings;
     _service?: AsrService;
+    /** Id del sondeo de release activo (0 = ninguno). */
+    _pttPollId = 0;
 
     constructor(metadata: ConstructorParameters<typeof Extension>[0]) {
         super(metadata);
@@ -55,8 +73,8 @@ export default class PlaneAsrExtension extends Extension {
      * Llamado por GNOME Shell cuando el usuario activa la extensión.
      *
      * Qué hace: crea el servicio de ASR y el indicador, los conecta entre
-     * sí, los añade a la barra superior y registra el atajo de teclado
-     * global que alterna la grabación.
+     * sí, los añade a la barra superior y registra los atajos de teclado
+     * globales: uno que alterna la grabación y otro de "mantener para hablar".
      */
     enable() {
         this._settings = this.getSettings();
@@ -83,6 +101,61 @@ export default class PlaneAsrExtension extends Extension {
                 this._service?.toggle();
             }
         );
+
+        Main.wm.addKeybinding(
+            SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT,
+            this._settings,
+            Meta.KeyBindingFlags.NONE,
+            Shell.ActionMode.ALL,
+            () => {
+                this._onPushToTalk();
+            }
+        );
+    }
+
+    /**
+     * Maneja el atajo de "mantener para hablar".
+     *
+     * Qué hace: al presionarse la combinación arranca la grabación y comienza
+     * a sondear la máscara de modificadores. GNOME solo entrega el evento de
+     * pulsación (no el de soltar), así que se vigila `global.get_pointer()`
+     * cada pocos ms y, cuando todos los modificadores que estaban oprimidos al
+     * disparar se sueltan, se detiene y transcribe.
+     *
+     * Si la combinación no incluye ningún modificador (no se puede detectar el
+     * release) se degrada a un simple alternar, preservando algo de utilidad.
+     */
+    _onPushToTalk() {
+        // Ya hay un mantener-pulsado en curso: ignora el auto-repeat del
+        // teclado, que reenvía el atajo mientras la tecla sigue oprimida.
+        if (this._pttPollId) return;
+
+        const service = this._service;
+        if (!service) return;
+
+        const held = global.get_pointer()[2] & PTT_MOD_MASK;
+        if (held === 0) {
+            // Sin modificadores que vigilar: no hay forma de saber cuándo se
+            // suelta, así que se comporta como el atajo de alternar.
+            service.toggle();
+            return;
+        }
+
+        service.beginHold();
+        this._pttPollId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            PTT_POLL_INTERVAL_MS,
+            () => {
+                // Sigue oprimido mientras cualquiera de los modificadores
+                // iniciales permanezca activo.
+                if ((global.get_pointer()[2] & held) !== 0) {
+                    return GLib.SOURCE_CONTINUE;
+                }
+                this._pttPollId = 0;
+                service.endHold();
+                return GLib.SOURCE_REMOVE;
+            }
+        );
     }
 
     /**
@@ -93,8 +166,14 @@ export default class PlaneAsrExtension extends Extension {
      * indicador para liberar todos sus recursos.
      */
     disable() {
+        if (this._pttPollId) {
+            GLib.source_remove(this._pttPollId);
+            this._pttPollId = 0;
+        }
+
         if (this._settings) {
             Main.wm.removeKeybinding(SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT);
+            Main.wm.removeKeybinding(SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT);
         }
 
         this._service?.destroy();

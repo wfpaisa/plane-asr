@@ -20,7 +20,12 @@ import {getBackend} from './asr-backends.js';
 import {notify} from './notify.js';
 import {Recorder} from './recorder.js';
 import {Transcriber, type TranscriberOptions} from './transcriber.js';
-import {findModel, pickFile, resolveModelDir, modelFilePath} from '../models/catalog.js';
+import {
+    findModel,
+    pickFile,
+    resolveModelDir,
+    modelFilePath,
+} from '../models/catalog.js';
 import {
     SAMPLE_RATE,
     cleanupChunks,
@@ -135,6 +140,28 @@ export class AsrService {
         }
     }
 
+    /**
+     * "Mantener para hablar": comienza a grabar. Solo actúa si está inactivo,
+     * de modo que las repeticiones de auto-repeat del teclado o un atajo de
+     * alternar concurrente no reinicien la grabación.
+     */
+    async beginHold(): Promise<void> {
+        if (this._state === AsrState.Idle) {
+            await this._startRecording();
+        }
+    }
+
+    /**
+     * "Mantener para hablar": detiene y transcribe. Solo actúa si está
+     * grabando, así soltar las teclas después de que la grabación ya terminó
+     * (p. ej. tras cancelar) no hace nada.
+     */
+    async endHold(): Promise<void> {
+        if (this._state === AsrState.Recording) {
+            await this._stopAndTranscribe();
+        }
+    }
+
     /** Aborta lo que esté en curso y vuelve a Idle. */
     cancel(): void {
         if (this._stream) this._stream.cancelled = true;
@@ -153,6 +180,27 @@ export class AsrService {
     }
 
     // -- transiciones de estado ----------------------------------------------
+
+    /**
+     * Notifica el resultado final de una transcripción.
+     *
+     * Cuando no hubo texto (silencio o ruido de fondo) avisa que no se
+     * detectó voz, en lugar de afirmar falsamente que se pegó o copió algo.
+     * Las rutas de entrega ya omiten el portapapeles/pegado cuando el texto
+     * está vacío; esto solo mantiene el aviso coherente con lo ocurrido.
+     */
+    private _notifyResult(full: string, isPaste: boolean): void {
+        if (!full) {
+            notify(this._extensionDir, _('Plane ASR: no speech detected'));
+            return;
+        }
+        notify(
+            this._extensionDir,
+            isPaste
+                ? _('Plane ASR: transcription pasted')
+                : _('Plane ASR: transcription copied')
+        );
+    }
 
     /**
      * Chequeo previo de que hay un binario de transcripción usable antes de
@@ -206,14 +254,12 @@ export class AsrService {
             const entry = findModel(modelId);
             if (entry) {
                 const quant =
-                    this._settings.get_string(
-                        SETTINGS_KEYS.QUANT_PREFERENCE
-                    ) ?? '';
+                    this._settings.get_string(SETTINGS_KEYS.QUANT_PREFERENCE) ??
+                    '';
                 const file = pickFile(entry, quant);
                 if (file) {
                     const modelDir = resolveModelDir(
-                        this._settings.get_string(SETTINGS_KEYS.MODEL_DIR) ??
-                            ''
+                        this._settings.get_string(SETTINGS_KEYS.MODEL_DIR) ?? ''
                     );
                     const path = modelFilePath(modelDir, file);
                     if (Gio.File.new_for_path(path).query_exists(null)) {
@@ -334,12 +380,7 @@ export class AsrService {
             this._settings.set_string(SETTINGS_KEYS.LAST_TEXT, full);
             if (full) copyToClipboard(full);
             this._pruneRecordings();
-            notify(
-                this._extensionDir,
-                isPaste
-                    ? _('Plane ASR: transcription pasted')
-                    : _('Plane ASR: transcription copied')
-            );
+            this._notifyResult(full, isPaste);
             this._setState(AsrState.Idle, {text: full});
             return;
         }
@@ -403,7 +444,7 @@ export class AsrService {
                             ? delta[0].toLowerCase() + delta.slice(1)
                             : delta;
                     firstDelta = false;
-                    await pasteAtCursor(piece);
+                    if (piece) await pasteAtCursor(piece);
                 }
             );
             if (result.cancelled) {
@@ -416,7 +457,7 @@ export class AsrService {
             // "Copiar texto" tenga la transcripción entera, incluso en pegado.
             if (full) copyToClipboard(full);
             this._pruneRecordings();
-            notify(this._extensionDir, _('Plane ASR: transcription pasted'));
+            this._notifyResult(full, true);
             this._setState(AsrState.Idle, {text: full});
         } catch (e) {
             this._setState(AsrState.Idle, {error: this._errMsg(e)});
@@ -446,12 +487,7 @@ export class AsrService {
                 if (isPaste) await pasteAtCursor(full);
                 else copyToClipboard(full);
             }
-            notify(
-                this._extensionDir,
-                isPaste
-                    ? _('Plane ASR: transcription pasted')
-                    : _('Plane ASR: transcription copied')
-            );
+            this._notifyResult(full, isPaste);
             if (prune) this._pruneRecordings();
             this._setState(AsrState.Idle, {text: full});
         } catch (e) {

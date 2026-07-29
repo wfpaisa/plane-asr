@@ -74,6 +74,13 @@ export const SETTINGS_KEYS = {
     /** Atajo de teclado global que alterna la grabación (arreglo de strings). */
     TOGGLE_RECORD_SHORTCUT: 'toggle-record-shortcut',
 
+    /**
+     * Atajo de teclado global de "mantener para hablar": graba mientras se
+     * mantiene oprimido y se detiene al soltar los modificadores (arreglo de
+     * strings).
+     */
+    PUSH_TO_TALK_SHORTCUT: 'push-to-talk-shortcut',
+
     /** Si se deben registrar diagnósticos de ASR en el journal del sistema (boolean). */
     DEBUG_LOGGING: 'debug-logging',
 } as const;

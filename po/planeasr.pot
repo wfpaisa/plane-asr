@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-28 10:05-0500\n"
+"POT-Creation-Date: 2026-07-28 19:10-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,39 +17,42 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/extension/asr-service.ts:176
+#: src/extension/asr-service.ts:194
+msgid "Plane ASR: no speech detected"
+msgstr ""
+
+#: src/extension/asr-service.ts:200
+msgid "Plane ASR: transcription pasted"
+msgstr ""
+
+#: src/extension/asr-service.ts:201
+msgid "Plane ASR: transcription copied"
+msgstr ""
+
+#: src/extension/asr-service.ts:224
 msgid "ASR binary not found. Set it in preferences."
 msgstr ""
 
-#: src/extension/asr-service.ts:188
+#: src/extension/asr-service.ts:236
 msgid ""
 "No transcription binary available. Download the engine from the \"Setup\" "
 "tab in preferences, switch to GPU mode and set the binary path, or install "
 "transcribe-cli on your PATH."
 msgstr ""
 
-#: src/extension/asr-service.ts:231
+#: src/extension/asr-service.ts:277
 msgid "No model selected. Open Preferences to choose a transcription model."
 msgstr ""
 
-#: src/extension/asr-service.ts:340 src/extension/asr-service.ts:419
-#: src/extension/asr-service.ts:452
-msgid "Plane ASR: transcription pasted"
-msgstr ""
-
-#: src/extension/asr-service.ts:341 src/extension/asr-service.ts:453
-msgid "Plane ASR: transcription copied"
-msgstr ""
-
-#: src/extension/asr-service.ts:481 src/extension/indicator.ts:363
+#: src/extension/asr-service.ts:517 src/extension/indicator.ts:363
 msgid "Plane ASR is busy"
 msgstr ""
 
-#: src/extension/asr-service.ts:504
+#: src/extension/asr-service.ts:540
 msgid "Converting audio…"
 msgstr ""
 
-#: src/extension/asr-service.ts:511
+#: src/extension/asr-service.ts:547
 msgid ""
 "No audio converter found. Install ffmpeg, or use a 16 kHz mono 16-bit WAV."
 msgstr ""
@@ -231,7 +234,7 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: src/prefs/index.ts:233 src/prefs/index.ts:640
+#: src/prefs/index.ts:233 src/prefs/index.ts:649
 msgid "Reset"
 msgstr ""
 
@@ -338,7 +341,7 @@ msgstr ""
 msgid "Compute backend for inference"
 msgstr ""
 
-#: src/prefs/index.ts:437 src/prefs/index.ts:822
+#: src/prefs/index.ts:437 src/prefs/index.ts:831
 msgid "Auto (let CLI choose)"
 msgstr ""
 
@@ -346,7 +349,7 @@ msgstr ""
 msgid "GPU device"
 msgstr ""
 
-#: src/prefs/index.ts:441 src/prefs/index.ts:850
+#: src/prefs/index.ts:441 src/prefs/index.ts:859
 msgid "Which compute device the CLI uses"
 msgstr ""
 
@@ -460,77 +463,87 @@ msgid "How to deliver the transcription"
 msgstr ""
 
 #: src/prefs/index.ts:596
-msgid "Keep last recordings"
+msgid "Push-to-talk shortcut"
 msgstr ""
 
 #: src/prefs/index.ts:598
+msgid ""
+"Records only while held; needs a modifier (e.g. Ctrl+Shift+Space). Release "
+"to stop"
+msgstr ""
+
+#: src/prefs/index.ts:605
+msgid "Keep last recordings"
+msgstr ""
+
+#: src/prefs/index.ts:607
 msgid ""
 "How many recent recordings to keep under records/. Older WAVs are deleted "
 "automatically (0 = keep none)"
 msgstr ""
 
-#: src/prefs/index.ts:616
+#: src/prefs/index.ts:625
 msgid "Debug"
 msgstr ""
 
-#: src/prefs/index.ts:618
+#: src/prefs/index.ts:627
 msgid ""
 "Logs every transcription run to the system journal. Inspect with:\n"
 "journalctl --user -b /usr/bin/gnome-shell | grep planeasr"
 msgstr ""
 
-#: src/prefs/index.ts:626
+#: src/prefs/index.ts:635
 msgid "Debug logging"
 msgstr ""
 
-#: src/prefs/index.ts:628
+#: src/prefs/index.ts:637
 msgid "Record the ASR command and its raw output for troubleshooting"
 msgstr ""
 
-#: src/prefs/index.ts:645
+#: src/prefs/index.ts:654
 msgid "Reset settings"
 msgstr ""
 
-#: src/prefs/index.ts:647
+#: src/prefs/index.ts:656
 msgid ""
 "Restore every option to its default value (binary, model, language, "
 "shortcut…)"
 msgstr ""
 
-#: src/prefs/index.ts:660
+#: src/prefs/index.ts:669
 msgid "Settings reset to their defaults"
 msgstr ""
 
-#: src/prefs/index.ts:672
+#: src/prefs/index.ts:681
 #, javascript-format
 msgid "Binary path (%s)"
 msgstr ""
 
-#: src/prefs/index.ts:690
+#: src/prefs/index.ts:699
 msgid "Using downloaded CPU engine (transcribe-cli, x86_64)."
 msgstr ""
 
-#: src/prefs/index.ts:694
+#: src/prefs/index.ts:703
 #, javascript-format
 msgid "Using transcribe-cli from PATH: %s"
 msgstr ""
 
-#: src/prefs/index.ts:698
+#: src/prefs/index.ts:707
 msgid ""
 "No binary found. Download the engine from the \"Setup\" tab, switch to GPU "
 "and set the binary path, or install transcribe-cli."
 msgstr ""
 
-#: src/prefs/index.ts:835
+#: src/prefs/index.ts:844
 #, javascript-format
 msgid "No devices detected by %s"
 msgstr ""
 
-#: src/prefs/index.ts:836
+#: src/prefs/index.ts:845
 msgid "No transcription binary configured"
 msgstr ""
 
-#: src/prefs/index.ts:847
+#: src/prefs/index.ts:856
 #, javascript-format
 msgid "%d · %s (%s%s)"
 msgstr ""
@@ -815,22 +828,22 @@ msgstr ""
 msgid "Esc to cancel · Backspace to disable"
 msgstr ""
 
-#: src/prefs/widgets.ts:177
+#: src/prefs/widgets.ts:178
 msgid "Toggle recording shortcut"
 msgstr ""
 
-#: src/prefs/widgets.ts:178
+#: src/prefs/widgets.ts:180
 msgid "Click Set and press the keys you want to use"
 msgstr ""
 
-#: src/prefs/widgets.ts:182
+#: src/prefs/widgets.ts:184
 msgid "Disabled"
 msgstr ""
 
-#: src/prefs/widgets.ts:186
+#: src/prefs/widgets.ts:188
 msgid "Set"
 msgstr ""
 
-#: src/prefs/widgets.ts:192
+#: src/prefs/widgets.ts:194
 msgid "Disable shortcut"
 msgstr ""

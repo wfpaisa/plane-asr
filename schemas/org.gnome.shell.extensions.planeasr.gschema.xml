@@ -129,12 +129,21 @@
 
     <!-- Global keybinding -->
     <key name="toggle-record-shortcut" type="as">
-      <default><![CDATA[[]]]></default>
+      <default><![CDATA[['<Control><Alt>space']]]></default>
       <summary>Toggle recording shortcut</summary>
-      <description>Global keybinding that starts/stops recording. Empty by
-        default — the default output mode pastes via the clipboard, so per
-        GNOME extension review guidelines no shortcut interacting with
-        clipboard data is preset; set one in Preferences to use it.</description>
+      <description>Global keybinding that starts/stops recording. Defaults to
+        Ctrl+Alt+Space; clear it in Preferences to disable.</description>
+    </key>
+
+    <!-- Push-to-talk keybinding -->
+    <key name="push-to-talk-shortcut" type="as">
+      <default><![CDATA[['<Shift><Control>space']]]></default>
+      <summary>Push-to-talk shortcut</summary>
+      <description>Global keybinding that records only while held: recording
+        starts when the combination is pressed and stops when the modifier
+        keys are released. Requires at least one modifier (Ctrl/Shift/Alt/Super)
+        so the release can be detected. Defaults to Ctrl+Shift+Space; clear it
+        in Preferences to disable.</description>
     </key>
 
     <!-- Debug -->

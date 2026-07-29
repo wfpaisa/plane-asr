@@ -591,6 +591,15 @@ export default class PlaneAsrPreferences extends ExtensionPreferences {
         outputGroup.add(
             shortcutRow(settings, SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT, window)
         );
+        outputGroup.add(
+            shortcutRow(settings, SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT, window, {
+                title: _('Push-to-talk shortcut'),
+                subtitle: _(
+                    'Records only while held; needs a modifier ' +
+                        '(e.g. Ctrl+Shift+Space). Release to stop'
+                ),
+            })
+        );
 
         const keepRecordsRow = new Adw.SpinRow({
             title: _('Keep last recordings'),

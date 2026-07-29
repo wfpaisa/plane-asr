@@ -171,11 +171,13 @@ export function captureShortcut(
 export function shortcutRow(
     settings: Gio.Settings,
     key: string,
-    window: Adw.PreferencesWindow
+    window: Adw.PreferencesWindow,
+    opts: {title?: string; subtitle?: string} = {}
 ): Adw.ActionRow {
     const row = new Adw.ActionRow({
-        title: _('Toggle recording shortcut'),
-        subtitle: _('Click Set and press the keys you want to use'),
+        title: opts.title ?? _('Toggle recording shortcut'),
+        subtitle:
+            opts.subtitle ?? _('Click Set and press the keys you want to use'),
     });
 
     const display = new Gtk.ShortcutLabel({
