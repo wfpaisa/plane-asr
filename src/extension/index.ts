@@ -21,15 +21,18 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Meta from 'gi://Meta';
-import Shell from 'gi://Shell';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {SETTINGS_KEYS} from '../config/settings.js';
 import {AsrService} from './asr-service.js';
 import {Indicator} from './indicator.js';
+import {
+    addGlobalKeybinding,
+    addPanelIndicator,
+    pointerModifiers,
+    removeKeybinding,
+} from './shell-compat.js';
 
 /**
  * Clase principal de la extensión, registrada por GNOME Shell.
@@ -90,23 +93,19 @@ export default class PlaneAsrExtension extends Extension {
         this._indicator.service = this._service;
         this._indicator.bind(this._settings);
 
-        Main.panel.addToStatusArea(this.uuid, this._indicator);
+        addPanelIndicator(this.uuid, this._indicator);
 
-        Main.wm.addKeybinding(
+        addGlobalKeybinding(
             SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT,
             this._settings,
-            Meta.KeyBindingFlags.NONE,
-            Shell.ActionMode.ALL,
             () => {
                 this._service?.toggle();
             }
         );
 
-        Main.wm.addKeybinding(
+        addGlobalKeybinding(
             SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT,
             this._settings,
-            Meta.KeyBindingFlags.NONE,
-            Shell.ActionMode.ALL,
             () => {
                 this._onPushToTalk();
             }
@@ -133,7 +132,7 @@ export default class PlaneAsrExtension extends Extension {
         const service = this._service;
         if (!service) return;
 
-        const held = global.get_pointer()[2] & PTT_MOD_MASK;
+        const held = pointerModifiers() & PTT_MOD_MASK;
         if (held === 0) {
             // Sin modificadores que vigilar: no hay forma de saber cuándo se
             // suelta, así que se comporta como el atajo de alternar.
@@ -148,7 +147,7 @@ export default class PlaneAsrExtension extends Extension {
             () => {
                 // Sigue oprimido mientras cualquiera de los modificadores
                 // iniciales permanezca activo.
-                if ((global.get_pointer()[2] & held) !== 0) {
+                if ((pointerModifiers() & held) !== 0) {
                     return GLib.SOURCE_CONTINUE;
                 }
                 this._pttPollId = 0;
@@ -172,8 +171,8 @@ export default class PlaneAsrExtension extends Extension {
         }
 
         if (this._settings) {
-            Main.wm.removeKeybinding(SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT);
-            Main.wm.removeKeybinding(SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT);
+            removeKeybinding(SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT);
+            removeKeybinding(SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT);
         }
 
         this._service?.destroy();
