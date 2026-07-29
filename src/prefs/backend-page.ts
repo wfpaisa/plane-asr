@@ -12,6 +12,7 @@ import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -538,26 +539,33 @@ export function buildBackendPage(ctx: BackendPageContext): Adw.PreferencesPage {
         'active',
         Gio.SettingsBindFlags.DEFAULT
     );
-    const syncChunkSensitivity = () => {
-        const realtime = settings.get_boolean(SETTINGS_KEYS.REALTIME_MODE);
-        const chunk = settings.get_boolean(SETTINGS_KEYS.CHUNK_ENABLED);
-        // El modo en tiempo real procesa la grabación completa al detener
-        // (no trocea en vivo), así que el grupo "Long recordings" entero
-        // queda deshabilitado (en gris) mientras esté activo.
-        chunkGroup.sensitive = !realtime;
-        // Dentro del grupo, la duración y el solapamiento solo aplican
-        // cuando el troceo en vivo está encendido.
-        chunkSecondsRow.sensitive = chunk;
-        chunkOverlapRow.sensitive = chunk;
-    };
-    syncChunkSensitivity();
-    settings.connect(
-        `changed::${SETTINGS_KEYS.CHUNK_ENABLED}`,
-        syncChunkSensitivity
+    // Ambas relaciones son 1:1 contra una propiedad de otro widget que ya
+    // está sincronizada con GSettings (realtimeRow.active <-> REALTIME_MODE,
+    // chunkEnabledRow.active <-> CHUNK_ENABLED arriba), así que se expresan
+    // como bindings declarativos en vez de un sync manual por señal.
+    //
+    // El modo en tiempo real procesa la grabación completa al detener (no
+    // trocea en vivo), así que el grupo "Long recordings" entero queda
+    // deshabilitado (en gris) mientras esté activo.
+    realtimeRow.bind_property(
+        'active',
+        chunkGroup,
+        'sensitive',
+        GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN
     );
-    settings.connect(
-        `changed::${SETTINGS_KEYS.REALTIME_MODE}`,
-        syncChunkSensitivity
+    // Dentro del grupo, la duración y el solapamiento solo aplican cuando el
+    // troceo en vivo está encendido.
+    chunkEnabledRow.bind_property(
+        'active',
+        chunkSecondsRow,
+        'sensitive',
+        GObject.BindingFlags.SYNC_CREATE
+    );
+    chunkEnabledRow.bind_property(
+        'active',
+        chunkOverlapRow,
+        'sensitive',
+        GObject.BindingFlags.SYNC_CREATE
     );
 
     return backendPage;
