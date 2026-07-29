@@ -1,29 +1,33 @@
 # Plane-ASR
 
-** After installing the extension, open its Preferences to download the required transcribe.cpp binary and the ASR model before using speech recognition. **
+## IMPORTANT
 
-Turn your voice into text instantly, right on your desktop — no cloud, no
-accounts, no waiting. **Plane-ASR** is a GNOME Shell extension
-(`planeasr@wfelipe.com`) that transcribes speech to text in real time. Hit a
-shortcut, speak, and watch the words land at your cursor or on your clipboard.
+After installing the extension, open Preferences to download the required
 
-- 🎙️ **One click or shortcut** to start/stop recording from the top panel.
-- ⚡ **Live chunked transcription** — even on long takes, the first words show
-  up while you're still talking.
-- 📂 **Transcribe existing audio files**, not just live recordings.
-- 🧠 **Pick your model** — browse, download and select GGUF models from
-  HuggingFace right from Preferences, checksum-verified.
-- 💻 **CPU or GPU** — grab the CPU engine with one click, or plug in your own
-  Vulkan/CUDA build.
-- 🔒 **Real privacy** — everything runs locally via `transcribe-cli`
-  (transcribe.cpp); nothing is ever sent to the cloud.
+## Description
 
-| Shortcut | Default | Gesture |
-| --- | --- | --- |
-| Toggle recording | Ctrl+Alt+Space | tap: start / tap again: stop |
-| Push-to-talk | Ctrl+Shift+Space | hold: record / release: stop |
+transcribe.cpp binary and an ASR model before using speech recognition.
+
+Turn your voice into text instantly, right on your desktop—no cloud, no
+accounts, no waiting.
+
+Plane-ASR is a GNOME Shell extension that transcribes speech to text in real
+time. Press a keyboard shortcut, speak, and watch the text appear directly at
+your cursor or be copied to your clipboard.
+
+## Default keyboard shortcuts
+
+Toggle Recording
+Ctrl+Alt+Space
+Press once to start recording. Press again to stop.
+
+Push-to-Talk
+Ctrl+Shift+Space
+Hold to record. Release to stop.
 
 Both are configurable (and can be disabled) from Preferences.
+
+## Screenshots
 
 ![](screenshot/screenshot01.png) ![](screenshot/screenshot02.png)<br>
 <details>
