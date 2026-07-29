@@ -17,11 +17,17 @@ import GObject from 'gi://GObject';
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {SETTINGS_KEYS, normalizeCliMode} from '../config/settings.js';
-import {parseArgs} from '../extension/asr-backends.js';
 import {resolveAutoCli} from '../extension/cli-resolver.js';
 import {listDevices} from '../extension/device-lister.js';
 import {findModel, pickFile, resolveModelDir} from '../models/catalog.js';
 import {getEngineStore} from '../models/engine-store.js';
+import {
+    describeSetupProblems,
+    extractModelPath,
+    type BinaryState,
+    type ModelState,
+    type SetupProblem,
+} from './validate.js';
 import {
     comboRow,
     entryRow,
@@ -37,17 +43,6 @@ export interface BackendPageContext {
     toast: (title: string) => void;
 }
 
-/** Extrae la ruta del archivo de modelo desde un string `model-params`, si está presente. */
-function extractModelPath(params: string): string | null {
-    const toks = parseArgs(params);
-    for (let i = 0; i < toks.length; i++) {
-        if ((toks[i] === '-m' || toks[i] === '--model') && toks[i + 1]) {
-            return toks[i + 1];
-        }
-    }
-    return toks.find(t => /\.(gguf|bin|onnx|pt)$/i.test(t)) ?? null;
-}
-
 /** Resuelve dónde vive un nombre de archivo de modelo dado el ajuste model-dir. */
 function resolveModelFilePath(
     settings: Gio.Settings,
@@ -59,58 +54,44 @@ function resolveModelFilePath(
     return GLib.build_filenamev([dir, filename]);
 }
 
-/** Verificación rápida de cordura sobre el binario y el modelo configurados, para la UI. */
-function validateSetup(settings: Gio.Settings): string {
-    const problems: string[] = [];
+/** Comprueba en disco si un archivo existe y es ejecutable. */
+function checkExecutable(path: string): {exists: boolean; executable: boolean} {
+    const file = Gio.File.new_for_path(path);
+    if (!file.query_exists(null)) return {exists: false, executable: false};
+    const info = file.query_info(
+        'access::can-execute',
+        Gio.FileQueryInfoFlags.NONE,
+        null
+    );
+    return {
+        exists: true,
+        executable: info.get_attribute_boolean('access::can-execute'),
+    };
+}
 
+/** Resuelve el estado en disco del binario configurado (I/O vía Gio.File). */
+function resolveBinaryState(settings: Gio.Settings): BinaryState {
     const mode = normalizeCliMode(
         settings.get_string(SETTINGS_KEYS.CLI_MODE) ?? 'cpu'
     );
-    let cliPath: string;
     if (mode === 'gpu') {
-        cliPath = settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
-        if (!cliPath) {
-            problems.push(_('binary path is empty'));
-        } else {
-            const file = Gio.File.new_for_path(cliPath);
-            if (!file.query_exists(null)) {
-                problems.push(_('binary not found: %s').format(cliPath));
-            } else {
-                const info = file.query_info(
-                    'access::can-execute',
-                    Gio.FileQueryInfoFlags.NONE,
-                    null
-                );
-                if (!info.get_attribute_boolean('access::can-execute')) {
-                    problems.push(
-                        _('binary is not executable: %s').format(cliPath)
-                    );
-                }
-            }
-        }
-    } else {
-        // Modo automático: valida el binario resuelto (descargado o de PATH).
-        const resolved = resolveAutoCli('transcribe-cli');
-        if (resolved.source === 'none') {
-            problems.push(
-                _('no transcription binary found (downloaded or on PATH)')
-            );
-        } else {
-            const info = Gio.File.new_for_path(resolved.path).query_info(
-                'access::can-execute',
-                Gio.FileQueryInfoFlags.NONE,
-                null
-            );
-            if (!info.get_attribute_boolean('access::can-execute')) {
-                problems.push(
-                    _('binary is not executable: %s').format(resolved.path)
-                );
-            }
-        }
+        const cliPath = settings.get_string(SETTINGS_KEYS.CLI_PATH) ?? '';
+        if (!cliPath) return {kind: 'unset'};
+        return {kind: 'resolved', path: cliPath, ...checkExecutable(cliPath)};
     }
+    // Modo automático: valida el binario resuelto (descargado o de PATH).
+    const resolved = resolveAutoCli('transcribe-cli');
+    if (resolved.source === 'none') return {kind: 'unresolved'};
+    return {
+        kind: 'resolved',
+        path: resolved.path,
+        ...checkExecutable(resolved.path),
+    };
+}
 
-    // Resuelve el modelo: el modelo activo del catálogo tiene precedencia
-    // sobre los parámetros.
+/** Resuelve el estado en disco del modelo configurado (I/O vía Gio.File). */
+function resolveModelState(settings: Gio.Settings): ModelState {
+    // El modelo activo del catálogo tiene precedencia sobre los parámetros.
     const modelId = settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
     let modelPath: string | null = null;
     if (modelId) {
@@ -130,23 +111,43 @@ function validateSetup(settings: Gio.Settings): string {
         modelPath = extractModelPath(params);
     }
 
-    if (!modelPath) {
-        problems.push(_('no model file found'));
-    } else if (modelPath.startsWith('/')) {
-        if (!Gio.File.new_for_path(modelPath).query_exists(null)) {
-            problems.push(_('model not found: %s').format(modelPath));
-        }
-    } else {
-        problems.push(
-            _('model path is relative and cannot be verified: %s').format(
-                modelPath
-            )
-        );
-    }
+    if (!modelPath) return {kind: 'missing'};
+    if (!modelPath.startsWith('/')) return {kind: 'relative', path: modelPath};
+    const exists = Gio.File.new_for_path(modelPath).query_exists(null);
+    return {kind: 'resolved', path: modelPath, exists};
+}
 
+/** Traduce un problema de configuración detectado a su mensaje para la UI. */
+function formatSetupProblem(problem: SetupProblem): string {
+    switch (problem.kind) {
+        case 'binary-path-empty':
+            return _('binary path is empty');
+        case 'binary-unresolved':
+            return _('no transcription binary found (downloaded or on PATH)');
+        case 'binary-not-found':
+            return _('binary not found: %s').format(problem.path);
+        case 'binary-not-executable':
+            return _('binary is not executable: %s').format(problem.path);
+        case 'model-not-found':
+            return _('no model file found');
+        case 'model-not-on-disk':
+            return _('model not found: %s').format(problem.path);
+        case 'model-path-relative':
+            return _(
+                'model path is relative and cannot be verified: %s'
+            ).format(problem.path);
+    }
+}
+
+/** Verificación rápida de cordura sobre el binario y el modelo configurados, para la UI. */
+function validateSetup(settings: Gio.Settings): string {
+    const problems = describeSetupProblems(
+        resolveBinaryState(settings),
+        resolveModelState(settings)
+    );
     return problems.length === 0
         ? _('Binary and model look OK')
-        : problems.join('; ');
+        : problems.map(formatSetupProblem).join('; ');
 }
 
 /** Construye la página de preferencias "Backend". */
