@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: planeasr 0.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/wfpaisa/plane-asr/issues\n"
-"POT-Creation-Date: 2026-07-29 10:48-0500\n"
+"POT-Creation-Date: 2026-07-31 17:44-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -44,7 +44,7 @@ msgstr ""
 msgid "No model selected. Open Preferences to choose a transcription model."
 msgstr ""
 
-#: src/extension/asr-service.ts:517 src/extension/indicator.ts:387
+#: src/extension/asr-service.ts:517 src/extension/indicator.ts:366
 msgid "Plane ASR is busy"
 msgstr ""
 
@@ -111,68 +111,68 @@ msgstr ""
 msgid "Details"
 msgstr ""
 
-#: src/extension/indicator.ts:100 src/extension/indicator.ts:400
+#: src/extension/indicator.ts:100 src/extension/indicator.ts:379
 msgid "Plane ASR"
 msgstr ""
 
-#: src/extension/indicator.ts:157 src/extension/indicator.ts:280
+#: src/extension/indicator.ts:136 src/extension/indicator.ts:259
 msgid "Start recording"
 msgstr ""
 
-#: src/extension/indicator.ts:169
+#: src/extension/indicator.ts:148
 msgid "Copy text"
 msgstr ""
 
-#: src/extension/indicator.ts:179
+#: src/extension/indicator.ts:158
 msgid "Copy audios path"
 msgstr ""
 
-#: src/extension/indicator.ts:189
+#: src/extension/indicator.ts:168
 msgid "Process audio file"
 msgstr ""
 
-#: src/extension/indicator.ts:201
+#: src/extension/indicator.ts:180
 msgid "Preferences"
 msgstr ""
 
-#: src/extension/indicator.ts:264
+#: src/extension/indicator.ts:243
 msgid "Plane ASR is not ready yet"
 msgstr ""
 
-#: src/extension/indicator.ts:291
+#: src/extension/indicator.ts:270
 msgid "Plane ASR: transcription failed"
 msgstr ""
 
-#: src/extension/indicator.ts:299
+#: src/extension/indicator.ts:278
 msgid "Stop recording"
 msgstr ""
 
-#: src/extension/indicator.ts:305
+#: src/extension/indicator.ts:284
 #, javascript-format
 msgid "Transcribing %s"
 msgstr ""
 
-#: src/extension/indicator.ts:306
+#: src/extension/indicator.ts:285
 msgid "Cancel transcription"
 msgstr ""
 
-#: src/extension/indicator.ts:376
+#: src/extension/indicator.ts:355
 msgid "Plane ASR: copied transcription"
 msgstr ""
 
-#: src/extension/indicator.ts:393
+#: src/extension/indicator.ts:372
 msgid "Select audio file"
 msgstr ""
 
-#: src/extension/indicator.ts:393
+#: src/extension/indicator.ts:372
 msgid "Open"
 msgstr ""
 
-#: src/extension/indicator.ts:401
+#: src/extension/indicator.ts:380
 msgid "Could not open the file chooser"
 msgstr ""
 
-#: src/extension/indicator.ts:421
+#: src/extension/indicator.ts:400
 msgid "Plane ASR: copied audios path"
 msgstr ""
 
@@ -675,7 +675,7 @@ msgstr ""
 msgid "Streaming"
 msgstr ""
 
-#: src/prefs/models-page.ts:573
+#: src/prefs/models-page.ts:573 src/prefs/setup-page.ts:164
 msgid "Downloaded"
 msgstr ""
 
@@ -788,16 +788,12 @@ msgid "Engine manifest unavailable."
 msgstr ""
 
 #: src/prefs/setup-page.ts:158
-msgid "Found on PATH ✓"
+msgid "Found on PATH"
 msgstr ""
 
 #: src/prefs/setup-page.ts:161
 #, javascript-format
 msgid "Using transcribe-cli already on your PATH: %s"
-msgstr ""
-
-#: src/prefs/setup-page.ts:164
-msgid "Downloaded ✓"
 msgstr ""
 
 #: src/prefs/setup-page.ts:167
@@ -827,7 +823,7 @@ msgid "Model catalog unavailable."
 msgstr ""
 
 #: src/prefs/setup-page.ts:269
-msgid "Ready ✓"
+msgid "Ready"
 msgstr ""
 
 #: src/prefs/setup-page.ts:271

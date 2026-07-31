@@ -45,11 +45,25 @@ function tokens(text: string): string[] {
  */
 function subseqMatch(head: string[], window: string[]): number {
     if (head.length === 0) return 0;
-    let hi = 0;
-    for (let wi = 0; wi < window.length && hi < head.length; wi++) {
-        if (window[wi] === head[hi]) hi++;
+    // Fracción medida como la subsecuencia común más larga (LCS) sobre la
+    // longitud de `head`. A diferencia de un puntero de un solo lado, la LCS
+    // permite saltar tokens en *ambas* secuencias, así una palabra mal oída
+    // dentro de la costura ("uno dos tres" -> "uno XXXX tres") no bloquea el
+    // emparejamiento de las palabras que le siguen.
+    const cols = window.length;
+    const dp = new Array<number>(cols + 1).fill(0);
+    for (const h of head) {
+        let prevDiag = 0;
+        for (let wi = 0; wi < cols; wi++) {
+            const above = dp[wi + 1];
+            dp[wi + 1] =
+                h === window[wi]
+                    ? prevDiag + 1
+                    : Math.max(above, dp[wi]);
+            prevDiag = above;
+        }
     }
-    return hi / head.length;
+    return dp[cols] / head.length;
 }
 
 /**

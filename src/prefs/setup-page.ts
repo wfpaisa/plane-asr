@@ -155,13 +155,13 @@ export function buildSetupPage(ctx: SetupPageContext): Adw.PreferencesPage {
         }
         const resolved = resolveAutoCli('transcribe-cli');
         if (resolved.source === 'path') {
-            engineButton.label = _('Found on PATH ✓');
+            engineButton.label = _('Found on PATH');
             engineButton.sensitive = false;
             engineStatusLabel.label = _(
                 'Using transcribe-cli already on your PATH: %s'
             ).format(resolved.path);
         } else if (downloadedCliAvailable()) {
-            engineButton.label = _('Downloaded ✓');
+            engineButton.label = _('Downloaded');
             engineButton.sensitive = false;
             engineStatusLabel.label = _(
                 'Engine %s downloaded and verified at %s.'
@@ -266,7 +266,7 @@ export function buildSetupPage(ctx: SetupPageContext): Adw.PreferencesPage {
             ctx.settings.get_string(SETTINGS_KEYS.ACTIVE_MODEL_ID) ?? '';
 
         if (activeId === entry.id) {
-            setupButton.label = _('Ready ✓');
+            setupButton.label = _('Ready');
             setupButton.sensitive = false;
             statusLabel.label = _('%s is downloaded and active.').format(
                 entry.name

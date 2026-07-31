@@ -113,6 +113,32 @@ export default class PlaneAsrExtension extends Extension {
     }
 
     /**
+     * Llamado por GNOME Shell cuando el usuario desactiva la extensión (o al
+     * cerrar sesión).
+     *
+     * Qué hace: retira el atajo de teclado y destruye el servicio y el
+     * indicador para liberar todos sus recursos.
+     */
+    disable() {
+        if (this._pttPollId) {
+            GLib.source_remove(this._pttPollId);
+            this._pttPollId = 0;
+        }
+
+        if (this._settings) {
+            removeKeybinding(SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT);
+            removeKeybinding(SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT);
+        }
+
+        this._service?.destroy();
+        this._service = undefined;
+
+        this._indicator?.destroy();
+        this._indicator = undefined;
+        this._settings = undefined;
+    }
+
+    /**
      * Maneja el atajo de "mantener para hablar".
      *
      * Qué hace: al presionarse la combinación arranca la grabación y comienza
@@ -155,31 +181,5 @@ export default class PlaneAsrExtension extends Extension {
                 return GLib.SOURCE_REMOVE;
             }
         );
-    }
-
-    /**
-     * Llamado por GNOME Shell cuando el usuario desactiva la extensión (o al
-     * cerrar sesión).
-     *
-     * Qué hace: retira el atajo de teclado y destruye el servicio y el
-     * indicador para liberar todos sus recursos.
-     */
-    disable() {
-        if (this._pttPollId) {
-            GLib.source_remove(this._pttPollId);
-            this._pttPollId = 0;
-        }
-
-        if (this._settings) {
-            removeKeybinding(SETTINGS_KEYS.TOGGLE_RECORD_SHORTCUT);
-            removeKeybinding(SETTINGS_KEYS.PUSH_TO_TALK_SHORTCUT);
-        }
-
-        this._service?.destroy();
-        this._service = undefined;
-
-        this._indicator?.destroy();
-        this._indicator = undefined;
-        this._settings = undefined;
     }
 }

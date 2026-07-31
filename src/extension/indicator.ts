@@ -121,30 +121,9 @@ export const Indicator = GObject.registerClass(
             // resuelven desde this.extension.path, asignado por la extensión
             // recién tras construir el indicador.
             this._buildMenu();
-            this._idleIcon = Gio.icon_new_for_string(
-                GLib.build_filenamev([
-                    this.extension.path,
-                    'data',
-                    'icons',
-                    'sound-symbolic.svg',
-                ])
-            );
-            this._recordIconA = Gio.icon_new_for_string(
-                GLib.build_filenamev([
-                    this.extension.path,
-                    'data',
-                    'icons',
-                    'sound-symbolic.svg',
-                ])
-            );
-            this._recordIconB = Gio.icon_new_for_string(
-                GLib.build_filenamev([
-                    this.extension.path,
-                    'data',
-                    'icons',
-                    'sound2-symbolic.svg',
-                ])
-            );
+            this._idleIcon = this._dataIcon('sound-symbolic.svg');
+            this._recordIconA = this._dataIcon('sound-symbolic.svg');
+            this._recordIconB = this._dataIcon('sound2-symbolic.svg');
             this._connectSettings();
             this.onStateChanged(AsrState.Idle);
         }
@@ -155,7 +134,7 @@ export const Indicator = GObject.registerClass(
 
             this._recordItem = new PopupMenu.PopupImageMenuItem(
                 _('Start recording'),
-                this._menuIcon('sound-symbolic.svg')
+                this._dataIcon('sound-symbolic.svg')
             );
             this._recordItem.connect('activate', () => {
                 menu.close();
@@ -167,7 +146,7 @@ export const Indicator = GObject.registerClass(
 
             this._copyItem = new PopupMenu.PopupImageMenuItem(
                 _('Copy text'),
-                this._menuIcon('copy-symbolic.svg')
+                this._dataIcon('copy-symbolic.svg')
             );
             this._copyItem.connect('activate', () => {
                 menu.close();
@@ -177,7 +156,7 @@ export const Indicator = GObject.registerClass(
 
             this._copyAudiosPathItem = new PopupMenu.PopupImageMenuItem(
                 _('Copy audios path'),
-                this._menuIcon('copy-symbolic.svg')
+                this._dataIcon('copy-symbolic.svg')
             );
             this._copyAudiosPathItem.connect('activate', () => {
                 menu.close();
@@ -187,7 +166,7 @@ export const Indicator = GObject.registerClass(
 
             this._processFileItem = new PopupMenu.PopupImageMenuItem(
                 _('Process audio file'),
-                this._menuIcon('audio-symbolic.svg')
+                this._dataIcon('audio-symbolic.svg')
             );
             this._processFileItem.connect('activate', () => {
                 menu.close();
@@ -199,7 +178,7 @@ export const Indicator = GObject.registerClass(
 
             const settingsItem = new PopupMenu.PopupImageMenuItem(
                 _('Preferences'),
-                this._menuIcon('settings-symbolic.svg')
+                this._dataIcon('settings-symbolic.svg')
             );
             settingsItem.connect('activate', () => {
                 menu.close();
@@ -209,7 +188,7 @@ export const Indicator = GObject.registerClass(
         }
 
         /** Crea un {@link Gio.Icon} a partir de un archivo SVG de data/icons. */
-        _menuIcon(name: string): Gio.Icon {
+        _dataIcon(name: string): Gio.Icon {
             return Gio.icon_new_for_string(
                 GLib.build_filenamev([
                     this.extension.path,
