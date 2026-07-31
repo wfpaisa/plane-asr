@@ -16,7 +16,7 @@
     "homepage": "https://github.com/wfpaisa/plane-asr#readme",
     "sideEffects": false,
     "scripts": {
-        "build": "node scripts/gen-model-catalog.mjs && rm -rf dist && tsc",
+        "build": "node scripts/gen-model-catalog.mjs && rm -rf dist && tsc && eslint --no-config-lookup --config eslint.dist.config.mjs --fix \"dist/**/*.js\" && prettier --write \"dist/**/*.js\" --ignore-path /dev/null --log-level warn",
         "pack": "make pack",
         "install": "make install",
         "setup": "make all && make pack && make install",
